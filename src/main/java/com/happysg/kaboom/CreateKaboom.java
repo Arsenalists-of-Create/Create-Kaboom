@@ -32,6 +32,7 @@ public class CreateKaboom {
         ModItems.register();
         ModBlocks.register();
         ModBlockEntityTypes.register();
+        ModProjectiles.register();
         ModCreativeTabs.register(modEventBus);
         ModLang.register();
         modEventBus.addListener(CreateKaboom::init);

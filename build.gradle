@@ -140,6 +140,9 @@ dependencies {
     compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
     runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
 
+    //Create:Radar
+    implementation fg.deobf("curse.maven:create-radars-1152836:6065670")
+
     //Clockwork
     compileOnly fg.deobf("maven.modrinth:create-clockwork:${minecraft_version}-${clockwork_version}")
 

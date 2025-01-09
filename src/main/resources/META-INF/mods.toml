@@ -32,7 +32,7 @@ ordering = "BEFORE"
 side = "BOTH"
 [[dependencies.create_kaboom]]
 modId = "createbigcannons"
-mandatory = false
-versionRange = "[5.6.0,)"
+mandatory = true
+versionRange = "[5.7.0,)"
 ordering = "BEFORE"
 side = "BOTH"

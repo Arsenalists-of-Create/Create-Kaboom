@@ -1,0 +1,7 @@
+// 1.20.1	2025-01-08T19:05:56.0474931	Registrate Provider for create_kaboom [Recipes, Advancements, Loot Tables, Tags (blocks), Tags (items), Tags (fluids), Tags (entity_types), Blockstates, Item models, Lang (en_us/en_ud)]
+83a1f5b9369ddb766129f20e8b74060d0157e4e7 assets/create_kaboom/blockstates/heavy_aerial_bomb.json
+929d481bbd0c272f1a646ae7822dd065bcd4c484 assets/create_kaboom/lang/en_ud.json
+2aa8b95851a5db99f8900ed844473ac2cd437f17 assets/create_kaboom/lang/en_us.json
+388ee1c5fbbc68227634ccccd52e1c75c2e1ea69 assets/create_kaboom/models/item/heavy_aerial_bomb.json
+8f7e8884be6a7e504f8284e07f6b701fc71e274c data/create_kaboom/loot_tables/blocks/heavy_aerial_bomb.json
+73eccbbde9db8da0b66ab01d92577c83dba1a8cf data/ritchiesprojectilelib/tags/entity_types/precise_motion.json

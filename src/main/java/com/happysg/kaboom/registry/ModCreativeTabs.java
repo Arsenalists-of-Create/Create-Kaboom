@@ -1,8 +1,6 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
-import com.happysg.kaboom.compat.Mods;
-import com.happysg.kaboom.compat.cbc.CBCItemsCompat;
 import com.simibubi.create.AllCreativeModeTabs;
 import com.simibubi.create.foundation.utility.Components;
 import net.minecraft.core.registries.Registries;
@@ -19,8 +17,8 @@ import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 public class ModCreativeTabs {
     public static DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, CreateKaboom.MODID);
 
-    public static final RegistryObject<CreativeModeTab> RADAR_CREATIVE_TAB = addTab("kaboom", "Create: Kaboom",
-            ModBlocks.MONITOR::asStack);
+    public static final RegistryObject<CreativeModeTab> KABOOM_CREATIVE_TAB = addTab("kaboom", "Create: Kaboom",
+            ModBlocks.HEAVY_AERIAL_BOMB::asStack);
 
 
     public static RegistryObject<CreativeModeTab> addTab(String id, String name, Supplier<ItemStack> icon) {
@@ -35,6 +33,7 @@ public class ModCreativeTabs {
     }
 
     private static void displayItems(CreativeModeTab.ItemDisplayParameters pParameters, CreativeModeTab.Output pOutput) {
+        pOutput.accept(ModBlocks.HEAVY_AERIAL_BOMB.asStack());
     }
 
 
