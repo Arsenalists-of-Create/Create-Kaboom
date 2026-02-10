@@ -1,16 +1,14 @@
 package com.happysg.kaboom.registry;
 
-import com.happysg.kaboom.CreateKaboom;
-import com.simibubi.create.foundation.ponder.PonderTag;
+
+import com.tterrag.registrate.util.entry.RegistryEntry;
+import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
+import net.minecraft.resources.ResourceLocation;
 
 public class ModPonderTags {
 
-    private static PonderTag create(String id) {
-        return new PonderTag(CreateKaboom.asResource(id));
-    }
-
-    public static void register() {
-
+    public static void register(PonderTagRegistrationHelper<ResourceLocation> helper) {
+        PonderTagRegistrationHelper<RegistryEntry<?>> entryHelper = helper.withKeyFunction(RegistryEntry::getId);
     }
 
 }

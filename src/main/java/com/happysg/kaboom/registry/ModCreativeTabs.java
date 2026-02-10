@@ -2,8 +2,8 @@ package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
 import com.simibubi.create.AllCreativeModeTabs;
-import com.simibubi.create.foundation.utility.Components;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -27,7 +27,7 @@ public class ModCreativeTabs {
         CreativeModeTab.Builder tabBuilder = CreativeModeTab.builder()
                 .icon(icon)
                 .displayItems(ModCreativeTabs::displayItems)
-                .title(Components.translatable(itemGroupId))
+                .title(Component.translatable(itemGroupId))
                 .withTabsBefore(AllCreativeModeTabs.PALETTES_CREATIVE_TAB.getKey());
         return CREATIVE_TABS.register(id, tabBuilder::build);
     }

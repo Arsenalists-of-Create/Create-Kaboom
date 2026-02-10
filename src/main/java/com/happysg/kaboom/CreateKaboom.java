@@ -1,9 +1,11 @@
 package com.happysg.kaboom;
 
 import com.happysg.kaboom.networking.ModMessages;
+import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.registry.*;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
+import net.createmod.ponder.foundation.PonderIndex;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -56,8 +58,7 @@ public class CreateKaboom {
     }
 
     public static void clientInit(final FMLClientSetupEvent event) {
-        ModPonderIndex.register();
-        ModPonderTags.register();
+        PonderIndex.addPlugin(new KaboomPonderPlugin());
     }
 
     public static void init(final FMLCommonSetupEvent event) {

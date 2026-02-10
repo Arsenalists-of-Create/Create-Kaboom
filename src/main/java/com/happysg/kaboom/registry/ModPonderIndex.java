@@ -1,12 +1,13 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
-import com.simibubi.create.foundation.ponder.PonderRegistrationHelper;
+import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
+import net.minecraft.resources.ResourceLocation;
+
 
 public class ModPonderIndex {
-    static final PonderRegistrationHelper HELPER = new PonderRegistrationHelper(CreateKaboom.MODID);
 
-    public static void register() {
+    public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         CreateKaboom.getLogger().info("Registering Ponder!");
 
     }

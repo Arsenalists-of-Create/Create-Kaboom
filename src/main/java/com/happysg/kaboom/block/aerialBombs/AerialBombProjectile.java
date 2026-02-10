@@ -26,17 +26,12 @@ import rbasamoyai.createbigcannons.block_armor_properties.BlockArmorPropertiesHa
 import rbasamoyai.createbigcannons.block_armor_properties.BlockArmorPropertiesProvider;
 import rbasamoyai.createbigcannons.config.CBCCfgMunitions;
 import rbasamoyai.createbigcannons.config.CBCConfigs;
-import rbasamoyai.createbigcannons.index.CBCBlocks;
-import rbasamoyai.createbigcannons.index.CBCMunitionPropertiesHandlers;
 import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 import rbasamoyai.createbigcannons.munitions.ImpactExplosion;
 import rbasamoyai.createbigcannons.munitions.ProjectileContext;
 import rbasamoyai.createbigcannons.munitions.ShellExplosion;
-import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBigCannonProjectile;
 import rbasamoyai.createbigcannons.munitions.big_cannon.ProjectileBlock;
-import rbasamoyai.createbigcannons.munitions.big_cannon.config.BigCannonCommonShellProperties;
 import rbasamoyai.createbigcannons.munitions.big_cannon.config.BigCannonFuzePropertiesComponent;
-import rbasamoyai.createbigcannons.munitions.big_cannon.config.BigCannonProjectilePropertiesComponent;
 import rbasamoyai.createbigcannons.munitions.config.components.BallisticPropertiesComponent;
 import rbasamoyai.createbigcannons.munitions.config.components.EntityDamagePropertiesComponent;
 import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
@@ -138,8 +133,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         double incidence = Math.max(0, curVel.normalize().dot(normal.reverse()));
         double velMag = curVel.length();
         double mass = this.getProjectileMass();
-        double bonusMomentum = 1 + Math.max(0, (velMag - CBCConfigs.SERVER.munitions.minVelocityForPenetrationBonus.getF())
-                * CBCConfigs.SERVER.munitions.penetrationBonusScale.getF());
+        double bonusMomentum = 1 + Math.max(0, (velMag - CBCConfigs.server().munitions.minVelocityForPenetrationBonus.getF())
+                * CBCConfigs.server().munitions.penetrationBonusScale.getF());
         double incidentVel = velMag * incidence;
         double momentum = mass * incidentVel * bonusMomentum;
 
@@ -149,11 +144,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         double bounceBonus = Math.max(1 - hardnessPenalty, 0);
 
         double projectileDeflection = ballistics.deflection();
-        double baseChance = CBCConfigs.SERVER.munitions.baseProjectileBounceChance.getF();
+        double baseChance = CBCConfigs.server().munitions.baseProjectileBounceChance.getF();
         double bounceChance = projectileDeflection < 1e-2d || incidence > projectileDeflection ? 0 : Math.max(baseChance, 1 - incidence / projectileDeflection) * bounceBonus;
 
         boolean surfaceImpact = this.canHitSurface();
-        boolean canBounce = CBCConfigs.SERVER.munitions.projectilesCanBounce.get();
+        boolean canBounce = CBCConfigs.server().munitions.projectilesCanBounce.get();
         boolean blockBroken = toughnessPenalty < 1e-2d && !unbreakable;
         ImpactResult.KinematicOutcome outcome;
         if (surfaceImpact && canBounce && this.level().getRandom().nextDouble() < bounceChance) {
@@ -280,7 +275,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     }
 
     protected void detonate(Position position) {
-        ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 3, false, ((CBCCfgMunitions.GriefState)CBCConfigs.SERVER.munitions.damageRestriction.get()).explosiveInteraction());
+        ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 3, false, ((CBCCfgMunitions.GriefState)CBCConfigs.server().munitions.damageRestriction.get()).explosiveInteraction());
         CreateBigCannons.handleCustomExplosion(this.level(), explosion);
     }
 

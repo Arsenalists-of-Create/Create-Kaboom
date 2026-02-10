@@ -4,6 +4,8 @@ plugins {
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.parchmentmc.librarian.forgegradle' version '1.+'
     id 'org.spongepowered.mixin' version '0.7.+'
+    id 'com.gradleup.shadow' version '8.3.5'
+    id 'org.jetbrains.kotlin.jvm'
 }
 
 String buildNumber = System.getenv("GITHUB_RUN_NUMBER")
@@ -62,8 +64,10 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
+    gradlePluginPortal()
     mavenCentral()
     mavenLocal()
+    maven { url 'https://plugins.gradle.org/' }
     maven { url 'https://maven.parchmentmc.org' }
     maven { url 'https://maven.quiltmc.org/repository/release' }
     maven { url 'https://maven.blamejared.com/' }
@@ -73,14 +77,10 @@ repositories {
     }
     maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
 
-    maven {
-        url 'https://maven.tterrag.com/'
-        content {
-            includeGroup 'com.jozufozu.flywheel'
-            includeGroup 'com.tterrag.registrate'
-            includeGroup 'com.simibubi.create'
-        }
-    }
+    maven { url = "https://maven.createmod.net" } // Create, Ponder, Flywheel
+    maven { url = "https://maven.tterrag.com" } // Registrate
+    maven { url = "https://raw.githubusercontent.com/Fuzss/modresources/main/maven/" } // ForgeConfigAPIPort
+
     maven {
         url 'https://api.modrinth.com/maven'
         content { includeGroup 'maven.modrinth' }
@@ -101,8 +101,8 @@ repositories {
     }
 
     maven {
-        name = "Valkyrien Skies Internal"
-        url = 'https://maven.valkyrienskies.org'
+        name = "Valkyrien Skies"
+        url = "https://maven.valkyrienskies.org"
     }
 
     maven { url 'https://modmaven.dev/' }
@@ -114,11 +114,17 @@ repositories {
             includeGroup "curse.maven"
         }
     }
-
     maven {
-        // location of maven for CC: Tweaked
-        name = "squiddev"
-        url = "https://squiddev.cc/maven/"
+        url "https://maven.squiddev.cc"
+        content {
+            includeGroup("cc.tweaked")
+        }
+    }
+    maven { url = "https://thedarkcolour.github.io/KotlinForForge/" }
+
+
+    flatDir {
+        dirs 'lib'
     }
 
 }
@@ -127,13 +133,17 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     //Create
-    implementation fg.deobf("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
-    implementation fg.deobf("com.jozufozu.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}")
-    implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}")
+    implementation(fg.deobf("com.simibubi.create:create-${minecraft_version}:${create_version}:slim"))
+    implementation(fg.deobf("net.createmod.ponder:Ponder-Forge-${minecraft_version}:${ponder_version}"))
+    compileOnly(fg.deobf("dev.engine-room.flywheel:flywheel-forge-api-${minecraft_version}:${flywheel_version}"))
+    runtimeOnly(fg.deobf("dev.engine-room.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}"))
+    implementation(fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}"))
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
+    implementation("io.github.llamalad7:mixinextras-forge:0.4.1")
 
     //CBC
-    implementation fg.deobf("com.rbasamoyai:createbigcannons:${cbc_version}") { transitive = false }
-    implementation fg.deobf("com.rbasamoyai:ritchiesprojectilelib:${rpl_version}") { transitive = false }
+    implementation fg.deobf("maven.modrinth:create-big-cannons:${cbc_version}") { transitive = false }
+    implementation fg.deobf("maven.modrinth:rpl:${rpl_version}") { transitive = false }
 
     //JEI
     compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
@@ -143,25 +153,23 @@ dependencies {
     //Create:Radar
     implementation fg.deobf("curse.maven:create-radars-1152836:6065670")
 
-    //Clockwork
-    compileOnly fg.deobf("maven.modrinth:create-clockwork:${minecraft_version}-${clockwork_version}")
-
+    compileOnly fg.deobf("curse.maven:create-clockwork-807792:7418660")
+    compileOnly fg.deobf("maven.modrinth:architectury-api:${architectury_api_version}+forge")
     //Valkyrien Skies
-    implementation("org.valkyrienskies.core:api:${vs_core_version}")
-    implementation("org.valkyrienskies.core:impl:${vs_core_version}")
-    implementation("org.valkyrienskies.core:api-game:${vs_core_version}")
-    implementation("org.valkyrienskies.core:util:${vs_core_version}")
-    implementation fg.deobf("org.valkyrienskies:valkyrienskies-120-forge:${vs2_version}")
-    implementation "org.joml:joml:1.10.5"
-    implementation "com.fasterxml.jackson.core:jackson-annotations:2.13.3"
-    implementation "thedarkcolour:kotlinforforge:${forge_kotlin_version}"
+    implementation("org.joml:joml-primitives:1.10.0")
+    implementation("maven.modrinth:kotlin-for-forge:${forge_kotlin_version}")
+    implementation("org.valkyrienskies.core:api:${vs_core_version}") { transitive = false }
+    implementation("org.valkyrienskies.core:impl:${vs_core_version}"){ transitive = false }
+    implementation("org.valkyrienskies.core:util:${vs_core_version}"){ transitive = false }
+    implementation(fg.deobf("org.valkyrienskies:valkyrienskies-120-forge:${vs2_version}")) {transitive = false}
 
-    //CC
-    compileOnly("cc.tweaked:cc-tweaked-${minecraft_version}-core-api:${cc_tweaked_version}")
-    compileOnly fg.deobf("cc.tweaked:cc-tweaked-${minecraft_version}-forge-api:${cc_tweaked_version}")
-    runtimeOnly fg.deobf("cc.tweaked:cc-tweaked-${minecraft_version}-forge:${cc_tweaked_version}")
+    // Forge Gradle
+    compileOnly("cc.tweaked:cc-tweaked-$minecraft_version-core-api:$cc_tweaked_version")
+    compileOnly(fg.deobf("cc.tweaked:cc-tweaked-$minecraft_version-forge-api:$cc_tweaked_version"))
+    runtimeOnly(fg.deobf("cc.tweaked:cc-tweaked-$minecraft_version-forge:$cc_tweaked_version"))
 
     annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 
 }
 
