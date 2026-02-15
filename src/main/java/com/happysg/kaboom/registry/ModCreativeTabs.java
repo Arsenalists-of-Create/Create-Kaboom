@@ -34,6 +34,23 @@ public class ModCreativeTabs {
 
     private static void displayItems(CreativeModeTab.ItemDisplayParameters pParameters, CreativeModeTab.Output pOutput) {
         pOutput.accept(ModBlocks.HEAVY_AERIAL_BOMB.asStack());
+        pOutput.accept(ModBlocks.AP_HEAVY_AERIAL_BOMB.asStack());
+        pOutput.accept(ModBlocks.FRAG_HEAVY_AERIAL_BOMB.asStack());
+        pOutput.accept(ModBlocks.CLUSTER_HEAVY_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.FLUID_AERIAL_BOMB.asStack());
+        pOutput.accept(ModBlocks.FIRE_HEAVY_AERIAL_BOMB.asStack());
+
+        pOutput.accept(ModBlocks.SMALL_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.AP_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.FRAG_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.FLUID_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.FIRE_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
+
+
+
+
+        pOutput.accept(ModItems.ALTITUDE_FUZE);
     }
 
 

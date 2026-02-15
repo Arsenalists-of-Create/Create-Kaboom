@@ -1,4 +1,4 @@
-package com.happysg.kaboom.block.aerialBombs;
+package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -25,13 +25,21 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
         super(context);
         this.shadowRadius = 0.5F;
         this.dispatcher = context.getBlockRenderDispatcher();
+
     }
 
+
+
     public void render(T entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-        BlockState blockstate = entity.getState();
-        if (blockstate.getRenderShape() == RenderShape.MODEL) {
+        BlockState renderState = entity.getState();
+        int count =1;
+
+        if (renderState.hasProperty(AerialBombBlock.SIZE)) {
+            renderState = renderState.setValue(AerialBombBlock.COUNT,1);
+        }
+        if (renderState.getRenderShape() == RenderShape.MODEL) {
             Level level = entity.level();
-            if (blockstate != level.getBlockState(entity.blockPosition()) && blockstate.getRenderShape() != RenderShape.INVISIBLE) {
+            if (renderState != level.getBlockState(entity.blockPosition()) && renderState.getRenderShape() != RenderShape.INVISIBLE) {
                 float i = Math.min(1.0f, (float) entity.getTime() / entity.getTimeRequired());
                 poseStack.pushPose();
                 Direction facing = entity.getFacing();
@@ -56,7 +64,7 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
                 poseStack.translate(-.5, 0.0, -.5);
 
 
-                BakedModel model = this.dispatcher.getBlockModel(blockstate);
+                BakedModel model = this.dispatcher.getBlockModel(renderState);
 
                 Minecraft.getInstance()
                         .getItemRenderer()

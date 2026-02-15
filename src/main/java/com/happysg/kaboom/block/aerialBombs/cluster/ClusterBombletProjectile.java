@@ -1,10 +1,9 @@
-package com.happysg.kaboom.block.aerialBombs;
+package com.happysg.kaboom.block.aerialBombs.cluster;
 
-import com.happysg.kaboom.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.Position;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -16,7 +15,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -41,82 +39,134 @@ import rbasamoyai.createbigcannons.utils.CBCUtils;
 import javax.annotation.Nonnull;
 import java.util.function.Predicate;
 
-public class AerialBombProjectile extends AbstractCannonProjectile {
+public class ClusterBombletProjectile extends AbstractCannonProjectile {
 
-    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1,.01,false,2.0f,1,1,0.70f);
-    public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30,false,true,true,2);
+    // Lighter, “bomblet-ish” ballistics: slightly less gravity than your big bomb
+    public static final BallisticPropertiesComponent BALLISTICS =
+            new BallisticPropertiesComponent(
+                    -0.05,   // gravity-ish (CBC uses its own model; you’ve already used negatives)
+                    0.01,    // drag
+                    false,   // can penetrate fluids etc (depends on CBC internals)
+                    0.35f,   // toughness
+                    1, 1,
+                    0.80f    // restitution / bounce-ish
+            );
 
-    protected static final EntityDataAccessor<Integer> TIME_REQUIRED = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
-    protected static final EntityDataAccessor<Integer> TIME = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
-    protected static final EntityDataAccessor<BlockState> STATE = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.BLOCK_STATE);
+    public static final EntityDamagePropertiesComponent DAMAGE =
+            new EntityDamagePropertiesComponent(10, false, true, true, 1);
 
-    private ItemStack fuze;
-    private int explosionCountdown;
+    private static final EntityDataAccessor<Integer> LIFE =
+            SynchedEntityData.defineId(ClusterBombletProjectile.class, EntityDataSerializers.INT);
 
-    public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
+    private ItemStack fuze = ItemStack.EMPTY;
+
+    // airburst timer (ticks); -1 means disabled
+    private int explosionCountdown = -1;
+
+    // configuration knobs
+    private int size = 1;
+    private float explosionPower = 1;
+    private boolean causesFire = false;
+
+    public ClusterBombletProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
-        this.fuze = ItemStack.EMPTY;
-        this.explosionCountdown = -1;
+    }
+
+    // --- Quick setup from your cluster bomb ---
+    public ClusterBombletProjectile configure(ItemStack fuzeStack, int size, float explosionPower, boolean causesFire, int airburstTicks) {
+        setFuzeStack(fuzeStack);
+        this.size = Math.max(1, size);
+        this.explosionPower = explosionPower;
+        this.causesFire = causesFire;
+        this.explosionCountdown = airburstTicks <= 0 ? -1 : airburstTicks;
+        return this;
     }
 
     @Override
     public @NotNull EntityDamagePropertiesComponent getDamageProperties() {
-        return DAMAGE_PROPERTIES;
+        return DAMAGE;
     }
-
 
     @Override
     protected @NotNull BallisticPropertiesComponent getBallisticProperties() {
-        return BALLISTIC_PROPERTIES;
+        return BALLISTICS;
     }
 
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(TIME, 0);
-        this.entityData.define(TIME_REQUIRED, 10);
-        this.entityData.define(STATE, ModBlocks.HEAVY_AERIAL_BOMB.getDefaultState());
+        this.entityData.define(LIFE, 0);
     }
 
-    public void setState(BlockState pState) {
-        this.entityData.set(STATE, pState);
-    }
-
-    public BlockState getState() {
-        return this.entityData.get(STATE);
-    }
-
-    public int getTime() {
-        return this.entityData.get(TIME);
-    }
-
-    public int getTimeRequired() {
-        return this.entityData.get(TIME_REQUIRED);
-    }
-
-    public void setFuze(ItemStack stack) {
-        this.fuze = stack != null && !stack.isEmpty() ? stack : ItemStack.EMPTY;
-    }
-
+    @Override
     public void tick() {
         super.tick();
 
-        if (!this.level().isClientSide && this.explosionCountdown > 0) {
-            --this.explosionCountdown;
+        // --- client-only smoke trail ---
+        if (level().isClientSide) {
+            Vec3 v = getDeltaMovement();
+            double speedSqr = v.lengthSqr();
+
+            // only trail if moving a bit
+            if (speedSqr > 0.01) {
+                // spawn slightly behind the projectile
+                Vec3 back = v.normalize().scale(-0.15);
+                double px = getX() + back.x;
+                double py = getY() + back.y;
+                double pz = getZ() + back.z;
+
+                // nice “wispy” smoke
+                level().addParticle(
+                        net.minecraft.core.particles.ParticleTypes.CAMPFIRE_COSY_SMOKE, true,
+                        px, py, pz,
+                        0.0, 0.01, 0.0
+                );
+
+                // occasional puff (looks more chaotic)
+                if (random.nextInt(4) == 0) {
+                    level().addParticle(
+                            net.minecraft.core.particles.ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                            px, py, pz,
+                            0.0, 0.02, 0.0
+                    );
+                }
+            }
+            return; // don’t run server logic on client
+        }
+        super.tick();
+
+        if (level().isClientSide) return;
+
+        entityData.set(LIFE, entityData.get(LIFE) + 1);
+
+        // hard safety kill (10s)
+        if (entityData.get(LIFE) > 400) {
+            detonate(position());
+            removeNextTick = true;
+            return;
         }
 
 
-        if(!level().isClientSide) {
-            this.entityData.set(TIME, this.entityData.get(TIME) + 1);
-        }
-
-        if (this.canDetonate((fz) -> fz.onProjectileTick(this.fuze, this)) || !this.level().isClientSide && this.explosionCountdown == 0) {
-            this.detonate(this.position());
+        // --- server-side safety kill only (does NOT explode) ---
+        int life = this.entityData.get(LIFE) + 1;
+        this.entityData.set(LIFE, life);
+        if (life > 400) {
+            this.discard();
             this.removeNextTick = true;
         }
-
     }
 
+    @Override
+    protected boolean onImpact(HitResult hitResult, ImpactResult impactResult, ProjectileContext projectileContext) {
+        super.onImpact(hitResult, impactResult, projectileContext);
+        detonate(hitResult.getLocation());
+        return true;
+    }
+
+    @Override
+    protected boolean onClip(ProjectileContext ctx, Vec3 start, Vec3 end) {
+        return super.onClip(ctx, start, end);
+    }
     @Override
     protected ImpactResult calculateBlockPenetration(ProjectileContext projectileContext, BlockState state, BlockHitResult blockHitResult) {
         BlockPos pos = blockHitResult.getBlockPos();
@@ -133,6 +183,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         double incidence = Math.max(0, curVel.normalize().dot(normal.reverse()));
         double velMag = curVel.length();
         double mass = this.getProjectileMass();
+
         double bonusMomentum = 1 + Math.max(0, (velMag - CBCConfigs.server().munitions.minVelocityForPenetrationBonus.getF())
                 * CBCConfigs.server().munitions.penetrationBonusScale.getF());
         double incidentVel = velMag * incidence;
@@ -205,106 +256,79 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return new ImpactResult(outcome, shatter);
     }
 
-
-    protected boolean onClip(ProjectileContext ctx, Vec3 start, Vec3 end) {
-        if (super.onClip(ctx, start, end)) {
-            return true;
-        } else {
-            boolean baseFuze = this.getFuzeProperties().baseFuze();
-            if (this.canDetonate((fz) -> fz.onProjectileClip(this.fuze, this, start, end, ctx, baseFuze))) {
-                this.detonate(start);
-                return true;
-            } else {
-                return false;
-            }
-        }
-    }
-
-    protected boolean onImpact(HitResult hitResult, AbstractCannonProjectile.ImpactResult impactResult, ProjectileContext projectileContext) {
-        super.onImpact(hitResult, impactResult, projectileContext);
-        boolean baseFuze = this.getFuzeProperties().baseFuze();
-        if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, impactResult, baseFuze))) {
-            this.detonate(hitResult.getLocation());
-            return true;
-        } else {
-            return false;
-        }
-    }
-
+    // Keep this consistent with your AerialBombProjectile
     @Nonnull
-    protected BigCannonFuzePropertiesComponent getFuzeProperties(){
+    protected BigCannonFuzePropertiesComponent getFuzeProperties() {
         return new BigCannonFuzePropertiesComponent(false);
     }
 
-    public void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.put("Fuze", this.fuze.save(new CompoundTag()));
-        if (this.explosionCountdown >= 0) {
-            tag.putInt("ExplosionCountdown", this.explosionCountdown);
-        }
+    // --- CBC ShellExplosion detonation (the important part) ---
+    protected void detonate(Position pos) {
+        if (level().isClientSide) return;
 
+        float pwr = explosionPower / Math.max(1, size);
+
+        ShellExplosion explosion = new ShellExplosion(
+                level(),
+                this,
+                this.indirectArtilleryFire(false),
+                pos.x(), pos.y(), pos.z(),
+                pwr,
+                causesFire,
+                CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
+        );
+
+        CreateBigCannons.handleCustomExplosion(level(), explosion);
     }
 
-    public void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.fuze = ItemStack.of(tag.getCompound("Fuze"));
-        this.explosionCountdown = tag.contains("ExplosionCountdown", 3) ? tag.getInt("ExplosionCountdown") : -1;
+    // --- Fuze + countdown API ---
+    public void setFuzeStack(ItemStack stack) {
+        this.fuze = (stack == null || stack.isEmpty()) ? ItemStack.EMPTY : stack.copy();
+        // don’t force-reset countdown here; configure() decides
+    }
+
+    public void setExplosionCountdown(int ticks) {
+        this.explosionCountdown = Math.max(ticks, -1);
     }
 
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
-        boolean var10000;
-        if (!this.level().isClientSide && this.level().hasChunkAt(this.blockPosition()) && !this.isRemoved()) {
-            Item var3 = this.fuze.getItem();
-            if (var3 instanceof FuzeItem) {
-                FuzeItem fuzeItem = (FuzeItem)var3;
-                if (cons.test(fuzeItem)) {
-                    var10000 = true;
-                    return var10000;
-                }
+        if (!level().isClientSide && level().hasChunkAt(blockPosition()) && !isRemoved()) {
+            Item item = fuze.getItem();
+            if (item instanceof FuzeItem fuzeItem) {
+                return cons.test(fuzeItem);
             }
         }
-
-        var10000 = false;
-        return var10000;
+        return false;
     }
 
-    /** @deprecated */
-    @Deprecated
-    protected void detonate() {
-        this.detonate(this.position());
+    // --- NBT ---
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+
+        tag.put("Fuze", fuze.save(new CompoundTag()));
+        if (explosionCountdown >= 0) tag.putInt("ExplosionCountdown", explosionCountdown);
+
+        tag.putInt("Size", size);
+        tag.putFloat("ExplosionPower", explosionPower);
+        tag.putBoolean("CausesFire", causesFire);
+
+        tag.putInt("Life", entityData.get(LIFE));
     }
 
-    protected void detonate(Position position) {
-        ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 3, false, ((CBCCfgMunitions.GriefState)CBCConfigs.server().munitions.damageRestriction.get()).explosiveInteraction());
-        CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+
+        fuze = tag.contains("Fuze", Tag.TAG_COMPOUND) ? ItemStack.of(tag.getCompound("Fuze")) : ItemStack.EMPTY;
+        explosionCountdown = tag.contains("ExplosionCountdown", Tag.TAG_INT) ? tag.getInt("ExplosionCountdown") : -1;
+
+        size = Math.max(1, tag.getInt("Size"));
+        explosionPower = tag.contains("ExplosionPower", Tag.TAG_FLOAT) ? tag.getFloat("ExplosionPower") : 3.0f;
+        causesFire = tag.getBoolean("CausesFire");
+
+        if (tag.contains("Life", Tag.TAG_INT)) entityData.set(LIFE, tag.getInt("Life"));
     }
 
-    public boolean canLingerInGround() {
-        boolean var10000;
-        if (!this.level().isClientSide && this.level().hasChunkAt(this.blockPosition())) {
-            Item var2 = this.fuze.getItem();
-            if (var2 instanceof FuzeItem) {
-                FuzeItem fuzeItem = (FuzeItem)var2;
-                if (fuzeItem.canLingerInGround(this.fuze, this)) {
-                    var10000 = true;
-                    return var10000;
-                }
-            }
-        }
 
-        var10000 = false;
-        return var10000;
-    }
-
-    public void setExplosionCountdown(int value) {
-        this.explosionCountdown = Math.max(value, -1);
-    }
-
-    public int getExplosionCountdown() {
-        return this.explosionCountdown;
-    }
-
-    public Direction getFacing() {
-        return this.getState().getValue(BlockStateProperties.HORIZONTAL_FACING);
-    }
 }

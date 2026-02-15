@@ -1,6 +1,7 @@
 package com.happysg.kaboom;
 
 import com.happysg.kaboom.networking.ModMessages;
+import com.happysg.kaboom.networking.NetworkHandler;
 import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.registry.*;
 import com.mojang.logging.LogUtils;
@@ -24,7 +25,7 @@ public class CreateKaboom {
     public static final String MODID = "create_kaboom";
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(MODID);
+     public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(MODID);
 
     public CreateKaboom() {
         getLogger().info("Initializing Create Kaboom!");
@@ -33,12 +34,14 @@ public class CreateKaboom {
         REGISTRATE.registerEventListeners(modEventBus);
         ModItems.register();
         ModBlocks.register();
+        NetworkHandler.register();
         ModBlockEntityTypes.register();
         ModProjectiles.register();
         ModCreativeTabs.register(modEventBus);
         ModLang.register();
         modEventBus.addListener(CreateKaboom::init);
         modEventBus.addListener(CreateKaboom::clientInit);
+
     }
 
     public static Logger getLogger() {
