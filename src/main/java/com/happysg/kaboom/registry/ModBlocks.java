@@ -12,7 +12,7 @@ import com.happysg.kaboom.block.aerialBombs.small.ApSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
-import com.happysg.kaboom.block.missiles.bigMissle.BigMissileHTBooster;
+
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.builders.BlockBuilder;
@@ -36,8 +36,7 @@ public class ModBlocks {
     public static final BlockEntry<ClusterHeavyAerialBombBlock> CLUSTER_HEAVY_AERIAL_BOMB =
             bomb("cluster_heavy_aerial_bomb", ClusterHeavyAerialBombBlock::new).register();
 
-    public static final BlockEntry<FireHeavyAerialBombBlock> FIRE_HEAVY_AERIAL_BOMB =
-            bomb("fire_heavy_aerial_bomb", FireHeavyAerialBombBlock::new).register();
+
 
     public static final BlockEntry<FragHeavyAerialBombBlock> FRAG_HEAVY_AERIAL_BOMB =
             bomb("frag_heavy_aerial_bomb", FragHeavyAerialBombBlock::new).register();
@@ -52,9 +51,6 @@ public class ModBlocks {
 
     public static final BlockEntry<ApSmallAerialBombBlock> AP_AERIAL_BOMB =
             bomb("ap_aerial_bomb", ApSmallAerialBombBlock::new).register();
-
-    public static final BlockEntry<FireSmallAerialBombBlock> FIRE_AERIAL_BOMB =
-            bomb("fire_aerial_bomb", FireSmallAerialBombBlock::new).register();
 
     public static final BlockEntry<FragSmallAerialBombBlock> FRAG_AERIAL_BOMB =
             bomb("frag_aerial_bomb", FragSmallAerialBombBlock::new).register();
