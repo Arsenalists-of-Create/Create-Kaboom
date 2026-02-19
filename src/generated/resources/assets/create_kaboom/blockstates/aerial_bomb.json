@@ -1,123 +1,123 @@
 {
   "variants": {
     "facing=east,fuzed=false,count=1": {
-      "model": "create_kaboom:block/aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb",
       "y": 90
     },
     "facing=east,fuzed=false,count=2": {
-      "model": "create_kaboom:block/aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_2",
       "y": 90
     },
     "facing=east,fuzed=false,count=3": {
-      "model": "create_kaboom:block/aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_3",
       "y": 90
     },
     "facing=east,fuzed=false,count=4": {
-      "model": "create_kaboom:block/aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_4",
       "y": 90
     },
     "facing=east,fuzed=true,count=1": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb",
       "y": 90
     },
     "facing=east,fuzed=true,count=2": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_2",
       "y": 90
     },
     "facing=east,fuzed=true,count=3": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_3",
       "y": 90
     },
     "facing=east,fuzed=true,count=4": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_4",
       "y": 90
     },
     "facing=north,fuzed=false,count=1": {
-      "model": "create_kaboom:block/aerial_bomb"
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb"
     },
     "facing=north,fuzed=false,count=2": {
-      "model": "create_kaboom:block/aerial_bomb_2"
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_2"
     },
     "facing=north,fuzed=false,count=3": {
-      "model": "create_kaboom:block/aerial_bomb_3"
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_3"
     },
     "facing=north,fuzed=false,count=4": {
-      "model": "create_kaboom:block/aerial_bomb_4"
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_4"
     },
     "facing=north,fuzed=true,count=1": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb"
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb"
     },
     "facing=north,fuzed=true,count=2": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_2"
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_2"
     },
     "facing=north,fuzed=true,count=3": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_3"
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_3"
     },
     "facing=north,fuzed=true,count=4": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_4"
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_4"
     },
     "facing=south,fuzed=false,count=1": {
-      "model": "create_kaboom:block/aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb",
       "y": 180
     },
     "facing=south,fuzed=false,count=2": {
-      "model": "create_kaboom:block/aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_2",
       "y": 180
     },
     "facing=south,fuzed=false,count=3": {
-      "model": "create_kaboom:block/aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_3",
       "y": 180
     },
     "facing=south,fuzed=false,count=4": {
-      "model": "create_kaboom:block/aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_4",
       "y": 180
     },
     "facing=south,fuzed=true,count=1": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb",
       "y": 180
     },
     "facing=south,fuzed=true,count=2": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_2",
       "y": 180
     },
     "facing=south,fuzed=true,count=3": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_3",
       "y": 180
     },
     "facing=south,fuzed=true,count=4": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_4",
       "y": 180
     },
     "facing=west,fuzed=false,count=1": {
-      "model": "create_kaboom:block/aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb",
       "y": 270
     },
     "facing=west,fuzed=false,count=2": {
-      "model": "create_kaboom:block/aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_2",
       "y": 270
     },
     "facing=west,fuzed=false,count=3": {
-      "model": "create_kaboom:block/aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_3",
       "y": 270
     },
     "facing=west,fuzed=false,count=4": {
-      "model": "create_kaboom:block/aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/aerial_bomb_4",
       "y": 270
     },
     "facing=west,fuzed=true,count=1": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb",
       "y": 270
     },
     "facing=west,fuzed=true,count=2": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_2",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_2",
       "y": 270
     },
     "facing=west,fuzed=true,count=3": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_3",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_3",
       "y": 270
     },
     "facing=west,fuzed=true,count=4": {
-      "model": "create_kaboom:block/fuzed_aerial_bomb_4",
+      "model": "create_kaboom:block/aerial_bomb/fuzed_aerial_bomb_4",
       "y": 270
     }
   }

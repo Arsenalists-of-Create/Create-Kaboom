@@ -1,0 +1,10 @@
+{
+  "missile_engine": {
+    "sounds": [
+      {
+        "name": "create_kaboom:missile_loop",
+        "stream": false
+      }
+    ]
+  }
+}

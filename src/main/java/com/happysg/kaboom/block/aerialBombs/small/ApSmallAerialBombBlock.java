@@ -1,5 +1,6 @@
 package com.happysg.kaboom.block.aerialBombs.small;
 
+import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -12,8 +13,7 @@ import net.minecraft.world.phys.BlockHitResult;
 
 public class ApSmallAerialBombBlock extends SmallAerialBombBlock {
     public ApSmallAerialBombBlock(Properties properties) {
-        super(properties);
-        registerDefaultState(this.defaultBlockState().setValue(TYPE, 2).setValue(SIZE,2));
+        super(properties, AerialBombProjectile.BombType.AP);
     }
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos,

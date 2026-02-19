@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "create_kaboom:block/missile/missile_head_fuze"
+    },
+    "facing=east": {
+      "model": "create_kaboom:block/missile/missile_head_fuze",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "create_kaboom:block/missile/missile_head_fuze",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "create_kaboom:block/missile/missile_head_fuze",
+      "y": 270
+    },
+    "facing=up": {
+      "model": "create_kaboom:block/missile/missile_head_fuze",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "create_kaboom:block/missile/missile_head_fuze",
+      "x": 90
+    }
+  }
+}

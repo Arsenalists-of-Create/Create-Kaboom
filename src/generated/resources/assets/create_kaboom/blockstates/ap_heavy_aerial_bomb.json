@@ -1,33 +1,33 @@
 {
   "variants": {
     "facing=east,fuzed=false": {
-      "model": "create_kaboom:block/ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/ap_heavy_aerial_bomb",
       "y": 90
     },
     "facing=east,fuzed=true": {
-      "model": "create_kaboom:block/fuzed_ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/fuzed_ap_heavy_aerial_bomb",
       "y": 90
     },
     "facing=north,fuzed=false": {
-      "model": "create_kaboom:block/ap_heavy_aerial_bomb"
+      "model": "create_kaboom:block/heavy_bomb/ap_heavy_aerial_bomb"
     },
     "facing=north,fuzed=true": {
-      "model": "create_kaboom:block/fuzed_ap_heavy_aerial_bomb"
+      "model": "create_kaboom:block/heavy_bomb/fuzed_ap_heavy_aerial_bomb"
     },
     "facing=south,fuzed=false": {
-      "model": "create_kaboom:block/ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/ap_heavy_aerial_bomb",
       "y": 180
     },
     "facing=south,fuzed=true": {
-      "model": "create_kaboom:block/fuzed_ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/fuzed_ap_heavy_aerial_bomb",
       "y": 180
     },
     "facing=west,fuzed=false": {
-      "model": "create_kaboom:block/ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/ap_heavy_aerial_bomb",
       "y": 270
     },
     "facing=west,fuzed=true": {
-      "model": "create_kaboom:block/fuzed_ap_heavy_aerial_bomb",
+      "model": "create_kaboom:block/heavy_bomb/fuzed_ap_heavy_aerial_bomb",
       "y": 270
     }
   }

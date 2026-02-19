@@ -46,6 +46,8 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
 
 
+        pOutput.accept(ModBlocks.MISSILE_THRUSTER);
+        pOutput.accept(ModBlocks.MISSILE_FUEL);
 
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);

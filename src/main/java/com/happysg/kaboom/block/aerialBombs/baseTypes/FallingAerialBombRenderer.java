@@ -34,9 +34,8 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
         BlockState renderState = entity.getState();
         int count =1;
 
-        if (renderState.hasProperty(AerialBombBlock.SIZE)) {
-            renderState = renderState.setValue(AerialBombBlock.COUNT,1);
-        }
+
+        renderState = renderState.setValue(AerialBombBlock.COUNT,1);
         if (renderState.getRenderShape() == RenderShape.MODEL) {
             Level level = entity.level();
             if (renderState != level.getBlockState(entity.blockPosition()) && renderState.getRenderShape() != RenderShape.INVISIBLE) {

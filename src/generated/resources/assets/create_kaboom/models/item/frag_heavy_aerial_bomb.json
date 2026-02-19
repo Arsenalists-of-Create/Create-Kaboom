@@ -1,3 +1,4 @@
 {
-  "parent": "create_kaboom:block/frag_heavy_aerial_bomb"
+  "parent": "create_kaboom:block/heavy_bomb/frag_heavy_aerial_bomb"
 }
+

@@ -1,3 +1,4 @@
 {
-  "parent": "create_kaboom:block/fluid_heavy_aerial_bomb"
+  "parent": "create_kaboom:block/heavy_bomb/fluid_heavy_aerial_bomb"
 }
+

@@ -1,3 +1,4 @@
 {
-  "parent": "create_kaboom:block/tiny_aerial_bomb"
+  "parent": "create_kaboom:block/tiny_bomb/tiny_aerial_bomb"
 }
+

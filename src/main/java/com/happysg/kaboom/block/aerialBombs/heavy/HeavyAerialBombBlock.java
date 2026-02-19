@@ -1,10 +1,10 @@
 package com.happysg.kaboom.block.aerialBombs.heavy;
 
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlock;
+import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 
 public class HeavyAerialBombBlock extends AerialBombBlock {
     public HeavyAerialBombBlock(Properties properties) {
-        super(properties);
-        registerDefaultState(this.defaultBlockState().setValue(TYPE, 1));
+        super(properties, AerialBombProjectile.BombType.HE,1);
     }
 }

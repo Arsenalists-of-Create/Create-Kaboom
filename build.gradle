@@ -153,7 +153,7 @@ dependencies {
     compileOnly  fg.deobf(files("lib/createenergycannons-0.1+mc1.20.1.jar"))
     compileOnly fg.deobf(files("lib/create_radar-0.4+mc1.20.1.jar"))
 
-
+    implementation fg.deobf("curse.maven:create-radars-1152836:7647038")
     compileOnly fg.deobf("curse.maven:create-clockwork-807792:7418660")
     compileOnly fg.deobf("maven.modrinth:architectury-api:${architectury_api_version}+forge")
     //Valkyrien Skies

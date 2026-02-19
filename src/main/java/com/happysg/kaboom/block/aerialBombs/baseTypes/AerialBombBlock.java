@@ -4,11 +4,15 @@ import com.happysg.kaboom.registry.ModBlockEntityTypes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import com.simibubi.create.foundation.block.IBE;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,6 +20,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -27,35 +32,33 @@ import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
 
 public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<AerialBombBlockEntity> {
-
+    private final AerialBombProjectile.BombType bombType;
     public static final BooleanProperty FUZED = BooleanProperty.create("fuzed");
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-    public static final IntegerProperty TYPE = IntegerProperty.create("type", 1,7 );
-    public static final IntegerProperty SIZE = IntegerProperty.create("size",1,4);
     public static final IntegerProperty COUNT= IntegerProperty.create("count", 0,9);
+    private final int bombSize;
+    public AerialBombBlock(Properties props, AerialBombProjectile.BombType bombType, int bombSize) {
+        super(props);
+        this.bombType = bombType;
+        this.bombSize = Mth.clamp(bombSize, 1, 4);
 
-
-    public AerialBombBlock(Properties properties) {
-        super(properties);
-        registerDefaultState(super.defaultBlockState()
+        registerDefaultState(defaultBlockState()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(FUZED, false)
                 .setValue(POWERED, false)
-                .setValue(TYPE,1)
-                .setValue(SIZE,1)
-                .setValue(COUNT,1));
+                .setValue(COUNT, 1));
     }
 
-
+    public AerialBombProjectile.BombType getBombType() {
+        return bombType;
+    }
+    public int getBombSize(){
+        return bombSize;
+    }
+    // delete the IntegerProperty SIZE entirely (or keep it but don't add it)
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
-        builder.add(FUZED);
-        builder.add(POWERED);
-        builder.add(TYPE);
-        builder.add(SIZE);
-        builder.add(COUNT);
-        super.createBlockStateDefinition(builder);
+        builder.add(FACING, FUZED, POWERED, COUNT); // no SIZE
     }
 
     @Override
@@ -157,8 +160,6 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
         }
 
     }
-
-
     @Override
     public Class<AerialBombBlockEntity> getBlockEntityClass() {
         return AerialBombBlockEntity.class;

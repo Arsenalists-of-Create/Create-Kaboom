@@ -1,15 +1,25 @@
 package com.happysg.kaboom;
 
+import com.happysg.kaboom.block.missiles.MissileEntity;
+import com.happysg.kaboom.block.missiles.MissileRenderer;
 import com.happysg.kaboom.networking.ModMessages;
 import com.happysg.kaboom.networking.NetworkHandler;
+import com.happysg.kaboom.particles.EngineGlowParticle;
+import com.happysg.kaboom.particles.MissileSmokeParticle;
 import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.registry.*;
 import com.mojang.logging.LogUtils;
+import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.foundation.data.CreateRegistrate;
+import dev.engine_room.flywheel.api.visualization.VisualizerRegistry;
+import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 import net.createmod.ponder.foundation.PonderIndex;
+import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -37,8 +47,11 @@ public class CreateKaboom {
         NetworkHandler.register();
         ModBlockEntityTypes.register();
         ModProjectiles.register();
+        ModParticles.register(modEventBus);
         ModCreativeTabs.register(modEventBus);
         ModLang.register();
+        ModEntities.register(modEventBus);
+        ModSounds.register(modEventBus);
         modEventBus.addListener(CreateKaboom::init);
         modEventBus.addListener(CreateKaboom::clientInit);
 
@@ -60,9 +73,21 @@ public class CreateKaboom {
         return StringUtils.normalizeSpace(s);
     }
 
+
     public static void clientInit(final FMLClientSetupEvent event) {
         PonderIndex.addPlugin(new KaboomPonderPlugin());
+
+        event.enqueueWork(() -> {
+            EntityRenderers.register(ModEntities.MISSILE.get(), MissileRenderer::new);
+        });
+        VisualizerRegistry.setVisualizer(
+                ModEntities.MISSILE.get(),
+                new SimpleEntityVisualizer<MissileEntity>(ContraptionVisual::new, entity -> false)
+        );
+
+
     }
+
 
     public static void init(final FMLCommonSetupEvent event) {
         event.enqueueWork(ModMessages::register);

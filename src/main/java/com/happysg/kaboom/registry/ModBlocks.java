@@ -13,6 +13,8 @@ import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
+import com.happysg.kaboom.block.missiles.parts.ThrusterBlock;
+import com.happysg.kaboom.block.missiles.parts.MissileFuelTankBlock;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.builders.BlockBuilder;
@@ -84,6 +86,29 @@ public class ModBlocks {
                 )
                 .simpleItem();
     }
+    public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_solid_thruster", ThrusterBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
+                    .getExistingFile(ctx.getId()), 0))
+            .simpleItem()
+            .register();
+    public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL = REGISTRATE.block("missile_solid_fuel_tank", MissileFuelTankBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+            .simpleItem()
+            .register();
+//    public static final BlockEntry<MissileDirectionalBlock> MISSILE_HEAD_FUZE = REGISTRATE.block("missile_head_fuze", MissileDirectionalBlock::new)
+//            .initialProperties(SharedProperties::softMetal)
+//            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
+//                    .getExistingFile(ctx.getId()), 0))
+//            .simpleItem()
+//            .register();
+//    public static final BlockEntry<MissileDirectionalBlock> MISSILE_HIGH_EXPLOSIVE = REGISTRATE.block("missile_high_explosive_head", MissileDirectionalBlock::new)
+//            .initialProperties(SharedProperties::softMetal)
+//            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
+//                    .getExistingFile(ctx.getId()), 0))
+//            .simpleItem()
+//            .register();
 
 
 }

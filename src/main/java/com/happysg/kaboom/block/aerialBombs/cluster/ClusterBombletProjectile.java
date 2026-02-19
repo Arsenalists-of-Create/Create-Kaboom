@@ -8,6 +8,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -40,6 +41,14 @@ import javax.annotation.Nonnull;
 import java.util.function.Predicate;
 
 public class ClusterBombletProjectile extends AbstractCannonProjectile {
+    public static final EntityDamagePropertiesComponent DAMAGE =
+            new EntityDamagePropertiesComponent(10, false, true, true, 1);
+
+    private static final EntityDataAccessor<Integer> LIFE =
+            SynchedEntityData.defineId(ClusterBombletProjectile.class, EntityDataSerializers.INT);
+
+    private static final EntityDataAccessor<Byte> MODE =
+            SynchedEntityData.defineId(ClusterBombletProjectile.class, EntityDataSerializers.BYTE);
 
     // Lighter, “bomblet-ish” ballistics: slightly less gravity than your big bomb
     public static final BallisticPropertiesComponent BALLISTICS =
@@ -52,24 +61,54 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
                     0.80f    // restitution / bounce-ish
             );
 
-    public static final EntityDamagePropertiesComponent DAMAGE =
-            new EntityDamagePropertiesComponent(10, false, true, true, 1);
 
-    private static final EntityDataAccessor<Integer> LIFE =
-            SynchedEntityData.defineId(ClusterBombletProjectile.class, EntityDataSerializers.INT);
 
     private ItemStack fuze = ItemStack.EMPTY;
 
     // airburst timer (ticks); -1 means disabled
     private int explosionCountdown = -1;
 
-    // configuration knobs
+
     private int size = 1;
     private float explosionPower = 1;
     private boolean causesFire = false;
+    public enum BombletMode {
+        EXPLOSIVE,
+        CUTTER
+    }
 
+
+
+    // Server-tracked travel distance for CUTTER mode
+    private double traveledBlocks = 0.0;
+    private double maxTravelBlocks = 0.0;
+    private Vec3 lastPosServer = null;
+
+    private BombletMode getMode() {
+        return this.entityData.get(MODE) == 1 ? BombletMode.CUTTER : BombletMode.EXPLOSIVE;
+    }
+
+    private void setMode(BombletMode mode) {
+        this.entityData.set(MODE, (byte) (mode == BombletMode.CUTTER ? 1 : 0));
+    }
     public ClusterBombletProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
+    }
+    public ClusterBombletProjectile configureCutter(ItemStack fuzeStack, int size, int maxTravelBlocks) {
+        setFuzeStack(fuzeStack);
+        this.size = Math.max(1, size);
+
+        // CUTTER: no explosion, no countdown
+        this.explosionPower = 0;
+        this.causesFire = false;
+        this.explosionCountdown = -1;
+
+        setMode(BombletMode.CUTTER);
+        this.maxTravelBlocks = Math.max(1, maxTravelBlocks);
+        this.traveledBlocks = 0.0;
+        this.lastPosServer = null;
+
+        return this;
     }
 
     // --- Quick setup from your cluster bomb ---
@@ -81,6 +120,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         this.explosionCountdown = airburstTicks <= 0 ? -1 : airburstTicks;
         return this;
     }
+
 
     @Override
     public @NotNull EntityDamagePropertiesComponent getDamageProperties() {
@@ -96,68 +136,97 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(LIFE, 0);
+        this.entityData.define(MODE, (byte) 0);
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        // --- client-only smoke trail ---
         if (level().isClientSide) {
-            Vec3 v = getDeltaMovement();
-            double speedSqr = v.lengthSqr();
+            Vec3 vel = getDeltaMovement();
+            double speed = vel.length();
 
-            // only trail if moving a bit
-            if (speedSqr > 0.01) {
-                // spawn slightly behind the projectile
-                Vec3 back = v.normalize().scale(-0.15);
-                double px = getX() + back.x;
-                double py = getY() + back.y;
-                double pz = getZ() + back.z;
+            if (speed > 0.05) {
+                // Segment this tick (Entity keeps these updated)
+                Vec3 start = new Vec3(xo, yo, zo);
+                Vec3 end   = position();
 
-                // nice “wispy” smoke
-                level().addParticle(
-                        net.minecraft.core.particles.ParticleTypes.CAMPFIRE_COSY_SMOKE, true,
-                        px, py, pz,
-                        0.0, 0.01, 0.0
-                );
+                // how dense the trail is: bigger = more particles
+                int samples = Mth.clamp((int) (speed * 6.0), 8, 12);
 
-                // occasional puff (looks more chaotic)
-                if (random.nextInt(4) == 0) {
+                // random offset radius around the trail line
+                double radius = 0.06;
+
+                Vec3 dir = end.subtract(start);
+                double len = dir.length();
+                Vec3 forward = len < 1e-6 ? vel.normalize() : dir.scale(1.0 / len);
+
+                // pick two perpendicular vectors so we can spread in a circle
+                Vec3 up = new Vec3(0, 1, 0);
+                Vec3 right = forward.cross(up);
+                if (right.lengthSqr() < 1e-6) right = forward.cross(new Vec3(1, 0, 0));
+                right = right.normalize();
+                Vec3 up2 = right.cross(forward).normalize();
+
+                for (int i = 0; i < samples; i++) {
+                    // t in [0..1] along the segment
+                    double t = (i + random.nextDouble()) / samples;
+                    Vec3 p = start.lerp(end, t);
+
+                    // random disk offset (cylindrical plume)
+                    double a = random.nextDouble() * Math.PI * 2.0;
+                    double r = radius * Math.sqrt(random.nextDouble());
+                    Vec3 offset = right.scale(Math.cos(a) * r).add(up2.scale(Math.sin(a) * r));
+
+                    Vec3 spawn = p.add(offset);
+
                     level().addParticle(
                             net.minecraft.core.particles.ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                            px, py, pz,
-                            0.0, 0.02, 0.0
+                            true,
+                            spawn.x, spawn.y, spawn.z,
+                            0.0, 0.01 + random.nextDouble() * 0.02, 0.0
                     );
                 }
             }
-            return; // don’t run server logic on client
+            return;
         }
-        super.tick();
 
-        if (level().isClientSide) return;
+        // --- server logic ---
+        int life = entityData.get(LIFE) + 1;
+        entityData.set(LIFE, life);
 
-        entityData.set(LIFE, entityData.get(LIFE) + 1);
 
-        // hard safety kill (10s)
-        if (entityData.get(LIFE) > 400) {
-            detonate(position());
+        if (life > 400) {
+            if (getMode() == BombletMode.EXPLOSIVE) {
+                detonate(position());
+            }
+            discard();
             removeNextTick = true;
             return;
         }
 
+        // CUTTER: die after traveling N blocks
+        if (getMode() == BombletMode.CUTTER) {
+            Vec3 now = position();
+            if (lastPosServer == null) lastPosServer = now;
 
-        // --- server-side safety kill only (does NOT explode) ---
-        int life = this.entityData.get(LIFE) + 1;
-        this.entityData.set(LIFE, life);
-        if (life > 400) {
-            this.discard();
-            this.removeNextTick = true;
+            traveledBlocks += now.distanceTo(lastPosServer);
+            lastPosServer = now;
+
+            if (maxTravelBlocks > 0 && traveledBlocks >= maxTravelBlocks) {
+                discard();
+                removeNextTick = true;
+            }
+            return;
         }
+
+        // EXPLOSIVE: (optional) countdown handling if you implement it elsewhere
     }
 
     @Override
     protected boolean onImpact(HitResult hitResult, ImpactResult impactResult, ProjectileContext projectileContext) {
+        if(getMode() == BombletMode.CUTTER) return true;
         super.onImpact(hitResult, impactResult, projectileContext);
         detonate(hitResult.getLocation());
         return true;
@@ -264,6 +333,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
 
     // --- CBC ShellExplosion detonation (the important part) ---
     protected void detonate(Position pos) {
+        if(this.explosionCountdown == 0) return;
         if (level().isClientSide) return;
 
         float pwr = explosionPower / Math.max(1, size);

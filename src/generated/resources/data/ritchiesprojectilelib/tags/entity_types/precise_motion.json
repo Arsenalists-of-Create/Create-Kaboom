@@ -1,5 +1,6 @@
 {
   "values": [
-    "create_kaboom:aerial_bomb_projectile"
+    "create_kaboom:aerial_bomb_projectile",
+    "create_kaboom:missile"
   ]
 }

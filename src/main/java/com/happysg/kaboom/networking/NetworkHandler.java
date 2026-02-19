@@ -1,5 +1,6 @@
 package com.happysg.kaboom.networking;
 
+import com.happysg.kaboom.block.missiles.assembly.PreciseMotionSyncPacket;
 import com.happysg.kaboom.items.AltitudeFuzePacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +26,13 @@ public class NetworkHandler {
                 AltitudeFuzePacket::encode,
                 AltitudeFuzePacket::decode,
                 AltitudeFuzePacket::handle
+        );
+        CHANNEL.registerMessage(
+                id++,
+                PreciseMotionSyncPacket.class,
+                PreciseMotionSyncPacket::encode,
+                PreciseMotionSyncPacket::decode,
+                PreciseMotionSyncPacket::handle
         );
     }
 }

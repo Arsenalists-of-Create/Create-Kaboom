@@ -3,6 +3,7 @@ package com.happysg.kaboom.block.aerialBombs.baseTypes;
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModProjectiles;
+import com.happysg.kaboom.registry.ModTags;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,6 +17,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -72,7 +74,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private BombType type;
     private int size;
     private int count;
-
+    boolean onImpact = false;
+    private int apRemaining = 0; // blocks left to penetrate (AP only)
     public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
         this.fuze = ItemStack.EMPTY;
@@ -140,6 +143,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
     public void setBombType(BombType type){
             this.type = type;
+            if (type == BombType.AP) apRemaining = 20; // your target
+
     }
 
     public void tick() {
@@ -175,12 +180,12 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         Vec3 normal = CBCUtils.getSurfaceNormalVector(this.level(), blockHitResult);
         double incidence = Math.max(0, curVel.normalize().dot(normal.reverse()));
-        double velMag = curVel.length();
+        double velMag = (curVel.length());
+        if(type == BombType.AP) velMag = velMag*((double) 17 /size);
         double mass = this.getProjectileMass();
 
         double bonusMomentum = 1 + Math.max(0, (velMag - CBCConfigs.server().munitions.minVelocityForPenetrationBonus.getF())
                 * CBCConfigs.server().munitions.penetrationBonusScale.getF());
-        if(type == BombType.AP) bonusMomentum =bonusMomentum *130;
         double incidentVel = velMag * incidence;
         double momentum = mass * incidentVel * bonusMomentum;
 
@@ -225,6 +230,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         if (blockBroken) {
             this.setProjectileMass(incidentVel < 1e-4d ? 0 : Math.max(this.getProjectileMass() - durabilityPenalty, 0));
             this.level().setBlock(pos, Blocks.AIR.defaultBlockState(), ProjectileBlock.UPDATE_ALL_IMMEDIATE);
+
             if (surfaceImpact) {
                 float f = (float) toughness / (float) momentum;
                 float overPenetrationPower = f < 0.15f ? 2 - 2 * f : 0;
@@ -251,7 +257,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return new ImpactResult(outcome, shatter);
     }
 
-
     protected boolean onClip(ProjectileContext ctx, Vec3 start, Vec3 end) {
         if (super.onClip(ctx, start, end)) {
             return true;
@@ -269,6 +274,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     protected boolean onImpact(HitResult hitResult, AbstractCannonProjectile.ImpactResult impactResult, ProjectileContext projectileContext) {
         super.onImpact(hitResult, impactResult, projectileContext);
         boolean baseFuze = this.getFuzeProperties().baseFuze();
+        this.onImpact =true;
         if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, impactResult, baseFuze))) {
             this.detonate(hitResult.getLocation());
             return true;
@@ -336,7 +342,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     }
 
     protected void detonate(Position position) {
-
+        if(type==null)return;
         switch (type){
             case HE -> {ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 30/size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
@@ -355,9 +361,34 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                                 .munitions.damageRestriction.get()
                                 .explosiveInteraction()
                 );
-
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                if (!this.level().isClientSide) {
+                    boolean noDamage = false;
+                    if (!noDamage) {
 
+                        final double breakRadius = (double) 22 / size; // separate knob from entity radius (tune!)
+                        final double breakRadiusSqr = breakRadius * breakRadius;
+
+                        BlockPos center = BlockPos.containing(position.x(), position.y(), position.z());
+                        int r = Mth.ceil(breakRadius);
+
+                        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
+                            // cheap sphere filter
+                            double dx = (pos.getX() + 0.5) - position.x();
+                            double dy = (pos.getY() + 0.5) - position.y();
+                            double dz = (pos.getZ() + 0.5) - position.z();
+                            if (dx * dx + dy * dy + dz * dz > breakRadiusSqr) continue;
+
+                            BlockState state = level().getBlockState(pos);
+                            if (state.isAir()) continue;
+                            if (state.getDestroySpeed(level(), pos) < 0) continue;
+                            if (!state.is(ModTags.Blocks.FRAG_SHATTERS)) continue;
+
+                            level().destroyBlock(pos, false, this);
+                        }
+                    }
+                }
+                spawnCutterBomblets(new Vec3(position.x(), position.y(), position.z()), size);
                 if (!this.level().isClientSide) {
                     final double radius = (double) 60 /size;
                     final float maxDamage = 60; // tune: 60 = nasty, 30 = moderate
@@ -472,53 +503,108 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             case CLUSTER -> {
                 if (!level().isClientSide) {
 
-                    int count = 20 + random.nextInt(10); // 20–29 bomblets (tune this)
-
-                    Vec3 impactVelocity = this.getDeltaMovement();
                     Vec3 origin = new Vec3(position.x(), position.y(), position.z());
 
-                    for (int i = 0; i < count; i++) {
+                    boolean onImpact = /* your flag here */ false;
+                    ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                    CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                    // Total bomblets and split
+                    int total = 20 + random.nextInt(10);            // 20–29 total
+                    int outerCount = (int) Math.ceil(total * 0.55); // ~55% outer
+                    int innerCount = total - outerCount;            // ~45% inner
 
-                        ClusterBombletProjectile sub =
-                                ModProjectiles.CLUSTER_BOMBLET.get().create(level());
+                    // Inherit some parent velocity (usually keep this for “feel”)
+                    Vec3 inheritedBase = this.getDeltaMovement().scale(0.35);
+                    if (!onImpact) {
+                        inheritedBase = new Vec3(inheritedBase.x, inheritedBase.y * 0.6, inheritedBase.z);
+                    }
 
-                        if (sub == null) continue;
+                    // Helper lambda so we don't duplicate the whole spawn boilerplate
+                    Vec3 finalInheritedBase = inheritedBase;
+                    java.util.function.BiConsumer<Double, Double> spawnOne = (alpha, speed) -> {
+                        ClusterBombletProjectile sub = ModProjectiles.CLUSTER_BOMBLET.get().create(level());
+                        if (sub == null) return;
 
                         sub.configure(
                                 this.fuze,
                                 this.size,
-                                3.0f,                    // explosion power
+                                3.0f,
                                 false,
-                                30 + random.nextInt(30)  // airburst fallback
+                                30 + random.nextInt(30)
                         );
 
-                        sub.setPos(origin.x, origin.y+3, origin.z);
+                        sub.setPos(origin.x, origin.y + 3, origin.z);
 
                         double theta = random.nextDouble() * Math.PI * 2.0;
-                        double phi = Math.acos(random.nextDouble()); // [0..pi/2] => UP hemisphere only
 
-                        double speed = 0.6 + random.nextDouble() * 0.9;
+                        Vec3 dir = new Vec3(
+                                Math.sin(alpha) * Math.cos(theta),
+                                Math.cos(alpha),
+                                Math.sin(alpha) * Math.sin(theta)
+                        );
 
-                        Vec3 outward = new Vec3(
-                                Math.sin(phi) * Math.cos(theta),
-                                Math.cos(phi),
-                                Math.sin(phi) * Math.sin(theta)
-                        ).scale(speed);
+                        Vec3 outward = dir.scale(speed);
 
-                        double minUp = 0.25 + random.nextDouble() * 0.25;
-                        outward = outward.add(0, minUp, 0);
+                        double yBias = onImpact
+                                ? (0.55 + random.nextDouble() * 0.45)
+                                : (0.05 + random.nextDouble() * 0.18);
 
-                        Vec3 inherited = this.getDeltaMovement().scale(0.35);
+                        outward = outward.add(0, yBias, 0);
 
-                        sub.setDeltaMovement(inherited.add(outward));
-
-                        double upwardBoost = 0.2 + random.nextDouble() * 0.25;
-                        sub.setDeltaMovement(inherited.add(outward).add(0,upwardBoost,0));
+                        sub.setDeltaMovement(finalInheritedBase.add(outward));
 
                         if (this.getOwner() != null)
                             sub.setOwner(this.getOwner());
 
                         level().addFreshEntity(sub);
+                    };
+
+                    // -------------------------
+                    // 1) OUTER SET (edge-biased)
+                    // -------------------------
+                    for (int i = 0; i < outerCount; i++) {
+                        double alpha;
+                        double speed;
+
+                        if (onImpact) {
+                            // Upward cone, but slightly wider so you still get some spread
+                            double max = Math.toRadians(28.0);
+                            alpha = Math.sqrt(random.nextDouble()) * max; // edge-ish within the cone
+                            speed = 0.75 + random.nextDouble() * 0.90;
+                        } else {
+                            // Wide outward band, biased toward horizontal (outer ring)
+                            double min = Math.toRadians(35.0);
+                            double max = Math.toRadians(90.0);
+                            double t = Math.sqrt(random.nextDouble()); // pushes toward 1 => near-horizontal
+                            alpha = min + (max - min) * t;
+                            speed = 0.60 + random.nextDouble() * 1.05;
+                        }
+
+                        spawnOne.accept(alpha, speed);
+                    }
+
+                    // --------------------------------
+                    // 2) INNER SET (center-biased fill)
+                    // --------------------------------
+                    for (int i = 0; i < innerCount; i++) {
+                        double alpha;
+                        double speed;
+
+                        if (onImpact) {
+                            // Very center-biased (more straight up)
+                            double max = Math.toRadians(22.0);
+                            alpha = Math.pow(random.nextDouble(), 2.2) * max; // strong bias toward 0
+                            speed = 0.55 + random.nextDouble() * 0.65;        // slightly slower
+                        } else {
+                            // Fill the middle: same band, but bias toward smaller alpha (less horizontal)
+                            double min = Math.toRadians(35.0);
+                            double max = Math.toRadians(90.0);
+                            double t = Math.pow(random.nextDouble(), 2.0);    // bias toward 0 => closer to min
+                            alpha = min + (max - min) * t;
+                            speed = 0.50 + random.nextDouble() * 0.80;        // slightly slower
+                        }
+
+                        spawnOne.accept(alpha, speed);
                     }
                 }
             }
@@ -716,5 +802,52 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return null;
     }
 
+    private void spawnCutterBomblets(Vec3 origin, int size) {
+        if (level().isClientSide) return;
 
+        var random = this.level().random;
+
+        int count = 60 + random.nextInt(25); // 35–59 cutters
+        int maxTravelBlocks = 35 + random.nextInt(25); // each cutter lives 35–59 blocks (tune)
+
+        // Inherit some of the parent velocity so it “continues” the blast direction
+        Vec3 inherited = this.getDeltaMovement().scale(0.25);
+        double maxInherit = 0.8;
+        if (inherited.length() > maxInherit)
+            inherited = inherited.normalize().scale(maxInherit);
+        for (int i = 0; i < count; i++) {
+            ClusterBombletProjectile sub = ModProjectiles.CLUSTER_BOMBLET.get().create(level());
+            if (sub == null) continue;
+
+
+            sub.configureCutter(ItemStack.EMPTY, size, maxTravelBlocks);
+
+
+            sub.setPos(origin.x, origin.y + 1.5, origin.z);
+            double theta = random.nextDouble() * Math.PI * 2.0;
+
+            // alpha = angle-from-up (0=up, PI/2=horizontal)
+            // bias toward horizontal
+            double alpha = Math.toRadians(25.0) + (Math.toRadians(90.0) - Math.toRadians(25.0)) * Math.sqrt(random.nextDouble());
+
+            Vec3 dir = new Vec3(
+                    Math.sin(alpha) * Math.cos(theta),
+                    Math.cos(alpha),
+                    Math.sin(alpha) * Math.sin(theta)
+            );
+
+            double speed = 0.65 + random.nextDouble() * 50; // tune
+            Vec3 outward = dir.scale(speed);
+
+            // Small vertical lift so they don’t instantly faceplant
+            outward = outward.add(0, 0.08 + random.nextDouble() * 0.18, 0);
+
+            sub.setDeltaMovement(inherited.add(outward));
+
+            if (this.getOwner() != null)
+                sub.setOwner(this.getOwner());
+
+            level().addFreshEntity(sub);
+        }
+    }
 }

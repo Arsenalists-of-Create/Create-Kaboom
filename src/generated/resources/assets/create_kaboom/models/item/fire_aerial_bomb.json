@@ -1,3 +1,6 @@
 {
-  "parent": "create_kaboom:block/fire_aerial_bomb"
+  "parent": "create_kaboom:block/aerial_bomb/fire_aerial_bomb"
 }
+
+
+
