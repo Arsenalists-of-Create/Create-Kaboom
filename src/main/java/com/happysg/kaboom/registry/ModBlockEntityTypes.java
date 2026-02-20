@@ -3,6 +3,7 @@ package com.happysg.kaboom.registry;
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.MissileFuelTankBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.ThrusterBlockEntity;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
 
@@ -24,6 +25,14 @@ public class ModBlockEntityTypes {
             REGISTRATE.blockEntity("missile_engine",ThrusterBlockEntity::new)
                     .validBlocks(ModBlocks.MISSILE_THRUSTER)
                     .register();
+    public static final BlockEntityEntry<MissileFuelTankBlockEntity> FUEL_TANK_SMALL =
+            REGISTRATE.blockEntity("small_tank", MissileFuelTankBlockEntity::new)
+                    .validBlocks(
+                            ModBlocks.MISSILE_FUEL,
+                            ModBlocks.MISSILE_FUEL_SMALL
+                    )
+                    .register();
+
     public static void register() {
         CreateKaboom.getLogger().info("Registering block entity types!");
     }

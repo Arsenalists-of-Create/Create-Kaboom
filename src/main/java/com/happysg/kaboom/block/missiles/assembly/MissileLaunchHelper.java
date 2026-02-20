@@ -8,30 +8,32 @@ import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
+import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 
 public class MissileLaunchHelper {
     private static final Logger LOGGER = LogUtils.getLogger();
     public static boolean assembleAndSpawn(ServerLevel level, BlockPos anyThrusterPos) throws AssemblyException {
         MissileAssemblyResult result = MissileAssembler.scan(level, anyThrusterPos);
         if (!result.isValid()) return false;
-
-        Contraption contraption = MissileContraptionBuilder.build(level, result);
+        BlockPos warheadPos = result.getWarhead();
+        Contraption contraption = MissileContraptionBuilder.build(level, result, warheadPos);
 
         // remove blocks from world (top-down is a bit safer)
         for (int i = result.getBlocks().size() - 1; i >= 0; i--) {
             level.removeBlock(result.getBlocks().get(i), false);
         }
+        BlockState state = level.getBlockState(warheadPos);
 
-        MissileEntity entity = ModEntities.MISSILE.get().create(level);
-        if (entity == null) return false;
+            MissileEntity entity = ModEntities.MISSILE.get().create(level);
+            if (entity == null) return false;
 
-        entity.initFromAssembly(contraption, result.getControllerPos());
-        level.addFreshEntity(entity);
-        boolean added = level.addFreshEntity(entity);
-        LOGGER.warn("[LAUNCH] addFreshEntity -> {}  id={}  pos={}", added, entity, entity.position());
+            entity.initFromAssembly(contraption, result.getControllerPos(), warheadPos );
+            boolean added = level.addFreshEntity(entity);
+            LOGGER.warn("[LAUNCH] addFreshEntity -> {}  id={}  pos={}", added, entity, entity.position());
 
-        return true;
+            return true;
     }
     public static void requestLaunch(ServerLevel level, BlockPos triggeringThrusterPos) {
         // Resolve controller from *any* thruster position

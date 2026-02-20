@@ -4,6 +4,8 @@ import com.happysg.kaboom.block.missiles.parts.ThrusterBlock;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -11,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import rbasamoyai.createbigcannons.munitions.big_cannon.SimpleShellBlock;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,43 +95,67 @@ public class MissileAssembler {
         collected.add(controllerPos);
 
         boolean foundFuel = false;
-
+        boolean foundGuidance = false;
+        boolean foundFuzedProjectile = false;
+        BlockPos warhead =null;
         BlockPos cursor = controllerPos.above();
 
         for (int i = 0; i < MAX_VERTICAL_SCAN; i++) {
 
             BlockState state = level.getBlockState(cursor);
             Block block = state.getBlock();
-
-            if (!(block instanceof IMissileComponent part)) {
-                log(server, "Stopped scan at non-missile block: " + block.getName().getString());
-                break;
-            }
+            ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
 
             log(server, "Checking block at " + cursor + ": " + block.getName().getString());
 
-            // Orientation check
-            if (!matchesOrientation(state, part, controllerFacing, controllerAxis)) {
-                log(server, "FAIL: Orientation mismatch at " + cursor);
-                log(server, "Block state: " + state);
-                return MissileAssemblyResult.invalid();
-            }
+            // 1) Normal missile parts path
+            if (block instanceof IMissileComponent part) {
 
-            if (part.isFuelTank()) {
-                foundFuel = true;
-                log(server, "Fuel tank accepted.");
-                collected.add(cursor);
-                cursor = cursor.above();
-                continue;
-            }
+                if (!matchesOrientation(state, part, controllerFacing, controllerAxis)) {
+                    log(server, "FAIL: Orientation mismatch at " + cursor);
+                    log(server, "Block state: " + state);
+                    return MissileAssemblyResult.invalid();
+                }
 
-            if (part.isThruster()) {
-                log(server, "Additional thruster found above — stopping.");
+                if (part.isFuelTank()) {
+                    foundFuel = true;
+                    log(server, "Fuel tank accepted.");
+                    collected.add(cursor);
+                    cursor = cursor.above();
+                    continue;
+                }
+
+                if (part.isThruster()) {
+                    log(server, "Additional thruster found above — stopping.");
+                    break;
+                }
+
+                if (part.isGuidance()) {
+                    foundGuidance = true;
+                    log(server, "Guidance unit accepted.");
+                    collected.add(cursor);
+                    cursor = cursor.above();
+                    continue;
+                }
+
+                // Known IMissileComponent but not one you care about -> stop
+                log(server, "Unknown missile IMissileComponent type — stopping.");
                 break;
             }
 
-            // For now: allow unknown missile part types to stop scan
-            log(server, "Unknown missile part type — stopping.");
+
+            if (block instanceof SimpleShellBlock<?>) {
+                foundFuzedProjectile = true;
+                log(server, "Warhead accepted: " + block.getName().getString());
+                LogUtils.getLogger().warn("[MISSILE SCAN] warhead={} class={}", id, block.getClass().getName());
+                collected.add(cursor);
+                warhead = cursor;
+                break;
+            }
+
+            // 3) Truly invalid block
+            log(server, "Stopped scan at non-missile block: " + block.getName().getString());
+            LogUtils.getLogger().warn("[MISSILE SCAN] top={} class={}", id, block.getClass().getName());
             break;
         }
 
@@ -137,10 +164,20 @@ public class MissileAssembler {
             return MissileAssemblyResult.invalid();
         }
 
+        if (!foundGuidance) {
+            log(server, "FAIL: No guidance unit found.");
+            return MissileAssemblyResult.invalid();
+        }
+
+        if (!foundFuzedProjectile) {
+            log(server, "FAIL: No FuzedBigCannonProjectile found.");
+            return MissileAssemblyResult.invalid();
+        }
+
         log(server, "SUCCESS: Missile assembly valid. Blocks: " + collected.size());
         log(server, "=== Missile Assembly End ===");
 
-        return MissileAssemblyResult.valid(collected, controllerPos);
+        return MissileAssemblyResult.valid(collected, controllerPos,warhead);
     }
     private static void log(ServerLevel server, String message) {
        LogUtils.getLogger().warn("[MISSILE] " + message);

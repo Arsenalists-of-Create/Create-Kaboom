@@ -13,6 +13,7 @@ import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
+import com.happysg.kaboom.block.missiles.parts.MissileGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.ThrusterBlock;
 import com.happysg.kaboom.block.missiles.parts.MissileFuelTankBlock;
 import com.simibubi.create.foundation.data.CreateRegistrate;
@@ -92,23 +93,28 @@ public class ModBlocks {
                     .getExistingFile(ctx.getId()), 0))
             .simpleItem()
             .register();
-    public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL = REGISTRATE.block("missile_solid_fuel_tank", MissileFuelTankBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+    public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL_SMALL =
+            REGISTRATE.block("missile_liquid_fuel_small",
+                            p -> new MissileFuelTankBlock(p, 4000))
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+                    .simpleItem()
+                    .register();
+
+    public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL =
+            REGISTRATE.block("missile_liquid_fuel_large",
+                            p -> new MissileFuelTankBlock(p, 16000))
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<MissileGuidanceBlock> MISSILE_GUIDANCE =
+            REGISTRATE.block("missile_guidance_large", MissileGuidanceBlock::new)
+                    .initialProperties(SharedProperties::softMetal)
+            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
+            .getExistingFile(ctx.getId()), 0))
             .simpleItem()
             .register();
-//    public static final BlockEntry<MissileDirectionalBlock> MISSILE_HEAD_FUZE = REGISTRATE.block("missile_head_fuze", MissileDirectionalBlock::new)
-//            .initialProperties(SharedProperties::softMetal)
-//            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-//                    .getExistingFile(ctx.getId()), 0))
-//            .simpleItem()
-//            .register();
-//    public static final BlockEntry<MissileDirectionalBlock> MISSILE_HIGH_EXPLOSIVE = REGISTRATE.block("missile_high_explosive_head", MissileDirectionalBlock::new)
-//            .initialProperties(SharedProperties::softMetal)
-//            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-//                    .getExistingFile(ctx.getId()), 0))
-//            .simpleItem()
-//            .register();
 
 
 }

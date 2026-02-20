@@ -9,7 +9,7 @@ public final class MissileAutopilotPlanner {
     public record Snapshot(Vec3 pos, Vec3 vel, Phase phase, Vec3 target) {}
 
     /** Keep this enum local so the async module doesn't need your entity class. */
-    public enum Phase { ASCENT, CRUISE, IMPACT }
+    public enum Phase { ASCENT, CRUISE, BALLISTIC,IMPACT }
 
     public record Config(double ascentSpeed, double cruiseSpeed) {}
 
@@ -17,7 +17,6 @@ public final class MissileAutopilotPlanner {
         public static final Command NONE = new Command(Vec3.ZERO);
     }
 
-    /** Pure math. Safe to run async. */
     public static Command plan(Snapshot s, Config cfg) {
         if (s.phase == Phase.IMPACT) return Command.NONE;
 

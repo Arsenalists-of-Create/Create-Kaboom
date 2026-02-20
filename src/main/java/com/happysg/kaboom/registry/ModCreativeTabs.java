@@ -48,6 +48,7 @@ public class ModCreativeTabs {
 
         pOutput.accept(ModBlocks.MISSILE_THRUSTER);
         pOutput.accept(ModBlocks.MISSILE_FUEL);
+        pOutput.accept(ModBlocks.MISSILE_GUIDANCE);
 
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);

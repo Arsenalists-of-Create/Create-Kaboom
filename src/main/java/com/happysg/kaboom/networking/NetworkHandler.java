@@ -1,9 +1,8 @@
 package com.happysg.kaboom.networking;
 
-import com.happysg.kaboom.block.missiles.assembly.PreciseMotionSyncPacket;
+import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.items.AltitudeFuzePacket;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 

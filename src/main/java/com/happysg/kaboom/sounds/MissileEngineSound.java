@@ -17,7 +17,7 @@ public class MissileEngineSound extends AbstractTickableSoundInstance {
     private final MissileEntity missile;
 
     // Tuneables
-    private static final float BASE_PITCH = 0.65f;
+    private static final float BASE_PITCH = 0.85f;
     private static final float MAX_SHIFT = 0.35f;   // max +/- pitch shift
     private static final double REF_SPEED = 13.0;   // blocks/sec that equals MAX_SHIFT
 
