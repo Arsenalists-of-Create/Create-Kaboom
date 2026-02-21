@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "create_kaboom:block/missile/small_inertial_guidance"
+    },
+    "axis=x": {
+      "model": "create_kaboom:block/missile/small_inertial_guidance",
+      "x": 90,
+      "y": 90
+    },
+    "axis=z": {
+      "model": "create_kaboom:block/missile/small_inertial_guidance",
+      "x": 90
+    }
+  }
+}

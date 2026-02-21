@@ -2,8 +2,7 @@ package com.happysg.kaboom.block.missiles.assembly;
 
 import com.happysg.kaboom.block.missiles.MissileContraption;
 import com.happysg.kaboom.block.missiles.MissileEntity;
-import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
-import com.happysg.kaboom.block.missiles.parts.MissileGuidanceBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.MissileGuidanceBlockEntity;
 import com.happysg.kaboom.registry.ModEntities;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.AssemblyException;
@@ -11,13 +10,8 @@ import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
-import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
-import rbasamoyai.createbigcannons.munitions.big_cannon.AbstractBigCannonProjectile;
-import rbasamoyai.createbigcannons.munitions.big_cannon.SimpleShellBlock;
 
 public class MissileLaunchHelper {
     private static final Logger LOGGER = LogUtils.getLogger();

@@ -1,10 +1,10 @@
 {
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
-	"texture_size": [64, 64],
 	"textures": {
-		"0": "small_missile_part",
-		"particle": "small_missile_part"
+		"0": "create_kaboom:block/small_solid_fuel_tank",
+		"1": "create_kaboom:block/small_missile_part_top",
+		"particle": "create_kaboom:block/small_solid_fuel_tank"
 	},
 	"elements": [
 		{
@@ -12,12 +12,12 @@
 			"to": [13, 16, 13],
 			"rotation": {"angle": 0, "axis": "y", "origin": [3, 0, 3]},
 			"faces": {
-				"north": {"uv": [2.5, 12, 5, 16], "texture": "#0"},
-				"east": {"uv": [2.5, 12, 5, 16], "texture": "#0"},
-				"south": {"uv": [2.5, 12, 5, 16], "texture": "#0"},
-				"west": {"uv": [2.5, 12, 5, 16], "texture": "#0"},
-				"up": {"uv": [13.5, 0, 16, 2.5], "texture": "#0"},
-				"down": {"uv": [11, 0, 13.5, 2.5], "texture": "#0"}
+				"north": {"uv": [3, 0, 13, 16], "texture": "#0"},
+				"east": {"uv": [3, 0, 13, 16], "texture": "#0"},
+				"south": {"uv": [3, 0, 13, 16], "texture": "#0"},
+				"west": {"uv": [3, 0, 13, 16], "texture": "#0"},
+				"up": {"uv": [3, 3, 13, 13], "texture": "#1"},
+				"down": {"uv": [3, 3, 13, 13], "texture": "#1"}
 			}
 		}
 	],
@@ -51,13 +51,5 @@
 		"fixed": {
 			"scale": [0.5, 0.5, 0.5]
 		}
-	},
-	"groups": [
-		{
-			"name": "group",
-			"origin": [3, -16, 3],
-			"color": 0,
-			"children": [0]
-		}
-	]
+	}
 }

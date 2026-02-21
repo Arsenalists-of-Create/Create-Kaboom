@@ -1,7 +1,7 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
 import com.happysg.kaboom.block.missiles.MissileContraption;
-import com.happysg.kaboom.block.missiles.parts.MissileGuidanceBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.MissileGuidanceBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;

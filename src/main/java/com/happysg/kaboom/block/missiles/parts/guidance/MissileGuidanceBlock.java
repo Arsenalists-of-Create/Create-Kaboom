@@ -1,10 +1,9 @@
-package com.happysg.kaboom.block.missiles.parts;
+package com.happysg.kaboom.block.missiles.parts.guidance;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;

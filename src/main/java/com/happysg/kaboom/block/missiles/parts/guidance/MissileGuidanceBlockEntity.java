@@ -1,4 +1,4 @@
-package com.happysg.kaboom.block.missiles.parts;
+package com.happysg.kaboom.block.missiles.parts.guidance;
 
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import net.minecraft.core.BlockPos;
@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-// GuidanceBlockEntity.java (or whatever block in the stack will own the GUI)
+// HeatseekerGuidanceBlockEntity.java (or whatever block in the stack will own the GUI)
 public class MissileGuidanceBlockEntity extends BlockEntity {
 
     // Hardcoded target for now (world coords)

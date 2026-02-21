@@ -19,7 +19,18 @@
   "create_kaboom.item.altitude_fuse.base_info": "Detonates when this high above ground",
   "create_kaboom.item.altitude_fuze.tooltip": "Airburst distance: ",
   "item.create_kaboom.altitude_fuze.tooltip": "Airburst distance: ",
+
   "create_kaboom.altitude_screen.destination_alt_input": "Detonation Altitude (Blocks from surface)",
   "create_kaboom.alt_fuze.title":"Altitude Fuze",
-  "item.create_kaboom.altitude_fuze": "Altitude Fuze"
+  "item.create_kaboom.altitude_fuze": "Altitude Fuze",
+
+  "block.create_kaboom.fluid_aerial_bomb": "Fluid Aerial Bomb",
+  "block.create_kaboom.missile_solid_thruster": "Solid Fuel Thruster",
+  "block.create_kaboom.missile_liquid_thruster_small": "Small Liquid Fuel Thruster",
+  "block.create_kaboom.missile_liquid_fuel_small": "Small Liquid Fuel Tank",
+  "block.create_kaboom.missile_liquid_fuel_large": "Large Liquid Fuel Tank",
+  "block.create_kaboom.missile_guidance_large": "Large Guidance Unit",
+  "block.create_kaboom.gps_guidance_small": "Small Inertial Guidance Unit",
+  "block.create_kaboom.gps_guidance_large": "Large Inertial Guidance Unit",
+  "block.create_kaboom.heatseeker_small": "Small Heatseeker Unit"
 }

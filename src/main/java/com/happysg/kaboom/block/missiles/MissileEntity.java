@@ -14,6 +14,7 @@ import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.OrientedContraptionEntity;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -103,7 +104,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final double MIN_STEER_ACCEL = 0.00;       // set 0.05 if you want "RCS-ish" control at low speed
 
     // async cadence
-    private static final int SUBSTEPS = 6;
+    private static final int SUBSTEPS = 8;
     private static final int PLAN_EVERY_N_TICKS = 1;
 
     private final AsyncMissilePlanner planner = new AsyncMissilePlanner(PLANNER_EXECUTOR);
@@ -223,7 +224,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
             // Program the planner once at launch
             planner.clearProgram()
-                    .climbTo(128, 2.0, 1.0)
+                    .climbTo(128, 2.0, .3)
                     .pitchOver(2.5, 60, 0.6)
                     .arcTo(tgt, 18.0, false, 6.0, 1);
             latestPlan = planner.prime(worldView, new AsyncMissilePlanner.Snapshot(
@@ -260,12 +261,16 @@ public class MissileEntity extends OrientedContraptionEntity {
             discard();
             return;
         }
+        if(tickCount == 1 && !fuelDepleted){
+            engineSound = new MissileEngineSound(this);
+            Minecraft.getInstance().getSoundManager().play(engineSound);
+        }
         LOGGER.warn(""+position());
         enforceCustomColliders();
 
         if (level().isClientSide) {
             clientTickVisuals();
-            super.tick(); // Create render/interp upkeep on client
+            super.tick();
             return;
         }
 
@@ -426,14 +431,8 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     }
 
-    private void setUnitAabb() {
-        // 1x1x1 centered on entity position (entity pos is its center for most entities)
-        Vec3 c = this.position();
-        this.setBoundingBox(new AABB(
-                c.x - 0.5, c.y - 0.5, c.z - 0.5,
-                c.x + 0.5, c.y + 0.5, c.z + 0.5
-        ));
-    }
+
+
     private Vec3 tipWorldAtEntityPos(Vec3 entityPos, BlockPos localBlock, Vec3 worldDirUnit, double ahead) {
         // world position of local block center at "now"
         Vec3 now = toGlobalVector(Vec3.atCenterOf(localBlock), 0);
@@ -914,7 +913,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     private void onFuelDepleted() {
         if (fuelDepleted) return;
         fuelDepleted = true;
-
+        Minecraft.getInstance().getSoundManager().stop(engineSound);
         LOGGER.warn("[MISSILE] Fuel depleted at tick {}", level().getGameTime());
         phase = FlightPhase.BALLISTIC;
 
@@ -928,8 +927,8 @@ public class MissileEntity extends OrientedContraptionEntity {
     public void setTargetPoint(Vec3 targetPos) {
         // Example flight program; tweak to taste
         planner.clearProgram()
-                .climbTo(128, 2.0, 1.0)
-                .pitchOver(2.5, 0.0, 0.6)
+                .climbTo(128, 2.0, .3)
+                .pitchOver(2.5, 0.0, .2)
                 .arcTo(targetPos, 18.0, true, 6.0, 0.3); // highArc=true => comes down on it
     }
 
@@ -1495,7 +1494,8 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
-
+        Minecraft.getInstance().getSoundManager().stop(engineSound);
+        discard();
         BlockPos oldPos = this.blockPosition();
         Vec3 oldDelta = this.getDeltaMovement();
         fuzed.setDeltaMovement(oldDelta);
@@ -1514,9 +1514,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     protected boolean onImpact(HitResult hitResult,
                                AbstractCannonProjectile.ImpactResult impactResult,
                                MissileProjectileContext projectileContext) {
-
-        // If we don't have a warhead, do NOT crash.
-        // Optional: you can choose to "dud" (return false) or "fail-safe explode".
+        Minecraft.getInstance().getSoundManager().stop(engineSound);
         if (!(this.warhead instanceof FuzedBigCannonProjectile fuzed) || this.warheadpos == null) {
             if (!level().isClientSide && impactResult.kinematics() == AbstractCannonProjectile.ImpactResult.KinematicOutcome.STOP) {
                 level().explode(this, getX(), getY(), getZ(), 4.0f, Level.ExplosionInteraction.TNT);

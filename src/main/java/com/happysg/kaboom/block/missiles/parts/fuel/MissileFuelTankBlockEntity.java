@@ -1,4 +1,4 @@
-package com.happysg.kaboom.block.missiles.parts;
+package com.happysg.kaboom.block.missiles.parts.fuel;
 
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import net.minecraft.ChatFormatting;

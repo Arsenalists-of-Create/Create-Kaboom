@@ -1,6 +1,6 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
-import com.happysg.kaboom.block.missiles.parts.ThrusterBlock;
+import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -187,7 +187,7 @@ public class MissileAssembler {
 
     private static boolean matchesOrientation(BlockState state, IMissileComponent part,
                                               Direction controllerFacing, Direction.Axis controllerAxis) {
-        if (part.isFuelTank()) {
+        if (part.isFuelTank() ||  part.isGuidance()) {
             Direction.Axis axis = getAxialAxis(state);
             return axis != null && axis == controllerAxis;
         } else {

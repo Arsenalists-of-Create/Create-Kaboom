@@ -355,31 +355,83 @@ public final class AsyncMissilePlanner {
 
         @Override
         public Output compute(PlanningInput in) {
-            Snapshot m = in.missile;
+            Snapshot m = in.missile();
 
-            Vec3 to = target.subtract(m.pos);
+            Vec3 to = target.subtract(m.pos());
             double dist = to.length();
             if (dist <= arriveRadius) {
                 Vec3 desired = dist > 1e-8 ? to.scale(1.0 / dist) : new Vec3(0, -1, 0);
                 return new Output(desired, 0.0, false, true, "arc: arrived");
             }
 
-            double g = Math.max(1e-6, m.gravity);
-            Aim aim = aimArc(m.pos, target, assumedSpeed, g, highArc);
+            // Horizontal range (what arc math mostly cares about)
+            double R = Math.sqrt(to.x * to.x + to.z * to.z);
+            double g = Math.max(1e-6, m.gravity());
 
-            Vec3 desired;
-            boolean valid = aim.valid;
+            // Pick a "goal speed" for the arc solver: at least what is required, capped by missile maxSpeed
+            double vGoal = Math.min(m.maxSpeed(), Math.max(assumedSpeed, 0.1));
+            double vMin = Math.sqrt(g * Math.max(0.0, R)); // minimum speed for ANY same-height solution
+            if (vGoal < vMin) vGoal = Math.min(m.maxSpeed(), vMin);
 
-            if (valid) {
-                desired = aim.dir;
-            } else {
-                // no real solution (too far / too high at this speed): point generally toward target
-                desired = to.normalize();
+            double vNow = m.vel().length();
+
+            // 1) BOOST: if we're well below the speed the arc math assumes, don't command a steep arc yet
+            // Push mostly horizontally toward the target while building speed.
+            if (vNow < vGoal * 0.90) {
+                Vec3 horiz = new Vec3(to.x, 0, to.z);
+                if (horiz.lengthSqr() < 1e-8) horiz = new Vec3(0, 0, 1);
+                horiz = horiz.normalize();
+
+                // small up bias so we don't lawn-dart while boosting
+                double upBias = 0.15; // tune 0.05..0.25
+                Vec3 desired = new Vec3(horiz.x, upBias, horiz.z).normalize();
+
+                double thr = Math.max(throttle, 1.0); // full throttle while boosting (fuel permitting)
+                return new Output(desired, thr, false, false, "arc: boosting v=" + fmt(vNow) + "->" + fmt(vGoal));
             }
 
-            // If you want “boost then coast”, set throttle low here; your actuator will still steer while coasting.
+            // 2) Solve arc (try both) and choose based on pitch cap
+            Aim low  = aimArc(m.pos(), target, vGoal, g, false);
+            Aim high = aimArc(m.pos(), target, vGoal, g, true);
+
+            Vec3 desired;
+            boolean valid = low.valid || high.valid;
+
+            if (!valid) {
+                // unreachable even at vGoal (e.g., too far with maxSpeed): just fly toward it
+                desired = to.normalize();
+                return new Output(desired, 1.0, false, false, "arc: unreachable -> flyTo");
+            }
+
+            // Prefer high arc only if it isn't ridiculously steep, otherwise fall back to low
+            final double MAX_PITCH_DEG = 60.0; // tune
+            Vec3 pick = low.valid ? low.dir : high.dir;
+
+            if (highArc && high.valid) {
+                double pitchHigh = Math.toDegrees(Math.asin(Mth.clamp(high.dir.y, -1.0, 1.0)));
+                if (pitchHigh <= MAX_PITCH_DEG) pick = high.dir;
+            }
+
+            // Hard clamp pitch anyway (safety net)
+            desired = clampPitch(pick, MAX_PITCH_DEG);
+
             return new Output(desired, throttle, false, false,
-                    valid ? ("arc t=" + fmt(aim.timeTicks)) : "arc invalid");
+                    "arc: v=" + fmt(vNow) + " goal=" + fmt(vGoal));
+        }
+
+        // Keeps direction but limits elevation angle
+        private static Vec3 clampPitch(Vec3 dir, double maxPitchDeg) {
+            Vec3 d = dir.normalize();
+            double maxY = Math.sin(Math.toRadians(maxPitchDeg));
+
+            if (d.y <= maxY) return d;
+
+            Vec3 h = new Vec3(d.x, 0, d.z);
+            if (h.lengthSqr() < 1e-8) return new Vec3(0, maxY, 0);
+
+            h = h.normalize();
+            double horizMag = Math.cos(Math.asin(maxY));
+            return new Vec3(h.x * horizMag, maxY, h.z * horizMag).normalize();
         }
     }
 

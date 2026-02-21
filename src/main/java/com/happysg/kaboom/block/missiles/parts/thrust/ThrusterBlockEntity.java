@@ -1,8 +1,7 @@
-package com.happysg.kaboom.block.missiles.parts;
+package com.happysg.kaboom.block.missiles.parts.thrust;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileAssembler;
 import com.happysg.kaboom.block.missiles.assembly.MissileLaunchHelper;
-import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
