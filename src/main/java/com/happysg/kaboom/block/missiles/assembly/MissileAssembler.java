@@ -56,7 +56,7 @@ public class MissileAssembler {
      * - structure rules: thruster -> fuel tanks (1+) -> guidance (terminator)
      */
     public static MissileAssemblyResult scan(Level level, BlockPos anyThrusterPos) {
-
+        BlockPos guidance = null; // NEW
         if (!(level instanceof ServerLevel server))
             return MissileAssemblyResult.invalid();
 
@@ -132,10 +132,12 @@ public class MissileAssembler {
 
                 if (part.isGuidance()) {
                     foundGuidance = true;
-                    log(server, "Guidance unit accepted.");
+                    if (guidance == null) guidance = cursor.immutable(); // NEW
+                    log(server, "Guidance unit accepted @ " + guidance);
                     collected.add(cursor);
                     cursor = cursor.above();
                     continue;
+
                 }
 
                 // Known IMissileComponent but not one you care about -> stop
@@ -177,7 +179,7 @@ public class MissileAssembler {
         log(server, "SUCCESS: Missile assembly valid. Blocks: " + collected.size());
         log(server, "=== Missile Assembly End ===");
 
-        return MissileAssemblyResult.valid(collected, controllerPos,warhead);
+        return MissileAssemblyResult.valid(collected, controllerPos,warhead,guidance);
     }
     private static void log(ServerLevel server, String message) {
        LogUtils.getLogger().warn("[MISSILE] " + message);

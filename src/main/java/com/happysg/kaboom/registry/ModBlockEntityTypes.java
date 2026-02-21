@@ -4,6 +4,7 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.MissileFuelTankBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.MissileGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.ThrusterBlockEntity;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
 
@@ -30,6 +31,12 @@ public class ModBlockEntityTypes {
                     .validBlocks(
                             ModBlocks.MISSILE_FUEL,
                             ModBlocks.MISSILE_FUEL_SMALL
+                    )
+                    .register();
+    public static final BlockEntityEntry<MissileGuidanceBlockEntity> GUIDANCE =
+            REGISTRATE.blockEntity("guidance_be", MissileGuidanceBlockEntity::new)
+                    .validBlocks(
+                            ModBlocks.MISSILE_GUIDANCE
                     )
                     .register();
 

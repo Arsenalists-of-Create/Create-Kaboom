@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fluids.FluidStack;
 import org.slf4j.Logger;
 
@@ -22,13 +23,22 @@ public class MissileContraption extends MountedContraption {
     public BlockState warheadState;
     public BlockPos controllerWorldPos = BlockPos.ZERO;
     private BlockPos startPos;
-    private Object initialOrientation;
+    private Direction initialOrientation;
     public int fuelAmountMb = 0;
     public int fuelCapacityMb = 0;
     public CompoundTag fuelFluidTag = null; // optional: store FluidStack in tag
+    public BlockPos warheadLocalPos = null;
+    public BlockPos capLocalPos = BlockPos.ZERO; // leading tip
+    public BlockPos endLocalPos = BlockPos.ZERO; // same idea, optional
+    public Vec3 guidanceTargetPoint = null; // copied at launch
+
+
+
+
     public void captureFromScan(Level level, MissileAssemblyResult result) {
         this.controllerWorldPos = result.getControllerPos();
-
+        this.warheadLocalPos = result.getWarhead();
+        this.capLocalPos = this.warheadLocalPos; // if warhead is the nose
         // Fill the blocks map (local coords relative to controller)
         for (BlockPos worldPos : result.getBlocks()) {
             BlockState state = level.getBlockState(worldPos);
@@ -48,27 +58,21 @@ public class MissileContraption extends MountedContraption {
         this.computeFuelFromCapturedBlocks(level);
         this.anchor = BlockPos.ZERO;      // local origin (since your blocks are local)
         this.startPos =BlockPos.ZERO;    // safe default; Create expects non-null
-
+        BlockPos best = BlockPos.ZERO;
+        for (BlockPos p : getBlocks().keySet()) {
+            if (p.getY() > best.getY()) best = p;
+        }
+        this.capLocalPos = best;
+        this.endLocalPos = best;
         this.initialOrientation = Direction.UP; // Direction
         this.bounds = computeAabbFromLocalBlocks();
         LOGGER.warn("[MISSILE] captured blocks={} bounds={}", this.getBlocks().size(), this.bounds);
     }
 
     private AABB computeAabbFromLocalBlocks() {
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-
-        for (BlockPos p : this.getBlocks().keySet()) {
-            minX = Math.min(minX, p.getX());
-            minY = Math.min(minY, p.getY());
-            minZ = Math.min(minZ, p.getZ());
-            maxX = Math.max(maxX, p.getX());
-            maxY = Math.max(maxY, p.getY());
-            maxZ = Math.max(maxZ, p.getZ());
-        }
 
         // include full block volumes
-        return new AABB(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
+        return new AABB(0, 0, 0, 1, 1, 1);
     }
 
     private void computeFuelFromCapturedBlocks(Level level) {
@@ -111,8 +115,18 @@ public class MissileContraption extends MountedContraption {
         tag.putInt("kaboom:FuelCapacityMb", fuelCapacityMb);
         if (fuelFluidTag != null) tag.put("kaboom:FuelFluid", fuelFluidTag);
 
+        tag.putLong("kaboom:CapLocalPos", capLocalPos.asLong());
+        tag.putLong("kaboom:EndLocalPos", endLocalPos.asLong());
+        if (warheadLocalPos != null) tag.putLong("kaboom:WarheadLocalPos", warheadLocalPos.asLong());
+        if (guidanceTargetPoint != null) {
+            tag.putDouble("GuidanceX", guidanceTargetPoint.x);
+            tag.putDouble("GuidanceY", guidanceTargetPoint.y);
+            tag.putDouble("GuidanceZ", guidanceTargetPoint.z);
+        }
+
         return tag;
     }
+
     @Override
     public void readNBT(Level level, CompoundTag tag, boolean clientData) {
         super.readNBT(level, tag, clientData);
@@ -121,9 +135,22 @@ public class MissileContraption extends MountedContraption {
         this.fuelCapacityMb = tag.getInt("kaboom:FuelCapacityMb");
         this.fuelFluidTag = tag.contains("kaboom:FuelFluid") ? tag.getCompound("kaboom:FuelFluid") : null;
 
-        // Optional: sanity clamp
+        if (tag.contains("kaboom:CapLocalPos")) capLocalPos = BlockPos.of(tag.getLong("kaboom:CapLocalPos"));
+        if (tag.contains("kaboom:EndLocalPos")) endLocalPos = BlockPos.of(tag.getLong("kaboom:EndLocalPos"));
+        warheadLocalPos = tag.contains("kaboom:WarheadLocalPos") ? BlockPos.of(tag.getLong("kaboom:WarheadLocalPos")) : null;
+
         if (fuelCapacityMb < 0) fuelCapacityMb = 0;
         if (fuelAmountMb < 0) fuelAmountMb = 0;
         if (fuelAmountMb > fuelCapacityMb) fuelAmountMb = fuelCapacityMb;
+        if (tag.contains("GuidanceX")) {
+            guidanceTargetPoint = new Vec3(
+                    tag.getDouble("GuidanceX"),
+                    tag.getDouble("GuidanceY"),
+                    tag.getDouble("GuidanceZ")
+            );
+        } else {
+            guidanceTargetPoint = null;
+        }
     }
+
 }
