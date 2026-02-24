@@ -1,5 +1,6 @@
 package com.happysg.kaboom.networking;
 
+import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidancePacket;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.items.AltitudeFuzePacket;
 import net.minecraft.resources.ResourceLocation;
@@ -32,6 +33,13 @@ public class NetworkHandler {
                 PreciseMotionSyncPacket::encode,
                 PreciseMotionSyncPacket::decode,
                 PreciseMotionSyncPacket::handle
+        );
+        CHANNEL.registerMessage(
+                id++,
+                GPSGuidancePacket.class,
+                GPSGuidancePacket::encode,
+                GPSGuidancePacket::decode,
+                GPSGuidancePacket::handle
         );
     }
 }

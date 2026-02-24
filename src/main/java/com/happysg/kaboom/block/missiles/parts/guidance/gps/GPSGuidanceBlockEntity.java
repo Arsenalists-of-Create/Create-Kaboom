@@ -6,8 +6,13 @@ import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -18,7 +23,7 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         super(pType, pPos, pBlockState);
     }
     // hardcode now
-    private double tx = 0.5, ty = 80.0, tz = -5000.5;
+    public double tx = 0.5, ty = 80.0, tz = -5000.5;
     private boolean highArc = false;
 
     // flight profile (GUI later edits these)
@@ -31,7 +36,29 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     }
 
     // (Optional) setters for GUI later
-    public void setTarget(Vec3 p, boolean highArc) { this.tx=p.x; this.ty=p.y; this.tz=p.z; this.highArc=highArc; setChanged(); }
+    public void setTarget(Vec3 p, boolean highArc) {
+        this.tx = p.x;
+        this.ty = p.y;
+        this.tz = p.z;
+        this.highArc = highArc;
+        LogUtils.getLogger().warn(" "+ tx +ty + tz);
+        setChanged();
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    public void setTarget(Vec3 p) {
+        setTarget(p, this.highArc);
+    }
+
+    public Vec3 getTarget() {
+        return new Vec3(tx, ty, tz);
+    }
+
+    public boolean isHighArc() {
+        return highArc;
+    }
     public void setProfile(MissileFlightProfile p) { this.profile=p; setChanged(); }
 
     @Override
@@ -49,5 +76,21 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         if (tag.contains("HighArc")) highArc = tag.getBoolean("HighArc");
         if (tag.contains("Profile")) profile = MissileFlightProfile.fromTag(tag.getCompound("Profile"));
     }
-}
 
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
+        saveAdditional(tag);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag) {
+        load(tag);
+    }
+}

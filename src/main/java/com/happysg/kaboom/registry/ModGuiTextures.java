@@ -12,8 +12,9 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 public enum ModGuiTextures implements ScreenElement {
     ALT_FUSE_SCREEN("altitude_fuze_gui",187,78),
-    CHECK("altitude_fuze_gui",156,56,16,16);
-
+    CHECK("altitude_fuze_gui",156,56,16,16),
+    GPS_SCREEN_BG("gps_guidance_gui",179,83),
+    TARGET("gps_guidance_gui",147,60,16,16);
 
 
 
