@@ -2,7 +2,8 @@ package com.happysg.kaboom.block.missiles.assembly;
 
 import com.happysg.kaboom.block.missiles.MissileContraption;
 import com.happysg.kaboom.block.missiles.MissileEntity;
-import com.happysg.kaboom.block.missiles.parts.guidance.MissileGuidanceBlockEntity;
+import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
+import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.registry.ModEntities;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.AssemblyException;
@@ -24,42 +25,46 @@ public class MissileLaunchHelper {
         BlockPos warheadWorldPos = result.getWarhead();
         BlockPos warheadLocalPos = warheadWorldPos.subtract(controllerPos);
 
-        // NEW: guidance world pos from scan
         BlockPos guidanceWorldPos = result.guidance();
 
-        // Build contraption (prefer returning MissileContraption if you can)
-        Contraption contraption = MissileContraptionBuilder.build(level, result, warheadWorldPos);
-
-        // NEW: copy guidance settings BEFORE removing blocks
-        Vec3 targetPoint = null;
+        // 1) Read guidance from BE BEFORE removing blocks
+        MissileGuidanceData guidance = null;
         if (guidanceWorldPos != null) {
             BlockEntity be = level.getBlockEntity(guidanceWorldPos);
-            if (be instanceof MissileGuidanceBlockEntity gbe) {
-                targetPoint = gbe.getTargetPoint();
+            if (be instanceof IMissileGuidanceProvider provider) {
+                guidance = provider.exportGuidance();
             }
         }
 
-        // If your builder returns a MissileContraption, store it there (best)
-        if (contraption instanceof MissileContraption mc) {
-            mc.guidanceTargetPoint = targetPoint != null ? targetPoint : new Vec3(0.5, 80.0, 5000.5);
+        if (guidance == null) {
+            LOGGER.warn("[LAUNCH] No guidance data found at {} (guidance block missing or not a provider).", guidanceWorldPos);
+            return false; // or allow dumb mode if you want
         }
 
-        // Now remove blocks (BE will be gone after this)
+        // 2) Build a MissileContraption (strongly typed)
+        MissileContraption mc = MissileContraptionBuilder.build(level, result, warheadWorldPos);
+
+        // 3) Store the guidance blob on the contraption (this is your “full system” handoff)
+        mc.guidanceTag = guidance.toTag();
+
+        // 4) Remove blocks (BE is gone after this)
         for (int i = result.getBlocks().size() - 1; i >= 0; i--) {
             level.removeBlock(result.getBlocks().get(i), false);
         }
 
+        // 5) Spawn missile entity
         MissileEntity entity = ModEntities.MISSILE.get().create(level);
         if (entity == null) return false;
 
-        entity.initFromAssembly(contraption, controllerPos, warheadLocalPos);
+        entity.initFromAssembly(mc, controllerPos, warheadLocalPos);
+
         boolean added = level.addFreshEntity(entity);
 
         LOGGER.warn("[LAUNCH] addFreshEntity -> {} id={} pos={}", added, entity.getId(), entity.position());
-        LOGGER.warn("[MISSILE] controllerWorld={} warheadWorld={} warheadLocal={} guidanceWorld={} target={}",
-                controllerPos, warheadWorldPos, warheadLocalPos, guidanceWorldPos, targetPoint);
+        LOGGER.warn("[MISSILE] controllerWorld={} warheadWorld={} warheadLocal={} guidanceWorld={} guidanceTag={}",
+                controllerPos, warheadWorldPos, warheadLocalPos, guidanceWorldPos, mc.guidanceTag);
 
-        return true;
+        return added;
     }
     public static void requestLaunch(ServerLevel level, BlockPos triggeringThrusterPos) {
         // Resolve controller from *any* thruster position

@@ -2,7 +2,10 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.async.AsyncMissilePlanner;
 import com.happysg.kaboom.async.MissileAutopilotPlanner;
+
+import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileProjectileContext;
+import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
@@ -80,7 +83,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> HEADING_Z =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
-    private static final EntityDataAccessor<Integer> FUEL_MB =
+    public static final EntityDataAccessor<Integer> FUEL_MB =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
     protected static final EntityDataAccessor<Float> GRAVITY =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
@@ -95,7 +98,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final double GRAVITY_PER_TICK = 0.08;
     private static final double STUCK_AABB_RADIUS = 0.25; // 0.25 = half block cube
     // thrust (requires fuel)
-    private static final double MAX_THRUST_ACCEL = 0.25;   // blocks/tick^2 at throttle=1
+    private static final double MAX_THRUST_ACCEL = .5;   // blocks/tick^2 at throttle=1
     private static final int    BURN_MB_PER_TICK_AT_FULL = 6; // tune to taste
 
     // steering (works even with fuel=0)
@@ -104,7 +107,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final double MIN_STEER_ACCEL = 0.00;       // set 0.05 if you want "RCS-ish" control at low speed
 
     // async cadence
-    private static final int SUBSTEPS = 8;
+    private static final int SUBSTEPS = 50;
     private static final int PLAN_EVERY_N_TICKS = 1;
 
     private final AsyncMissilePlanner planner = new AsyncMissilePlanner(PLANNER_EXECUTOR);
@@ -121,10 +124,7 @@ public class MissileEntity extends OrientedContraptionEntity {
     @Nullable protected Vec3 nextVelocity = null; // keep from your CBC code
     private final Set<Long> forcedChunks = new HashSet<>();
     private static final int CHUNK_RADIUS = 7; // 0=just current chunk, 1=3x3, 2=5x5
-    private static final int BASE_BURN_MB_PER_TICK = 4;     // idle-ish burn when thrusting
-    private static final double BURN_PER_ACCEL = 18.0;      // extra burn per |a| (blocks/tick^2)
-    private static final double MIN_THRUST_ACCEL = 0.01;    // below this, consider "not thrusting"
-    private Vec3 inGroundPos;
+
     private static final Executor PLANNER_EXECUTOR = Executors.newFixedThreadPool(
             2,
             r -> { Thread t = new Thread(r, "kaboom-missile-planner"); t.setDaemon(true); return t; }
@@ -136,28 +136,15 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private enum FlightPhase {ASCENT, CRUISE, BALLISTIC, IMPACT}
-
-    // Target: climb to Y=128, then fly to (0,128,5000)
-    private static final Vec3 TARGET = new Vec3(0, 0, 5000);
     private int fuelMb;
     private int fuelCapacityMb;
-    private FluidStack fuelFluid = FluidStack.EMPTY;
-
-
-    private static final double ASCENT_SPEED = 1.2;
-    private static final double CRUISE_SPEED = 2.5;
-
-
-    private FlightPhase phase = FlightPhase.ASCENT;
-    private Vec3 vel = Vec3.ZERO;
     private Vec3 lastVelForSmoke = Vec3.ZERO;
     private boolean fuelDepleted = false;
     private volatile MissileAutopilotPlanner.Command latestCmd = MissileAutopilotPlanner.Command.NONE;
     private CompletableFuture<MissileAutopilotPlanner.Command> cmdFuture;
     @OnlyIn(Dist.CLIENT)
     private MissileEngineSound engineSound;
-    private Vec3 heading;
+
     @Nullable private Vec3 pendingVelocity = null; // used for NEXT tick (bounce)
     // Always use our own contraption colliders (instead of Create's generated ones)
     private boolean forceCustomColliders = true;
@@ -176,7 +163,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     // How far ahead of the nose block center to collide (half block-ish)
     private static final double NOSE_TIP_AHEAD = 0.55;
-
+    private boolean launched  =false;
 
 
 
@@ -190,13 +177,12 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         setContraption(contraption);
         setNoGravity(false);
-        this.entityData.set(GRAVITY,  0.08f); // or whatever baseline you want
+        this.entityData.set(GRAVITY,  -0.08f); // or whatever baseline you want
         startAtInitialYaw();
         // Already local (relative to controller)
         this.warheadpos = warheadLocalPos;
         // Reset state
-        phase = FlightPhase.ASCENT;
-        vel = Vec3.ZERO;
+
         if (contraption instanceof MissileContraption mc) {
             this.fuelMb = mc.fuelAmountMb;
             this.fuelCapacityMb = mc.fuelCapacityMb;
@@ -204,8 +190,13 @@ public class MissileEntity extends OrientedContraptionEntity {
         this.entityData.set(FUEL_MB, fuelMb);
         this.entityData.set(FUEL_CAP_MB, fuelCapacityMb);
 
-        LOGGER.warn("[MISSILE INIT] fuelMb={} cap={} target={}", fuelMb, fuelCapacityMb,
-                (contraption instanceof MissileContraption mc ? mc.guidanceTargetPoint : null));
+        if (contraption instanceof MissileContraption mc) {
+            LOGGER.warn("[MISSILE INIT] guidanceTag={}", mc.guidanceTag);
+            if (mc.guidanceTag != null && !mc.guidanceTag.isEmpty()) {
+                MissileGuidanceData parsed = MissileGuidanceData.fromTag(mc.guidanceTag);
+                LOGGER.warn("[MISSILE INIT] parsed target={} profile={}", parsed.target(), parsed.profile());
+            }
+        }
         recomputeForwardAxisAndNose();
 
         // pick a "nose" for mass / sweeps (usually highest Y in local space)
@@ -219,14 +210,12 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
         rebuildCustomColliders(0.40); // tune
         enforceCustomColliders();
-        if (contraption instanceof MissileContraption mc && mc.guidanceTargetPoint != null) {
-            Vec3 tgt = mc.guidanceTargetPoint;
 
-            // Program the planner once at launch
-            planner.clearProgram()
-                    .climbTo(128, 2.0, .3)
-                    .pitchOver(2.5, 60, 0.6)
-                    .arcTo(tgt, 18.0, false, 6.0, 1);
+        if (contraption instanceof MissileContraption mc && mc.guidanceTag != null && !mc.guidanceTag.isEmpty()) {
+            MissileGuidanceData data = MissileGuidanceData.fromTag(mc.guidanceTag);
+            applyGuidance(data); // programs the planner from target+profile
+
+            // Prime so tick 0 isn't idle
             latestPlan = planner.prime(worldView, new AsyncMissilePlanner.Snapshot(
                     level().getGameTime(),
                     this.position(),
@@ -237,7 +226,14 @@ public class MissileEntity extends OrientedContraptionEntity {
                     MAX_SPEED,
                     GRAVITY_PER_TICK
             ));
+
+            // Small kickoff so steering/drag behaves immediately (don't use (0,1,0), that's huge)
             super.setDeltaMovement(new Vec3(0, 1, 0));
+        } else {
+            LOGGER.warn("falling back");
+            // Optional fallback if guidance missing
+            planner.clearProgram().coast(0.0);
+            latestPlan = AsyncMissilePlanner.Output.idle();
         }
         blockMass.clear();
         blockMass.put(this.capPos, 10.0f);
@@ -253,21 +249,21 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
-        super.setDeltaMovement(Vec3.ZERO);
     }
     @Override
     public void tick() {
         if (this.contraption == null) {
+            LOGGER.warn("contraption null");
             discard();
             return;
         }
-        if(tickCount == 1 && !fuelDepleted){
+
+        enforceCustomColliders();
+        if (!launched && getFuelMbSynced() > 0) { // <-- the important part
+            launched = true;
             engineSound = new MissileEngineSound(this);
             Minecraft.getInstance().getSoundManager().play(engineSound);
         }
-        LOGGER.warn(""+position());
-        enforceCustomColliders();
-
         if (level().isClientSide) {
             clientTickVisuals();
             super.tick();
@@ -282,16 +278,16 @@ public class MissileEntity extends OrientedContraptionEntity {
         hasImpulse = true;
 
         tickChunkLoading();
-        if (tickCount < 200 && (tickCount % 5 == 0)) {
+        if ((tickCount % 5 == 0)) {
             Vec3 vNow = getDeltaMovement();
-            LOGGER.warn("[MISSILE] t={} pos={} v={} speed={} fuel={} throttleReq={} desired={}",
-                    tickCount,
-                    position(),
-                    vNow,
-                    String.format(java.util.Locale.ROOT, "%.3f", vNow.length()),
+            LOGGER.warn("[MISSILE] t={} pos={} v={} speed={} fuel={} throttleReq={} desired={} done={} dbg={}",
+                    tickCount, position(), vNow,
+                    String.format(Locale.ROOT, "%.3f", vNow.length()),
                     fuelMb,
-                    String.format(java.util.Locale.ROOT, "%.2f", latestPlan.throttleReq()),
-                    latestPlan.desiredDir()
+                    String.format(Locale.ROOT, "%.2f", latestPlan.throttleReq()),
+                    latestPlan.desiredDir(),
+                    latestPlan.done(),
+                    latestPlan.debug()
             );
         }
 
@@ -300,14 +296,14 @@ public class MissileEntity extends OrientedContraptionEntity {
         this.setNoGravity(false);
 
         // If embedded/stuck, freeze and just tick fuzes
-        if (latchedInGround || this.onGround()) {
+        if (latchedInGround) {
             freezeInPlace();
             tickWarhead();
             sendPreciseMotion(position(), Vec3.ZERO);
             return;
         }
 
-        // Apply any "bounce" velocity that was computed LAST tick
+
         if (pendingVelocity != null) {
             Vec3 pv = clampSpeed(pendingVelocity, MAX_SPEED);
             super.setDeltaMovement(pv);
@@ -378,16 +374,19 @@ public class MissileEntity extends OrientedContraptionEntity {
             pendingVelocity = clampSpeed(nextVelocity, MAX_SPEED);
             nextVelocity = null;
         }
+        Vec3 headingVec = velActual;
 
-        // 9) Sync heading + precise motion for THIS tick's actual movement
-        syncHeading(velActual);
+        if (latestPlan.desiredDir() != null && latestPlan.desiredDir().lengthSqr() > 1e-8) {
+            // When doing pitch-over “attitude”, use desiredDir instead of velocity
+            if (latestPlan.debug() != null && latestPlan.debug().startsWith("pitch")) {
+                headingVec = latestPlan.desiredDir();
+            }
+        }
+        boolean pitchHold = latestPlan.debug() != null && latestPlan.debug().startsWith("pitchHold");
+        Vec3 h = pitchHold ? latestPlan.desiredDir() : velActual;
+        syncHeading(h);
         sendPreciseMotion(pos1, velActual);
 
-        // Optional: planner-requested detonation hook
-        if (latestPlan.detonate()) {
-            // Usually best to keep detonation driven by CBC fuze logic (onClip/onImpact/tickWarhead).
-            // If you *do* want forced detonation, call your detonate(...) here safely.
-        }
     }
     protected Vec3 getForcesWithParam(Vec3 velocity) {
         // Drag opposes velocity
@@ -400,12 +399,30 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         return dragVec.add(0.0, g, 0.0);
     }
+    private int getFuelMbSynced() {
+        return entityData.get(FUEL_MB);
+    }
 
     private void freezeInPlace() {
         super.setDeltaMovement(Vec3.ZERO);
         setContraptionMotion(Vec3.ZERO);
         this.noPhysics = true;
     }
+    private void applyGuidance(MissileGuidanceData data) {
+        var p = data.profile();
+        var t = data.target();
+
+        planner.setPlanCadence(p.planCadenceTicks());
+        if (t.type() == MissileTargetSpec.TargetType.POINT) {
+            boolean useHigh = t.highArc() || p.preferHighArc();
+            planner.clearProgram()
+                    .boostUp(p.boostAltitude(), p.boostTolerance(), p.boostThrottle())
+                    .pitchOverHoldXZToArc(t.point(),p.pitchOverSeconds(),p.assumedSpeed(),useHigh)
+                    .arcTo(t.point(),p.assumedSpeed(), p.preferHighArc(), p.arriveRadius(),p.terminalThrottle());
+        } else if (t.type() == MissileTargetSpec.TargetType.ENTITY && t.entityId() != null) {
+            planner.intercept(t.entityId(), p.assumedSpeed(), p.arriveRadius(), p.terminalThrottle());
+        }
+        }
     private void sendPreciseMotion(Vec3 pos, Vec3 v) {
         if (!(level() instanceof ServerLevel)) return;
 
@@ -734,15 +751,34 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         // ---- Steering (works even when fuel=0) ----
         Vec3 aSteer = Vec3.ZERO;
-        if (speed > 1e-6) {
-            Vec3 vHat = v.scale(1.0 / speed);
-            Vec3 steerDir = desired.subtract(vHat.scale(desired.dot(vHat))); // sideways component
-            if (steerDir.lengthSqr() > 1e-10) {
-                steerDir = steerDir.normalize();
-                double steerA = STEER_ACCEL_PER_SPEED * speed;
-                steerA = Mth.clamp(steerA, MIN_STEER_ACCEL, MAX_STEER_ACCEL);
-                aSteer = steerDir.scale(steerA);
+        aSteer = aSteer.scale(plan.steerScale());
+        Vec3 desiredHat = desired.normalize();
+        Vec3 vHat;
+
+        if (speed > 1e-6) vHat = v.scale(1.0 / speed);
+        else vHat = currentDir; // if stopped, use currentDir basis
+
+        double dot = Mth.clamp(vHat.dot(desiredHat), -1.0, 1.0);
+
+        if (dot < 0.9999) {
+            // Turn direction in the plane perpendicular to vHat
+            Vec3 turnDir;
+
+            if (dot < -0.9999) {
+                // 180° reversal: choose an arbitrary but stable perpendicular direction
+                Vec3 axis = vHat.cross(new Vec3(0, 1, 0));
+                if (axis.lengthSqr() < 1e-8) axis = vHat.cross(new Vec3(1, 0, 0));
+                turnDir = axis.cross(vHat).normalize();
+            } else {
+                // General case: axis = vHat x desired, turnDir = axis x vHat (toward desired)
+                Vec3 axis = vHat.cross(desiredHat);
+                turnDir = axis.cross(vHat).normalize();
             }
+
+            double steerA = STEER_ACCEL_PER_SPEED * Math.max(speed, 0.5); // give it some authority at low speed
+            steerA = Mth.clamp(steerA, MIN_STEER_ACCEL, MAX_STEER_ACCEL);
+
+            aSteer = turnDir.scale(steerA);
         }
 
         // ---- Thrust (requires fuel) ----
@@ -764,7 +800,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
 
         Vec3 aThrust = desired.scale(MAX_THRUST_ACCEL * throttle);
-
+        aSteer = aSteer.scale(plan.steerScale());
         return aSteer.add(aThrust);
     }
 
@@ -805,43 +841,6 @@ public class MissileEntity extends OrientedContraptionEntity {
 
 
 
-    private void pumpAsyncPlanner() {
-        long t = level().getGameTime();
-
-        // Consume finished job
-        if (cmdFuture != null && cmdFuture.isDone()) {
-            try {
-                latestCmd = cmdFuture.getNow(MissileAutopilotPlanner.Command.NONE);
-            } catch (Exception ignored) {
-            }
-            cmdFuture = null;
-        }
-        setNoGravity(phase != FlightPhase.BALLISTIC);
-        if (fuelMb <= 0 && phase != FlightPhase.IMPACT) {
-            onFuelDepleted();
-        }
-        // Launch a new job periodically
-        if (cmdFuture == null && (t % 2 == 0)) {
-            var snap = new MissileAutopilotPlanner.Snapshot(
-                    this.position(), // main thread read
-                    this.vel,
-                    switch (this.phase) {
-                        case ASCENT -> MissileAutopilotPlanner.Phase.ASCENT;
-                        case CRUISE -> MissileAutopilotPlanner.Phase.CRUISE;
-                        case BALLISTIC -> MissileAutopilotPlanner.Phase.BALLISTIC;
-                        case IMPACT -> MissileAutopilotPlanner.Phase.IMPACT;
-                    },
-                    TARGET
-            );
-
-
-            var cfg = new MissileAutopilotPlanner.Config(ASCENT_SPEED, CRUISE_SPEED);
-
-            cmdFuture = CompletableFuture.supplyAsync(() ->
-                    MissileAutopilotPlanner.plan(snap, cfg)
-            );
-        }
-    }
 
 
 
@@ -886,10 +885,13 @@ public class MissileEntity extends OrientedContraptionEntity {
 
             Vec3 motion = v.scale(inherit).add(back.scale(pushBack)).add(tx, ty, tz);
 
-            cl.addParticle(ModParticles.MISSILE_SMOKE.get(), x, y, z, motion.x, motion.y, motion.z);
+            cl.addParticle(ModParticles.MISSILE_SMOKE.get(),true, x, y, z, motion.x, motion.y, motion.z);
         }
     }
-
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+    return true;
+    }
 
 
 
@@ -910,18 +912,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
     }
 
-    private void onFuelDepleted() {
-        if (fuelDepleted) return;
-        fuelDepleted = true;
-        Minecraft.getInstance().getSoundManager().stop(engineSound);
-        LOGGER.warn("[MISSILE] Fuel depleted at tick {}", level().getGameTime());
-        phase = FlightPhase.BALLISTIC;
 
-        cmdFuture = null;
-        latestCmd = MissileAutopilotPlanner.Command.NONE;
-
-        setNoGravity(true);     // we do gravity ourselves in ballisticTickServer()
-    }
 
     // MissileEntity.java
     public void setTargetPoint(Vec3 targetPos) {
@@ -966,7 +957,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
 
 
-    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1, .01, false, 2.0f, 1, 1, 0.70f);
+    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.08, 0, false, 2.0f, 1, 1, 0.70f);
     public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30, false, true, true, 2);
     protected Map<BlockPos, Float> blockMass = new HashMap<>();
 
@@ -1204,7 +1195,6 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
 
         if (!level().isClientSide || !stop) {
-            heading = traj;
             Vec3 o = getOrientation();
             Vec3 look = o.lengthSqr() < 1e-8 ? new Vec3(0, -1, 0) : o.normalize();
             setXRot(pitchFromVector(look));
@@ -1309,6 +1299,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         FuzeMixin acc = (FuzeMixin) fuzed;
         if (acc.invokeCanDetonate(fz -> fz.onProjectileTick(acc.getFuze(), fuzed))) {
             this.detonate(warheadpos, fuzed);
+            LOGGER.warn("explosion discard");
             fuzed.discard();
             this.warhead = null;
             this.warheadpos = null;
@@ -1389,6 +1380,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         BallisticPropertiesComponent ballistics = BALLISTIC_PROPERTIES;
         double mass = 0;
         if (this.contraption.getBlocks().isEmpty()) {
+            LOGGER.warn("calculateBlockPenetration discard");
             this.discard();
             return new AbstractCannonProjectile.ImpactResult(AbstractCannonProjectile.ImpactResult.KinematicOutcome.STOP, true);
         }
@@ -1397,6 +1389,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             mass = blockMass.get(capPos);
         }
         if (ballistics == null) {
+            LOGGER.warn("null discard");
             this.discard();
             return new AbstractCannonProjectile.ImpactResult(AbstractCannonProjectile.ImpactResult.KinematicOutcome.STOP, true);
         }
@@ -1495,13 +1488,14 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
         Minecraft.getInstance().getSoundManager().stop(engineSound);
-        discard();
+        LOGGER.warn("kaboom");
         BlockPos oldPos = this.blockPosition();
         Vec3 oldDelta = this.getDeltaMovement();
         fuzed.setDeltaMovement(oldDelta);
         ((FuzeMixin) fuzed).invokeDetonate((this.toGlobalVector(Vec3.atCenterOf(pos), 0)));
         this.setPos(oldPos.getX(), oldPos.getY(), oldPos.getZ());
         this.setContraptionMotion(oldDelta.scale(0.75));
+        discard();
     }
     public Vec3 getOrientation() {
 
@@ -1514,10 +1508,11 @@ public class MissileEntity extends OrientedContraptionEntity {
     protected boolean onImpact(HitResult hitResult,
                                AbstractCannonProjectile.ImpactResult impactResult,
                                MissileProjectileContext projectileContext) {
-        Minecraft.getInstance().getSoundManager().stop(engineSound);
+
         if (!(this.warhead instanceof FuzedBigCannonProjectile fuzed) || this.warheadpos == null) {
             if (!level().isClientSide && impactResult.kinematics() == AbstractCannonProjectile.ImpactResult.KinematicOutcome.STOP) {
                 level().explode(this, getX(), getY(), getZ(), 4.0f, Level.ExplosionInteraction.TNT);
+                LOGGER.warn("impact discard");
                 discard();
                 return true;
             }
@@ -1535,8 +1530,6 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         if (acc.invokeCanDetonate(fz ->
                 fz.onProjectileImpact(acc.getFuze(), fuzed, hitResult, impactResult, baseFuze))) {
-
-
             detonate(this.warheadpos, fuzed);
             fuzed.discard();
             this.warhead = null;

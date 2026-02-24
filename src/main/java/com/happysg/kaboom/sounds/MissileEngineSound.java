@@ -36,7 +36,10 @@ public class MissileEngineSound extends AbstractTickableSoundInstance {
             stop();
             return;
         }
-
+        if (missile.getEntityData().get(MissileEntity.FUEL_MB) <= 0) { // see note below about access
+            stop();
+            return;
+        }
         this.x = missile.getX();
         this.y = missile.getY();
         this.z = missile.getZ();
@@ -74,5 +77,8 @@ public class MissileEngineSound extends AbstractTickableSoundInstance {
         // Optional: small volume bump when approaching
         float targetVol = 0.85f + (float)Mth.clamp((-radial) / 120.0, 0.0, 0.20);
         this.volume = Mth.lerp(0.20f, this.volume, targetVol);
+    }
+    public void stopSound(){
+        stop();
     }
 }

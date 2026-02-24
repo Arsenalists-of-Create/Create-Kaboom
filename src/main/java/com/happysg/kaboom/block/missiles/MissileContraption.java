@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
+import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.mojang.logging.LogUtils;
 
 import com.simibubi.create.content.contraptions.mounted.MountedContraption;
@@ -17,6 +18,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fluids.FluidStack;
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 public class MissileContraption extends MountedContraption {
 
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -31,7 +34,8 @@ public class MissileContraption extends MountedContraption {
     public BlockPos capLocalPos = BlockPos.ZERO; // leading tip
     public BlockPos endLocalPos = BlockPos.ZERO; // same idea, optional
     public Vec3 guidanceTargetPoint = null; // copied at launch
-
+    @Nullable
+    public CompoundTag guidanceTag = null;
 
 
 
@@ -44,13 +48,19 @@ public class MissileContraption extends MountedContraption {
             BlockState state = level.getBlockState(worldPos);
             BlockEntity be = level.getBlockEntity(worldPos);
 
-            CompoundTag tag = be != null ? be.saveWithFullMetadata() : null;
-            if (tag != null) {
-                // contraptions don’t want absolute x/y/z baked into the saved tag
-                tag.remove("x");
-                tag.remove("y");
-                tag.remove("z");
+
+            if (guidanceTag == null || guidanceTag.isEmpty()) {
+                if (be instanceof IMissileGuidanceProvider provider) {
+                    guidanceTag = provider.exportGuidance().toTag();   // <-- correct format
+                    LOGGER.warn("[MISSILE CAPTURE] captured guidance via provider: {}", guidanceTag);
+                } else if (state.getBlock() instanceof IMissileComponent part && part.isGuidance()) {
+                    // fallback: raw BE tag (older format) if you really want
+                    guidanceTag = be.saveWithoutMetadata();
+                    LOGGER.warn("[MISSILE CAPTURE] captured guidance via BE raw tag: {}", guidanceTag);
+                }
             }
+
+            CompoundTag tag = be != null ? be.saveWithFullMetadata() : null;
 
             BlockPos localPos = worldPos.subtract(controllerWorldPos);
             this.getBlocks().put(localPos, new StructureBlockInfo(localPos, state, tag));
@@ -102,6 +112,8 @@ public class MissileContraption extends MountedContraption {
             chosen.writeToNBT(t);
             fuelFluidTag = t;
         }
+
+        LOGGER.warn("[MISSILE FUEL] total={} cap={}", fuelAmountMb, fuelCapacityMb);
     }
     @Override
     public CompoundTag writeNBT(boolean clientData) {
@@ -123,6 +135,8 @@ public class MissileContraption extends MountedContraption {
             tag.putDouble("GuidanceY", guidanceTargetPoint.y);
             tag.putDouble("GuidanceZ", guidanceTargetPoint.z);
         }
+        if (guidanceTag != null && !guidanceTag.isEmpty())
+            tag.put("Guidance", guidanceTag);
 
         return tag;
     }
@@ -151,6 +165,8 @@ public class MissileContraption extends MountedContraption {
         } else {
             guidanceTargetPoint = null;
         }
+        // readNBT
+        guidanceTag = tag.contains("Guidance") ? tag.getCompound("Guidance") : null;
     }
 
 }

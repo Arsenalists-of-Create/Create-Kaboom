@@ -1,4 +1,4 @@
-package com.happysg.kaboom.block.missiles.parts.guidance;
+package com.happysg.kaboom.block.missiles.util;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
@@ -6,7 +6,6 @@ import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
 
 public record MissileTargetSpec(TargetType type, Vec3 point, UUID entityId, boolean highArc) {
-
     public enum TargetType { POINT, ENTITY }
 
     public static MissileTargetSpec point(Vec3 p, boolean highArc) {
@@ -26,9 +25,7 @@ public record MissileTargetSpec(TargetType type, Vec3 point, UUID entityId, bool
             tag.putDouble("X", point.x);
             tag.putDouble("Y", point.y);
             tag.putDouble("Z", point.z);
-        }
-
-        if (type == TargetType.ENTITY && entityId != null) {
+        } else if (type == TargetType.ENTITY && entityId != null) {
             tag.putUUID("Entity", entityId);
         }
 
@@ -36,15 +33,25 @@ public record MissileTargetSpec(TargetType type, Vec3 point, UUID entityId, bool
     }
 
     public static MissileTargetSpec fromTag(CompoundTag tag) {
-        TargetType type = TargetType.valueOf(tag.getString("Type"));
-        boolean highArc = tag.getBoolean("HighArc");
+        String raw = tag.getString("Type");
+        TargetType type = TargetType.POINT; // default
 
-        if (type == TargetType.POINT) {
-            Vec3 p = new Vec3(tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"));
-            return point(p, highArc);
+        if (raw != null && !raw.isBlank()) {
+            try {
+                type = TargetType.valueOf(raw.toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                type = TargetType.POINT;
+            }
         }
 
-        UUID id = tag.hasUUID("Entity") ? tag.getUUID("Entity") : null;
-        return entity(id);
+        Vec3 point = null;
+        if (tag.contains("X") && tag.contains("Y") && tag.contains("Z")) {
+            point = new Vec3(tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"));
+        }
+
+        UUID entityId = tag.hasUUID("Entity") ? tag.getUUID("Entity") : null;
+        boolean relative = tag.getBoolean("Relative");
+
+        return new MissileTargetSpec(type, point, entityId, relative);
     }
 }

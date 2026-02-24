@@ -2,7 +2,7 @@ package com.happysg.kaboom.block.missiles.parts.guidance.heatseeker;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
-import com.happysg.kaboom.block.missiles.parts.guidance.MissileTargetSpec;
+import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
@@ -55,10 +55,6 @@ public class HeatseekerGuidanceBlock extends DirectionalBlock implements IBE<Hea
         return ModBlockEntityTypes.HEATSEEKER_GUIDANCE.get();
     }
 
-    @Override
-    public MissileTargetSpec exportTargetSpec() {
-        return null;
-    }
 }
 
 

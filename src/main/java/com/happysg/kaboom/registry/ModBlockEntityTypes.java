@@ -4,7 +4,6 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlockEntity;
-import com.happysg.kaboom.block.missiles.parts.guidance.MissileGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.heatseeker.HeatseekerGuidanceBlockEntity;
@@ -35,12 +34,7 @@ public class ModBlockEntityTypes {
                             ModBlocks.MISSILE_FUEL_SMALL
                     )
                     .register();
-    public static final BlockEntityEntry<MissileGuidanceBlockEntity> GUIDANCE =
-            REGISTRATE.blockEntity("guidance_be", MissileGuidanceBlockEntity::new)
-                    .validBlocks(
-                            ModBlocks.MISSILE_GUIDANCE
-                    )
-                    .register();
+
     public static final BlockEntityEntry<GPSGuidanceBlockEntity>GPS_GUIDANCE =
             REGISTRATE.blockEntity("gps_guidance_be",GPSGuidanceBlockEntity::new)
                     .validBlocks(
@@ -49,7 +43,7 @@ public class ModBlockEntityTypes {
                     )
                     .register();
     public static final BlockEntityEntry<HeatseekerGuidanceBlockEntity> HEATSEEKER_GUIDANCE =
-            REGISTRATE.blockEntity("gps_guidance_be",HeatseekerGuidanceBlockEntity::new)
+            REGISTRATE.blockEntity("heat_seeker_be",HeatseekerGuidanceBlockEntity::new)
                     .validBlocks(
                             ModBlocks.HEATSEEKER_SMALL
                     )

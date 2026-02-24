@@ -2,7 +2,8 @@ package com.happysg.kaboom.block.missiles.parts.guidance.gps;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
-import com.happysg.kaboom.block.missiles.parts.guidance.MissileTargetSpec;
+
+import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -63,8 +65,4 @@ public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuida
         return ModBlockEntityTypes.GPS_GUIDANCE.get();
     }
 
-    @Override
-    public MissileTargetSpec exportTargetSpec() {
-        return null;
-    }
 }

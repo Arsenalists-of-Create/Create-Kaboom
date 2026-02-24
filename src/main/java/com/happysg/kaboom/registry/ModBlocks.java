@@ -13,7 +13,6 @@ import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
-import com.happysg.kaboom.block.missiles.parts.guidance.MissileGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlock;
@@ -119,13 +118,6 @@ public class ModBlocks {
                     .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
                     .simpleItem()
                     .register();
-    public static final BlockEntry<MissileGuidanceBlock> MISSILE_GUIDANCE =
-            REGISTRATE.block("missile_guidance_large", MissileGuidanceBlock::new)
-                    .initialProperties(SharedProperties::softMetal)
-            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-            .getExistingFile(ctx.getId()), 0))
-            .simpleItem()
-            .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_SMALL =
             REGISTRATE.block("gps_guidance_small", GPSGuidanceBlock::new)
                     .addLayer(() -> RenderType::cutoutMipped)
