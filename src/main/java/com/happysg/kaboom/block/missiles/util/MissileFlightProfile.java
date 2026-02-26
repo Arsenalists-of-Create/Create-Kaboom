@@ -29,8 +29,8 @@ public record MissileFlightProfile(
                 10, 1.0, .7,     // boost straight up ~40 blocks (tune 20–80)
                 128.0, 2.0, 1.0,
                 1, 0.0, 1.0,
-                20.0, 6.0, .4,
-                false, 1
+                20, 6.0, 0,
+                true, 1
         );
     }
 

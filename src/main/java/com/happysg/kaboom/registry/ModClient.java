@@ -1,7 +1,7 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
-import com.happysg.kaboom.particles.EngineGlowParticle;
+import com.happysg.kaboom.particles.MissileAttachedParticleProvider;
 import com.happysg.kaboom.particles.MissileSmokeParticle;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
@@ -13,6 +13,6 @@ public class ModClient {
     @SubscribeEvent
     public static void registerParticleFactories(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.MISSILE_SMOKE.get(), MissileSmokeParticle.Provider::new);
-        event.registerSpriteSet(ModParticles.ENGINE_GLOW.get(), EngineGlowParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.MISSILE_ATTACHED.get(), MissileAttachedParticleProvider::new);
     }
 }

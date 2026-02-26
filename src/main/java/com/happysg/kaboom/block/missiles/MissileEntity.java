@@ -1,12 +1,8 @@
 package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.async.AsyncMissilePlanner;
-import com.happysg.kaboom.async.MissileAutopilotPlanner;
 
-import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
-import com.happysg.kaboom.block.missiles.util.MissileProjectileContext;
-import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
-import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
+import com.happysg.kaboom.block.missiles.util.*;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.NetworkHandler;
@@ -91,24 +87,29 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final EntityDataAccessor<Integer> FUEL_CAP_MB =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
     // --- Fuel / thrust tuning ---
-    private static final double MAX_TURN_DEG_PER_TICK = 12.0; // try 12–18 for missiles
+    private static final double MAX_TURN_DEG_PER_TICK = 25; // try 12–18 for missiles
 
     // speed/physics
-    private static final double MAX_SPEED = 20.0;
+    private static final double MAX_SPEED = 22;
     private static final double GRAVITY_PER_TICK = 0.08;
-    private static final double STUCK_AABB_RADIUS = 0.25; // 0.25 = half block cube
     // thrust (requires fuel)
-    private static final double MAX_THRUST_ACCEL = .5;   // blocks/tick^2 at throttle=1
-    private static final int    BURN_MB_PER_TICK_AT_FULL = 6; // tune to taste
+    private static final double MAX_THRUST_ACCEL = 1.2;   // blocks/tick^2 at throttle=1
+    private static final int    BURN_MB_PER_TICK_AT_FULL = 100; // tune to taste
+    // blocks/tick
+    private static final double MAX_SPEED_PER_TICK = 22;
+    private static final double MIN_SPEED_PER_TICK = 0; // or ~0.5 if you want minimum cruise
 
+    // "velocity blending" response per tick (0..1)
+    private static final double CONTROL_RESPONSE = 0.35;
+
+    // accel clamps (blocks/tick^2)
+    private static final double MAX_STEER_ACCEL  = 1.5;  // sideways steer (no fuel)
+    private static final double MAX_BRAKE_ACCEL  = 2;  // braking/airbrake (no fuel)
     // steering (works even with fuel=0)
-    private static final double STEER_ACCEL_PER_SPEED = 0.03; // accel = k * speed
-    private static final double MAX_STEER_ACCEL = 0.60;       // cap
-    private static final double MIN_STEER_ACCEL = 0.00;       // set 0.05 if you want "RCS-ish" control at low speed
+
 
     // async cadence
     private static final int SUBSTEPS = 50;
-    private static final int PLAN_EVERY_N_TICKS = 1;
 
     private final AsyncMissilePlanner planner = new AsyncMissilePlanner(PLANNER_EXECUTOR);
     private final AsyncMissilePlanner.WorldView worldView = new AsyncMissilePlanner.WorldView() {
@@ -135,13 +136,12 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     private static final Logger LOGGER = LogUtils.getLogger();
-
+    @OnlyIn(Dist.CLIENT)
+    private boolean spawnedThrusterParticle = false;
     private int fuelMb;
     private int fuelCapacityMb;
     private Vec3 lastVelForSmoke = Vec3.ZERO;
     private boolean fuelDepleted = false;
-    private volatile MissileAutopilotPlanner.Command latestCmd = MissileAutopilotPlanner.Command.NONE;
-    private CompletableFuture<MissileAutopilotPlanner.Command> cmdFuture;
     @OnlyIn(Dist.CLIENT)
     private MissileEngineSound engineSound;
 
@@ -226,7 +226,6 @@ public class MissileEntity extends OrientedContraptionEntity {
                     MAX_SPEED,
                     GRAVITY_PER_TICK
             ));
-
             // Small kickoff so steering/drag behaves immediately (don't use (0,1,0), that's huge)
             super.setDeltaMovement(new Vec3(0, 1, 0));
         } else {
@@ -259,13 +258,30 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
 
         enforceCustomColliders();
-        if (!launched && getFuelMbSynced() > 0) { // <-- the important part
-            launched = true;
-            engineSound = new MissileEngineSound(this);
-            Minecraft.getInstance().getSoundManager().play(engineSound);
+        if (level().isClientSide) {
+            if (!launched && getFuelMbSynced() > 0) { // <-- the important part
+                launched = true;
+                engineSound = new MissileEngineSound(this);
+                Minecraft.getInstance().getSoundManager().play(engineSound);
+            }
         }
         if (level().isClientSide) {
             clientTickVisuals();
+            if (!spawnedThrusterParticle) {
+                spawnedThrusterParticle = true;
+
+
+                float back = 1.2f;
+                float up = 0.0f;
+                float right = 0.0f;
+
+                Vec3 p = position(); // initial spawn pos doesn't matter much; particle will snap in its tick()
+                level().addParticle(
+                        new MissileAttachedParticleOptions(getId(), back, up, right),true,
+                        p.x, p.y, p.z,
+                        0, 0, 0
+                );
+            }
             super.tick();
             return;
         }
@@ -285,7 +301,7 @@ public class MissileEntity extends OrientedContraptionEntity {
                     String.format(Locale.ROOT, "%.3f", vNow.length()),
                     fuelMb,
                     String.format(Locale.ROOT, "%.2f", latestPlan.throttleReq()),
-                    latestPlan.desiredDir(),
+                    latestPlan.aimDir(),
                     latestPlan.done(),
                     latestPlan.debug()
             );
@@ -369,22 +385,11 @@ public class MissileEntity extends OrientedContraptionEntity {
             return;
         }
 
-        // 8) If CBC computed a bounce velocity, store it for NEXT tick (do NOT apply now)
-        if (nextVelocity != null) {
-            pendingVelocity = clampSpeed(nextVelocity, MAX_SPEED);
-            nextVelocity = null;
-        }
-        Vec3 headingVec = velActual;
+        Vec3 headingVec = (latestPlan.aimDir() != null && latestPlan.aimDir().lengthSqr() > 1e-8)
+                ? latestPlan.aimDir()
+                : velActual;
 
-        if (latestPlan.desiredDir() != null && latestPlan.desiredDir().lengthSqr() > 1e-8) {
-            // When doing pitch-over “attitude”, use desiredDir instead of velocity
-            if (latestPlan.debug() != null && latestPlan.debug().startsWith("pitch")) {
-                headingVec = latestPlan.desiredDir();
-            }
-        }
-        boolean pitchHold = latestPlan.debug() != null && latestPlan.debug().startsWith("pitchHold");
-        Vec3 h = pitchHold ? latestPlan.desiredDir() : velActual;
-        syncHeading(h);
+        syncHeading(headingVec);
         sendPreciseMotion(pos1, velActual);
 
     }
@@ -404,7 +409,6 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     private void freezeInPlace() {
-        super.setDeltaMovement(Vec3.ZERO);
         setContraptionMotion(Vec3.ZERO);
         this.noPhysics = true;
     }
@@ -417,8 +421,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             boolean useHigh = t.highArc() || p.preferHighArc();
             planner.clearProgram()
                     .boostUp(p.boostAltitude(), p.boostTolerance(), p.boostThrottle())
-                    .pitchOverHoldXZToArc(t.point(),p.pitchOverSeconds(),p.assumedSpeed(),useHigh)
-                    .arcTo(t.point(),p.assumedSpeed(), p.preferHighArc(), p.arriveRadius(),p.terminalThrottle());
+                    .arcTo(t.point(), 20.0, true, 25, .9);
         } else if (t.type() == MissileTargetSpec.TargetType.ENTITY && t.entityId() != null) {
             planner.intercept(t.entityId(), p.assumedSpeed(), p.arriveRadius(), p.terminalThrottle());
         }
@@ -708,7 +711,6 @@ public class MissileEntity extends OrientedContraptionEntity {
 
 
 
-
     private PhysicsStep integrateSubsteps(Vec3 pos0, Vec3 v0, Vec3 aTick, int substeps) {
         double dt = 1.0 / substeps;
         Vec3 pos = pos0;
@@ -716,10 +718,11 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         for (int i = 0; i < substeps; i++) {
             v = v.add(aTick.scale(dt));
-            v = clampSpeed(v, MAX_SPEED);
             pos = pos.add(v.scale(dt));
         }
 
+        // clamp ONCE (optional; you already clamp after move())
+        v = clampSpeed(v, MAX_SPEED);
         return new PhysicsStep(pos, v);
     }
 
@@ -735,81 +738,120 @@ public class MissileEntity extends OrientedContraptionEntity {
         if (!fuelDepleted) spawnSmokeClient(position(), getDeltaMovement());
 
     }
+
     private Vec3 computeControlAccel(AsyncMissilePlanner.Output plan, Vec3 v) {
-        Vec3 currentDir = v.lengthSqr() > 1e-8 ? v.normalize() : new Vec3(0, 1, 0);
-
-        Vec3 desired = plan.desiredDir();
-        if (desired == null || desired.lengthSqr() < 1e-8) {
-            desired = currentDir; // use the already-chosen basis
-        } else {
-            desired = desired.normalize();
-        }
-
-        desired = limitTurn(currentDir, desired, MAX_TURN_DEG_PER_TICK);
-
         double speed = v.length();
 
-        // ---- Steering (works even when fuel=0) ----
-        Vec3 aSteer = Vec3.ZERO;
-        aSteer = aSteer.scale(plan.steerScale());
-        Vec3 desiredHat = desired.normalize();
-        Vec3 vHat;
-
-        if (speed > 1e-6) vHat = v.scale(1.0 / speed);
-        else vHat = currentDir; // if stopped, use currentDir basis
-
-        double dot = Mth.clamp(vHat.dot(desiredHat), -1.0, 1.0);
-
-        if (dot < 0.9999) {
-            // Turn direction in the plane perpendicular to vHat
-            Vec3 turnDir;
-
-            if (dot < -0.9999) {
-                // 180° reversal: choose an arbitrary but stable perpendicular direction
-                Vec3 axis = vHat.cross(new Vec3(0, 1, 0));
-                if (axis.lengthSqr() < 1e-8) axis = vHat.cross(new Vec3(1, 0, 0));
-                turnDir = axis.cross(vHat).normalize();
-            } else {
-                // General case: axis = vHat x desired, turnDir = axis x vHat (toward desired)
-                Vec3 axis = vHat.cross(desiredHat);
-                turnDir = axis.cross(vHat).normalize();
-            }
-
-            double steerA = STEER_ACCEL_PER_SPEED * Math.max(speed, 0.5); // give it some authority at low speed
-            steerA = Mth.clamp(steerA, MIN_STEER_ACCEL, MAX_STEER_ACCEL);
-
-            aSteer = turnDir.scale(steerA);
+        // --- Aim dir (steering + visuals) ---
+        Vec3 aim = plan.aimDir();
+        if (aim == null || aim.lengthSqr() < 1e-8) {
+            aim = (speed > 1e-8) ? v.normalize() : new Vec3(0, 1, 0);
+        } else {
+            aim = aim.normalize();
         }
 
-        // ---- Thrust (requires fuel) ----
-        double throttleReq = Mth.clamp(plan.throttleReq(), 0.0, 1.0);
-        double throttle = (fuelMb > 0) ? throttleReq : 0.0;
-
-        // If we don't have enough fuel for requested burn, scale throttle down for this tick
-        if (throttle > 0.0) {
-            int requestedBurn = (int) Math.ceil(BURN_MB_PER_TICK_AT_FULL * throttle);
-            if (requestedBurn <= 0) requestedBurn = 1;
-
-            if (fuelMb < requestedBurn) {
-                throttle *= (fuelMb / (double) requestedBurn);
-                requestedBurn = fuelMb;
-            }
-
-            if (requestedBurn > 0) burnFuel(requestedBurn);
-            if (fuelMb <= 0) throttle = 0.0;
+        // --- Desired travel direction (planner uses thrustDir as desired velocity direction) ---
+        Vec3 desiredDir = plan.thrustDir();
+        if (desiredDir == null || desiredDir.lengthSqr() < 1e-8) {
+            desiredDir = aim; // fallback
+        } else {
+            desiredDir = desiredDir.normalize();
         }
 
-        Vec3 aThrust = desired.scale(MAX_THRUST_ACCEL * throttle);
-        aSteer = aSteer.scale(plan.steerScale());
-        return aSteer.add(aThrust);
+        // Optional gimbal/turn limit so it doesn't snap direction instantly
+        Vec3 currentDir = (speed > 1e-8) ? v.normalize() : desiredDir;
+        desiredDir = limitTurnSafe(currentDir, desiredDir, MAX_TURN_DEG_PER_TICK);
+
+        // --- Convert throttleReq (0..1) into desired speed ---
+        double speedFrac = Mth.clamp(plan.throttleReq(), 0.0, 1.0);
+
+        // IMPORTANT: replace MAX_SPEED_PER_TICK with YOUR max speed (blocks/tick)
+        double desiredSpeed;
+        if (speedFrac <= 1e-6) {
+            // coast: keep current speed so we can still steer sideways
+            desiredSpeed = speed;
+        } else {
+            desiredSpeed = Mth.clamp(speedFrac * MAX_SPEED_PER_TICK, MIN_SPEED_PER_TICK, MAX_SPEED_PER_TICK);
+        }
+        desiredSpeed = Math.min(desiredSpeed, MAX_SPEED_PER_TICK);
+
+        Vec3 desiredVel = desiredDir.scale(desiredSpeed);
+
+        // --- Velocity-setpoint control (the overshoot killer) ---
+        // "Acceleration" here is just "move velocity toward desired velocity" per tick.
+        Vec3 dv = desiredVel.subtract(v);
+
+        // 0.25..0.60 typical. Higher = snappier, lower = floatier.
+        Vec3 dvCmd = dv.scale(CONTROL_RESPONSE);
+// Let gravity bend the arc: weak vertical tracking unless we're clearly diving
+        double yTrack = (desiredDir.y < -0.15) ? 1.0 : 0.15; // dive = 100%, cruise = 15%
+        dvCmd = new Vec3(dvCmd.x, dvCmd.y * yTrack, dvCmd.z);
+        // Split dvCmd into parallel + perpendicular relative to current motion axis
+        Vec3 axis = (speed > 1e-6) ? v.scale(1.0 / speed) : desiredDir; // stable when nearly stopped
+        double dvAlong = dvCmd.dot(axis);
+        Vec3 dvParallel = axis.scale(dvAlong);
+        Vec3 dvPerp = dvCmd.subtract(dvParallel);
+
+        // --- Steering clamp (perpendicular component) ---
+        double steerScale = Mth.clamp(plan.steerScale(), 0.0, 1.0);
+        double maxSteer = MAX_STEER_ACCEL * steerScale;
+
+        double perpMag = dvPerp.length();
+        if (perpMag > maxSteer && perpMag > 1e-9) {
+            dvPerp = dvPerp.scale(maxSteer / perpMag);
+        }
+
+        // --- Along-track: braking + thrust ---
+        Vec3 dvAlongFinal = Vec3.ZERO;
+
+        if (dvAlong < 0.0) {
+            // Braking / airbrake (recommended to prevent eternal overshoot even when out of fuel)
+            double brake = Math.min(-dvAlong, MAX_BRAKE_ACCEL);
+            dvAlongFinal = axis.scale(-brake);
+        } else if (dvAlong > 0.0 && speedFrac > 1e-6) {
+            // Forward thrust (costs fuel)
+            double thrust = Math.min(dvAlong, MAX_THRUST_ACCEL);
+
+            double throttle = (fuelMb > 0) ? (thrust / MAX_THRUST_ACCEL) : 0.0;
+
+            if (throttle > 0.0) {
+                int requestedBurn = (int) Math.ceil(BURN_MB_PER_TICK_AT_FULL * throttle);
+                if (requestedBurn <= 0) requestedBurn = 1;
+
+                if (fuelMb < requestedBurn) {
+                    throttle *= (fuelMb / (double) requestedBurn);
+                    requestedBurn = fuelMb;
+                }
+
+                if (requestedBurn > 0) burnFuel(requestedBurn);
+                if (fuelMb <= 0) throttle = 0.0;
+            }
+
+            dvAlongFinal = axis.scale(MAX_THRUST_ACCEL * throttle);
+        }
+
+        return dvPerp.add(dvAlongFinal);
     }
 
-    private static Vec3 limitTurn(Vec3 currentDir, Vec3 desiredDir, double maxTurnDeg) {
+    private static Vec3 limitTurnSafe(Vec3 currentDir, Vec3 desiredDir, double maxTurnDeg) {
         if (currentDir.lengthSqr() < 1e-8 || desiredDir.lengthSqr() < 1e-8) return desiredDir;
         Vec3 a = currentDir.normalize();
         Vec3 b = desiredDir.normalize();
 
         double dot = Mth.clamp(a.dot(b), -1.0, 1.0);
+
+        if (dot < -0.9995) {
+            Vec3 axis = a.cross(new Vec3(0, 1, 0));
+            if (axis.lengthSqr() < 1e-8) axis = a.cross(new Vec3(1, 0, 0));
+            axis = axis.normalize();
+
+            double maxRad = Math.toRadians(maxTurnDeg);
+            Vec3 rotated = a.scale(Math.cos(maxRad))
+                    .add(axis.cross(a).scale(Math.sin(maxRad)))
+                    .add(axis.scale(axis.dot(a) * (1.0 - Math.cos(maxRad))));
+            return rotated.normalize();
+        }
+
         double angle = Math.acos(dot);
         if (angle < 1e-6) return b;
 
@@ -817,15 +859,13 @@ public class MissileEntity extends OrientedContraptionEntity {
         if (angle <= maxRad) return b;
 
         double t = maxRad / angle;
-
-        // Slerp
         double sinAngle = Math.sin(angle);
+
         double w1 = Math.sin((1.0 - t) * angle) / sinAngle;
         double w2 = Math.sin(t * angle) / sinAngle;
 
         return a.scale(w1).add(b.scale(w2)).normalize();
     }
-
     @Override
     public void remove(RemovalReason reason) {
         if (!level().isClientSide && level() instanceof ServerLevel sl) {

@@ -38,25 +38,40 @@ public final class AsyncMissilePlanner {
     public record PlanningInput(Snapshot missile, TargetSnapshot target) {}
 
     public record Output(
-            Vec3 desiredDir,
+            Vec3 aimDir,       // steering / visual direction (unit-ish)
+            Vec3 thrustDir,    // thrust direction (unit-ish)
             double throttleReq,
+            double steerScale, // 0..1 (0 disables steering accel)
             boolean detonate,
             boolean done,
-            String debug,
-            double steerScale   // 0..1
+            String debug
     ) {
         public static Output idle() {
-            return new Output(new Vec3(0, 0, 0), 0.0, false, false, "", 0.0);
+            return new Output(Vec3.ZERO, Vec3.ZERO, 0.0, 0.0, false, false, "");
         }
 
-        public Output withDebug(String s) { return new Output(desiredDir, throttleReq, detonate, done, s, steerScale); }
-        public Output markDone() { return new Output(desiredDir, throttleReq, detonate, true, debug, steerScale); }
-        public Output withDone(boolean d) { return new Output(desiredDir, throttleReq, detonate, d, debug, steerScale); }
-        public Output withDetonate(boolean d) { return new Output(desiredDir, throttleReq, d, done, debug, steerScale); }
-        public Output withSteerScale(double s) { return new Output(desiredDir, throttleReq, detonate, done, debug, Mth.clamp(s, 0.0, 1.0)); }
+        public Output withDebug(String s) {
+            return new Output(aimDir, thrustDir, throttleReq, steerScale, detonate, done, s);
+        }
 
-        public static Output cmd(Vec3 dir, double thr, String dbg) {
-            return new Output(dir, thr, false, false, dbg, 1.0);
+        public Output withDone(boolean d) {
+            return new Output(aimDir, thrustDir, throttleReq, steerScale, detonate, d, debug);
+        }
+
+        public Output markDone() {
+            return new Output(aimDir, thrustDir, throttleReq, steerScale, detonate, true, debug);
+        }
+
+        public Output withDetonate(boolean d) {
+            return new Output(aimDir, thrustDir, throttleReq, steerScale, d, done, debug);
+        }
+
+        public Output withSteerScale(double s) {
+            return new Output(aimDir, thrustDir, throttleReq, Mth.clamp(s, 0.0, 1.0), detonate, done, debug);
+        }
+
+        public Output withThrottle(double t) {
+            return new Output(aimDir, thrustDir, Mth.clamp(t, 0.0, 1.0), steerScale, detonate, done, debug);
         }
     }
 
@@ -124,10 +139,11 @@ public final class AsyncMissilePlanner {
         queue.addLast(new PitchOver(seconds, targetPitchDeg, throttle));
         return this;
     }
-    public AsyncMissilePlanner pitchOverHoldXZToArc(Vec3 target, double seconds, double assumedSpeed, boolean highArc) {
-        queue.addLast(new PitchOverHoldXZToArc(target, seconds, assumedSpeed, highArc));
+    public AsyncMissilePlanner pitchOverHoldPosToArc(Vec3 target, double seconds, double assumedSpeed, boolean highArc) {
+        queue.addLast(new PitchOverHoldPosToArc(target, seconds, assumedSpeed, highArc));
         return this;
     }
+
     /** Put missile on a ballistic arc that lands on target (highArc=true gives “go up then come down”). */
     public AsyncMissilePlanner arcTo(Vec3 targetPos, double assumedSpeed, boolean highArc, double arriveRadius, double throttle) {
         queue.addLast(new ArcToPoint(targetPos, assumedSpeed, highArc, arriveRadius, throttle));
@@ -224,7 +240,8 @@ public final class AsyncMissilePlanner {
         public Output compute(PlanningInput in) {
             Vec3 v = in.missile.vel;
             Vec3 dir = v.lengthSqr() > 1e-8 ? v.normalize() : Vec3.directionFromRotation(in.missile.pitchDeg, in.missile.yawDeg);
-            return new Output(dir, clamp(throttle, 0, 1), false, false, "coast",1);
+            double thr = clamp(throttle, 0, 1);
+            return new Output(dir, dir, thr, 1.0, false, false, "coast");
         }
     }
 
@@ -257,7 +274,8 @@ public final class AsyncMissilePlanner {
             double up = Mth.clamp(dy * 0.02, -0.8, 0.8);
 
             Vec3 desired = new Vec3(horiz.x, up, horiz.z).normalize();
-            return new Output(desired, throttle, false, done, "climb dy=" + dy,1);
+            double thr = clamp(throttle, 0, 1);
+            return new Output(desired, desired, thr, 1.0, false, done, "climb dy=" + dy);
         }
     }
 
@@ -286,8 +304,9 @@ public final class AsyncMissilePlanner {
             double targetY = startY + boostHeight;
             boolean done = m.pos().y >= targetY - tol;
 
-            return new Output(new Vec3(0, 1, 0), throttle, false, done,
-                    "boostUp toY=" + fmt(targetY),1);
+            Vec3 dir = new Vec3(0, 1, 0);
+            return new Output(dir, dir, throttle, 1.0, false, done,
+                    "boostUp toY=" + fmt(targetY));
         }
     }
     private static final class PitchOver implements Maneuver {
@@ -325,8 +344,9 @@ public final class AsyncMissilePlanner {
             Vec3 dir = Vec3.directionFromRotation(desiredPitch, yaw).normalize();
 
             boolean done = a >= 1.0;
-            return new Output(dir, clamp(throttle, 0, 1), false, done,
-                    "pitchOver pitch=" + fmt(desiredPitch),1);
+            double thr = clamp(throttle, 0, 1);
+            return new Output(dir, dir, thr, 1.0, false, done,
+                    "pitchOver pitch=" + fmt(desiredPitch));
         }
     }
 
@@ -352,14 +372,14 @@ public final class AsyncMissilePlanner {
 
             if (t == null || !t.valid) {
                 Vec3 fallback = m.vel.lengthSqr() > 1e-8 ? m.vel.normalize() : Vec3.directionFromRotation(m.pitchDeg, m.yawDeg);
-                return new Output(fallback, 0.0, false, false, "intercept: no target",1);
+                return new Output(fallback, fallback, 0.0, 1.0, false, false, "intercept: no target");
             }
 
             Vec3 r = t.pos.subtract(m.pos);
             double dist = r.length();
             if (dist <= hitRadius) {
                 Vec3 dir = dist > 1e-8 ? r.scale(1.0 / dist) : new Vec3(0, 1, 0);
-                return new Output(dir, 0.0, false, true, "intercept: arrived",1);
+                return new Output(dir, dir, 0.0, 1.0, false, true, "intercept: arrived");
             }
 
             // Constant-speed lead solution: solve |r + vRel*t| = s*t
@@ -381,8 +401,8 @@ public final class AsyncMissilePlanner {
             double align = clamp(desired.dot(vHat), -1, 1);
             double throttle = clamp((1.0 - align) * 0.8, 0.0, throttleMax);
 
-            return new Output(desired, throttle, false, false,
-                    "intercept tgo=" + fmt(tgo) + " align=" + fmt(align),1);
+            return new Output(desired, desired, throttle, 1.0, false, false,
+                    "intercept tgo=" + fmt(tgo) + " align=" + fmt(align));
         }
     }
 
@@ -391,107 +411,252 @@ public final class AsyncMissilePlanner {
         private final double assumedSpeed;
         private final boolean highArc;
         private final double arriveRadius;
-        private final double throttle;
+        private final double cruiseThrottle; // cap 0..1, used as max speed fraction
+
+        // State
+        private long startTick = -1;
+        private boolean armed = false;
+        private boolean terminalStarted = false;
+
+        private double g = 0.08;
+
+        // Ballistic solution at arming
+        private double v0 = 1.0;      // chosen launch speed magnitude
+        private double vH = 1.0;      // horizontal speed magnitude (constant in ballistic)
+        private boolean solutionValid = false;
+
+        // Terminal tuning
+        private double terminalDist = 120.0;  // horizontal distance
+        private double slowdownDist = 240.0;  // horizontal distance
 
         private ArcToPoint(Vec3 target, double assumedSpeed, boolean highArc, double arriveRadius, double throttle) {
             this.target = target;
             this.assumedSpeed = Math.max(0.1, assumedSpeed);
             this.highArc = highArc;
             this.arriveRadius = Math.max(0.5, arriveRadius);
-            this.throttle = clamp(throttle, 0.0, 1.0);
+            this.cruiseThrottle = clamp(throttle, 0.0, 1.0);
+        }
+
+        @Override
+        public void onStart(Snapshot snap) {
+            startTick = snap.tick();
+            armed = false;
+            terminalStarted = false;
+            solutionValid = false;
+            g = Math.max(1e-6, snap.gravity());
         }
 
         @Override
         public Output compute(PlanningInput in) {
             Snapshot m = in.missile();
 
-            Vec3 to = target.subtract(m.pos());
+            Vec3 pos = m.pos();
+            Vec3 vel = m.vel();
+
+            Vec3 to = target.subtract(pos);
             double dist = to.length();
+            double horizDist = Math.sqrt(to.x * to.x + to.z * to.z);
+
+            // "Arrived"
             if (dist <= arriveRadius) {
-                Vec3 desired = dist > 1e-8 ? to.scale(1.0 / dist) : new Vec3(0, -1, 0);
-                return new Output(desired, 0.0, false, true, "arc: arrived",1);
+                Vec3 desired = (dist > 1e-8) ? to.scale(1.0 / dist) : new Vec3(0, -1, 0);
+                return new Output(desired, desired, 0.0, 1.0, false, true, "arc: arrived");
             }
 
-            // Horizontal range (what arc math mostly cares about)
-            double R = Math.sqrt(to.x * to.x + to.z * to.z);
-            double g = Math.max(1e-6, m.gravity());
-
-            // Pick a "goal speed" for the arc solver: at least what is required, capped by missile maxSpeed
-            double vGoal = Math.min(m.maxSpeed(), Math.max(assumedSpeed, 0.1));
-            double vMin = Math.sqrt(g * Math.max(0.0, R)); // minimum speed for ANY same-height solution
-            if (vGoal < vMin) vGoal = Math.min(m.maxSpeed(), vMin);
-
-            double vNow = m.vel().length();
-
-            // 1) BOOST: if we're well below the speed the arc math assumes, don't command a steep arc yet
-            // Push mostly horizontally toward the target while building speed.
-            if (vNow < vGoal * 0.90) {
-                Vec3 horiz = new Vec3(to.x, 0, to.z);
-                if (horiz.lengthSqr() < 1e-8) horiz = new Vec3(0, 0, 1);
-                horiz = horiz.normalize();
-
-                // small up bias so we don't lawn-dart while boosting
-                double upBias = 0.15; // tune 0.05..0.25
-                Vec3 desired = new Vec3(horiz.x, upBias, horiz.z).normalize();
-
-                double thr = Math.max(throttle, 1.0); // full throttle while boosting (fuel permitting)
-                return new Output(desired, thr, false, false, "arc: boosting v=" + fmt(vNow) + "->" + fmt(vGoal),1);
+            // If we clearly passed it (prevents flip-flop)
+            if (vel.lengthSqr() > 1e-8 && to.dot(vel) < 0 && horizDist < arriveRadius * 2.0) {
+                Vec3 desired = vel.normalize();
+                return new Output(desired, desired, 0.0, 1.0, false, true, "arc: passed");
             }
 
-            // 2) Solve arc (try both) and choose based on pitch cap
-            Aim low  = aimArc(m.pos(), target, vGoal, g, false);
-            Aim high = aimArc(m.pos(), target, vGoal, g, true);
+            // Arm when near apex OR after some time since this maneuver started
+            if (!armed) {
+                long dt = m.tick() - startTick;
 
-            Vec3 desired;
-            boolean valid = low.valid || high.valid;
-
-            if (!valid) {
-                // unreachable even at vGoal (e.g., too far with maxSpeed): just fly toward it
-                desired = to.normalize();
-                return new Output(desired, 1.0, false, false, "arc: unreachable -> flyTo",1);
+                if (vel.y <= 0.25 || dt >= 80) {
+                    armBallistic(m);
+                } else {
+                    // Coast toward target horizontally while still rising
+                    Vec3 horiz = new Vec3(to.x, 0, to.z);
+                    if (horiz.lengthSqr() < 1e-8) horiz = new Vec3(0, 0, 1);
+                    Vec3 desired = new Vec3(horiz.x, 0.08, horiz.z).normalize();
+                    return new Output(desired, desired, 1.0, 1.0, false, false, "arc: coastToApex vy=" + fmt(vel.y));
+                }
             }
 
-            // Prefer high arc only if it isn't ridiculously steep, otherwise fall back to low
-            final double MAX_PITCH_DEG = 60.0; // tune
-            Vec3 pick = low.valid ? low.dir : high.dir;
-
-            if (highArc && high.valid) {
-                double pitchHigh = Math.toDegrees(Math.asin(Mth.clamp(high.dir.y, -1.0, 1.0)));
-                if (pitchHigh <= MAX_PITCH_DEG) pick = high.dir;
+            // If we couldn't find a real ballistic solution at the available speed, fall back gracefully
+            if (!solutionValid || vH <= 1e-6) {
+                Vec3 desired = (to.lengthSqr() > 1e-8) ? to.normalize() : new Vec3(0, -1, 0);
+                double thr = cruiseThrottle;
+                return new Output(desired, desired, thr, 1.0, false, false, "arc: noSolution -> flyTo");
             }
 
-            // Hard clamp pitch anyway (safety net)
-            desired = clampPitch(pick, MAX_PITCH_DEG);
+            // Throttle taper near target (horizontal distance based)
+            double thr = cruiseThrottle;
+            if (horizDist < slowdownDist) {
+                double t = clamp(horizDist / slowdownDist, 0.20, 1.0);
+                thr = Math.min(thr, t);
+            }
+            if (m.fuelMb() <= 0) thr = 0.0;
 
-            return new Output(desired, throttle, false, false,
-                    "arc: v=" + fmt(vNow) + " goal=" + fmt(vGoal),1);
+            // ---- TERMINAL (latched, horizontal distance based) ----
+            if (!terminalStarted && horizDist <= terminalDist) terminalStarted = true;
+
+            if (terminalStarted) {
+                Vec3 horiz = (horizDist > 1e-6)
+                        ? new Vec3(to.x / horizDist, 0, to.z / horizDist)
+                        : new Vec3(0, 0, 1);
+
+                // required slope to hit altitude by the time we reach it
+                double reqDeg = Math.toDegrees(Math.atan2(Math.abs(to.y), Math.max(horizDist, 1e-6)));
+
+                // ramp from shallow to steep as we close
+                double u = clamp(1.0 - (horizDist / terminalDist), 0.0, 1.0);
+                double rampDeg = 12.0 + u * 68.0;
+
+                double diveDeg = clamp(Math.max(reqDeg, rampDeg), 12.0, 80.0);
+                double sin = Math.sin(Math.toRadians(diveDeg));
+                double cos = Math.cos(Math.toRadians(diveDeg));
+
+                double ySign = (to.y > 0) ? +1.0 : -1.0;
+                Vec3 desired = horiz.scale(cos).add(0, ySign * sin, 0).normalize();
+                desired = clampPitchAbs(desired, 80.0);
+
+                // slow terminal for tighter misses
+                double desiredTerminalSpeed = clamp(horizDist / 6.0, 3.0, 12.0);
+                double speedFrac = clamp(desiredTerminalSpeed / Math.max(1e-6, m.maxSpeed()), 0.15, 0.60);
+                speedFrac = Math.min(speedFrac, thr);
+
+                return new Output(desired, desired, speedFrac, 1.0, false, false,
+                        "arc: terminal hd=" + fmt(horizDist) + " req=" + fmt(reqDeg));
+            }
+
+            // ---- BALLISTIC CRUISE ----
+            // Use ballistic kinematics: pick the vertical velocity needed NOW to land on target given time-to-go.
+            double tgo = horizDist / vH; // ticks
+            tgo = Math.max(1e-3, tgo);
+
+            double vyNeed = (to.y + 0.5 * g * tgo * tgo) / tgo;
+
+            Vec3 hDir = (horizDist > 1e-8) ? new Vec3(to.x / horizDist, 0, to.z / horizDist) : new Vec3(0, 0, 1);
+            Vec3 vDes = hDir.scale(vH).add(0, vyNeed, 0);
+
+            Vec3 desired = (vDes.lengthSqr() > 1e-12) ? vDes.normalize() : hDir;
+            desired = clampPitchAbs(desired, 75.0);
+
+            // request speed that matches ballistic magnitude, capped by cruiseThrottle + maxSpeed
+            double desiredSpeed = Math.min(m.maxSpeed(), vDes.length());
+            double speedFrac = (m.maxSpeed() > 1e-6) ? clamp(desiredSpeed / m.maxSpeed(), 0.0, 1.0) : 0.0;
+            speedFrac = Math.min(speedFrac, thr);
+
+            return new Output(desired, desired, speedFrac, 1.0, false, false,
+                    "arc: ballistic hd=" + fmt(horizDist) + " tgo=" + fmt(tgo) + " vy=" + fmt(vyNeed));
         }
 
-        // Keeps direction but limits elevation angle
-        private static Vec3 clampPitch(Vec3 dir, double maxPitchDeg) {
-            Vec3 d = dir.normalize();
-            double maxY = Math.sin(Math.toRadians(maxPitchDeg));
+        /** Compute ballistic launch solution once, using classic projectile equations. */
+        private void armBallistic(Snapshot m) {
+            armed = true;
 
-            if (d.y <= maxY) return d;
+            Vec3 to = target.subtract(m.pos());
+            double R = Math.sqrt(to.x * to.x + to.z * to.z);
+            double dy = to.y;
+
+            if (R < 1e-6) {
+                solutionValid = false;
+                return;
+            }
+
+            // Choose a speed to solve at: try assumed, but never exceed maxSpeed.
+            double vmax = Math.max(0.1, m.maxSpeed());
+            v0 = Math.min(vmax, Math.max(assumedSpeed, 0.1));
+
+            // Try solve at v0; if impossible and we weren't already at vmax, try at vmax.
+            if (!solveAtSpeed(v0, R, dy)) {
+                if (v0 < vmax - 1e-6) {
+                    v0 = vmax;
+                    solutionValid = solveAtSpeed(v0, R, dy);
+                } else {
+                    solutionValid = false;
+                }
+            }
+
+            // Terminal runway scales with range
+            terminalDist = clamp(0.45 * R, 150, 200);
+            slowdownDist = Math.max(terminalDist * 2.0, arriveRadius * 16.0);
+        }
+
+        private boolean solveAtSpeed(double v, double R, double dy) {
+            double v2 = v * v;
+            double v4 = v2 * v2;
+
+            double disc = v4 - g * (g * R * R + 2.0 * dy * v2);
+            if (disc < 0) return false;
+
+            double root = Math.sqrt(disc);
+
+            // tan(theta) for low/high solutions
+            double tanLow  = (v2 - root) / (g * R);
+            double tanHigh = (v2 + root) / (g * R);
+
+            double tan = highArc ? tanHigh : tanLow;
+            if (!Double.isFinite(tan)) return false;
+
+            double theta = Math.atan(tan);
+            double cos = Math.cos(theta);
+            double sin = Math.sin(theta);
+
+            // Horizontal speed must be > 0
+            double vh = v * cos;
+            if (!(vh > 1e-6)) return false;
+
+            vH = vh;
+            solutionValid = true;
+            return true;
+        }
+
+        // Symmetric pitch clamp (limits both up and down)
+        private static Vec3 clampPitchAbs(Vec3 dir, double maxAbsDeg) {
+            Vec3 d = dir.normalize();
+            double maxY = Math.sin(Math.toRadians(maxAbsDeg));
+            double y = Mth.clamp(d.y, -maxY, maxY);
 
             Vec3 h = new Vec3(d.x, 0, d.z);
-            if (h.lengthSqr() < 1e-8) return new Vec3(0, maxY, 0);
+            if (h.lengthSqr() < 1e-8) return new Vec3(0, y, 0);
 
             h = h.normalize();
-            double horizMag = Math.cos(Math.asin(maxY));
-            return new Vec3(h.x * horizMag, maxY, h.z * horizMag).normalize();
+            double horizMag = Math.cos(Math.asin(Math.abs(y)));
+            return new Vec3(h.x * horizMag, y, h.z * horizMag).normalize();
         }
     }
-    private static final class PitchOverHoldXZToArc implements Maneuver {
+    // Symmetric pitch clamp (limits BOTH up and down)
+    private static Vec3 clampPitch(Vec3 dir, double maxAbsDeg) {
+        Vec3 d = dir.normalize();
+        double maxY = Math.sin(Math.toRadians(maxAbsDeg));
+        double y = Mth.clamp(d.y, -maxY, maxY);
+
+        Vec3 h = new Vec3(d.x, 0, d.z);
+        if (h.lengthSqr() < 1e-8) return new Vec3(0, y, 0);
+
+        h = h.normalize();
+        double horizMag = Math.cos(Math.asin(Math.abs(y)));
+        return new Vec3(h.x * horizMag, y, h.z * horizMag).normalize();
+    }
+    private static final class PitchOverHoldPosToArc implements Maneuver {
         private final Vec3 target;
         private final double seconds;
         private final double assumedSpeed;
         private final boolean highArc;
 
         private long startTick = -1;
-        private Vec3 finalDir = new Vec3(0, 1, 0);
+        private Vec3 holdPos = Vec3.ZERO;
+        private Vec3 finalAim = new Vec3(0, 1, 0);
 
-        private PitchOverHoldXZToArc(Vec3 target, double seconds, double assumedSpeed, boolean highArc) {
+        // Tunables (per tick physics)
+        private static final double KP_POS = 0.10; // position hold gain
+        private static final double KD_VEL = 0.35; // velocity damping
+        private static final double MAX_A_CMD = 0.22; // keep below MAX_THRUST_ACCEL (leave margin)
+
+        private PitchOverHoldPosToArc(Vec3 target, double seconds, double assumedSpeed, boolean highArc) {
             this.target = target;
             this.seconds = Math.max(0.05, seconds);
             this.assumedSpeed = Math.max(0.1, assumedSpeed);
@@ -501,33 +666,63 @@ public final class AsyncMissilePlanner {
         @Override
         public void onStart(Snapshot snap) {
             startTick = snap.tick();
+            holdPos = snap.pos(); // freeze position at start of pose
 
-            // Compute the pitch that arcTo would want FROM THIS POSITION
             double g = Math.max(1e-6, snap.gravity());
             Aim aim = aimArc(snap.pos(), target, assumedSpeed, g, highArc);
 
-            // If invalid, fall back to pointing toward target (still safe)
             Vec3 to = target.subtract(snap.pos());
-            finalDir = (aim.valid ? aim.dir : (to.lengthSqr() > 1e-8 ? to.normalize() : new Vec3(0, 1, 0)));
+            finalAim = (aim.valid ? aim.dir : (to.lengthSqr() > 1e-8 ? to.normalize() : new Vec3(0, 1, 0)));
         }
 
         @Override
         public Output compute(PlanningInput in) {
             Snapshot m = in.missile();
 
+            // smooth 0..1
             double t = (m.tick() - startTick) / (seconds * 20.0);
             t = clamp(t, 0.0, 1.0);
-            t = t * t * (3.0 - 2.0 * t); // smoothstep
+            t = t * t * (3.0 - 2.0 * t);
 
+            // 1) Visual/aim direction: UP -> arc aim
             Vec3 up = new Vec3(0, 1, 0);
-            Vec3 desired = slerpDir(up, finalDir, t);
+            Vec3 aimNow = slerpDir(up, finalAim, t);
+
+            // 2) Position-hold thrust command (tries to keep x/y/z fixed)
+            Vec3 posErr = holdPos.subtract(m.pos());
+            Vec3 velErr = m.vel().scale(-1.0);
+
+            // We want thrust accel to: cancel gravity + pull back to holdPos + damp velocity
+            // gravity in Snapshot is positive magnitude, so +Y is up.
+            Vec3 aCmd = new Vec3(0, m.gravity(), 0)
+                    .add(posErr.scale(KP_POS))
+                    .add(velErr.scale(KD_VEL));
+
+            // Clamp accel command so we don't demand impossible thrust
+            double aMag = aCmd.length();
+            if (aMag > MAX_A_CMD && aMag > 1e-9) aCmd = aCmd.scale(MAX_A_CMD / aMag);
+
+            Vec3 thrustDir = (aCmd.lengthSqr() > 1e-10) ? aCmd.normalize() : new Vec3(0, 1, 0);
+
+            // Convert desired accel magnitude into throttle fraction (engine model)
+            // NOTE: This assumes MAX_THRUST_ACCEL is known on the missile side.
+            // We'll pass the magnitude as throttle; missile will scale by MAX_THRUST_ACCEL.
+            // throttleReq ~= |aCmd| / MAX_THRUST_ACCEL
+            double throttleReq = aCmd.length(); // interpreted as accel magnitude fraction in missile side (see note below)
 
             boolean done = (t >= 1.0);
 
-            // CRITICAL: hold X/Z by disabling steering; also cut throttle during this pose
-            return new Output(desired, 0.0, false, done, "pitchHold t=" + fmt(t), 0.0);
+            // steerScale=0 => no steering accel (no extra drift)
+            return new Output(
+                    aimNow,
+                    thrustDir,
+                    throttleReq,
+                    0.0,
+                    false,
+                    done,
+                    "pitchHoldPos t=" + fmt(t)
+            );
         }
-
         // Slerp between unit vectors a->b
         private static Vec3 slerpDir(Vec3 a, Vec3 b, double t) {
             Vec3 an = a.normalize();
@@ -559,7 +754,9 @@ public final class AsyncMissilePlanner {
 
             return an.scale(w1).add(bn.scale(w2)).normalize();
         }
+
     }
+
     private static final class CruiseToPoint implements Maneuver {
         private final Vec3 target;
         private final double cruiseY;
@@ -598,8 +795,8 @@ public final class AsyncMissilePlanner {
             if (done) {
                 // keep heading at target; next maneuver can take over (arcTo / intercept)
                 Vec3 desired = (to.lengthSqr() > 1e-8) ? to.normalize() : new Vec3(0, 0, 1);
-                desired = ArcToPoint.clampPitch(desired, MAX_PITCH_DEG);
-                return new Output(desired, 0.0, false, true, "cruise: arrived R=" + fmt(R),1);
+                desired = clampPitch(desired, MAX_PITCH_DEG);
+                return new Output(desired, desired, 0.0, 1.0, false, true, "cruise: arrived R=" + fmt(R));
             }
 
             Vec3 horiz = new Vec3(to.x, 0, to.z);
@@ -614,7 +811,7 @@ public final class AsyncMissilePlanner {
             yCmd = clamp(yCmd, -0.35, 0.35);
 
             Vec3 desired = new Vec3(horiz.x, yCmd, horiz.z).normalize();
-            desired = ArcToPoint.clampPitch(desired, MAX_PITCH_DEG);
+            desired =clampPitch(desired, MAX_PITCH_DEG);
 
             // Throttle: accelerate up to desiredSpeed, then taper
             double speed = vel.length();
@@ -630,8 +827,8 @@ public final class AsyncMissilePlanner {
             }
             throttle = Math.min(throttle, throttleMax);
 
-            return new Output(desired, throttle, false, false,
-                    "cruise R=" + fmt(R) + " altErr=" + fmt(altErr) + " sp=" + fmt(speed),1);
+            return new Output(desired, desired, throttle, 1.0, false, false,
+                    "cruise R=" + fmt(R) + " altErr=" + fmt(altErr) + " sp=" + fmt(speed));
         }
     }
 

@@ -102,6 +102,17 @@ public class ModBlocks {
                     .getExistingFile(ctx.getId()), 0))
             .simpleItem()
             .register();
+    public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER_HUGE = REGISTRATE.block("missile_liquid_thruster_huge",ThrusterBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .addLayer(() -> RenderType::cutoutMipped)
+            .properties(BlockBehaviour.Properties::noOcclusion)
+            .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
+                    .getExistingFile(ctx.getId()), 0))
+            .simpleItem()
+            .register();
+
+
+
     public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL_SMALL =
             REGISTRATE.block("missile_liquid_fuel_small",
                             p -> new MissileFuelTankBlock(p, 4000))
@@ -118,6 +129,13 @@ public class ModBlocks {
                     .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
                     .simpleItem()
                     .register();
+    public static final BlockEntry<MissileFuelTankBlock>MISSILE_FUEL_HUGE =
+            REGISTRATE.block("missile_liquid_fuel_huge",
+                            p -> new MissileFuelTankBlock(p, 32000))
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+                    .simpleItem()
+                    .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_SMALL =
             REGISTRATE.block("gps_guidance_small", GPSGuidanceBlock::new)
                     .addLayer(() -> RenderType::cutoutMipped)
@@ -128,6 +146,13 @@ public class ModBlocks {
                     .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_LARGE =
             REGISTRATE.block("gps_guidance_large", GPSGuidanceBlock::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_HUGE =
+            REGISTRATE.block("gps_guidance_huge", GPSGuidanceBlock::new)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
                     .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))

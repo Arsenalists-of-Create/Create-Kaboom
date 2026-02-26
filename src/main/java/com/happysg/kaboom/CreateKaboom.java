@@ -4,7 +4,7 @@ import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.MissileRenderer;
 import com.happysg.kaboom.networking.ModMessages;
 import com.happysg.kaboom.networking.NetworkHandler;
-import com.happysg.kaboom.particles.EngineGlowParticle;
+
 import com.happysg.kaboom.particles.MissileSmokeParticle;
 import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.registry.*;

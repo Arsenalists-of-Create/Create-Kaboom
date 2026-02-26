@@ -42,7 +42,7 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.SMALL_AERIAL_BOMB);
         pOutput.accept(ModBlocks.AP_AERIAL_BOMB);
         pOutput.accept(ModBlocks.FRAG_AERIAL_BOMB);
-        pOutput.accept(ModBlocks.FLUID_AERIAL_BOMB);
+        pOutput.accept(ModBlocks.SMALL_FLUID_AERIAL_BOMB);
         pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
 
 
