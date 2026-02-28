@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.async.AsyncMissilePlanner;
 
+import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.util.*;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
@@ -165,12 +166,17 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final double NOSE_TIP_AHEAD = 0.55;
     private boolean launched  =false;
 
+    private final ChainSystem chainSystem = new ChainSystem();
+
 
 
     public MissileEntity(EntityType<?> type, Level level) {
         super(type, level);
     }
 
+    public ChainSystem getChainSystem() {
+        return chainSystem;
+    }
 
     public void initFromAssembly(Contraption contraption, BlockPos controllerPos, BlockPos warheadLocalPos) {
         setPos(controllerPos.getX() + 0.5, controllerPos.getY() + 1.5, controllerPos.getZ() + 0.5);
@@ -248,7 +254,22 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
+        // Load chain system data from contraption if present
+        if (contraption instanceof MissileContraption mc && mc.chainSystemTag != null) {
+            chainSystem.load(mc.chainSystemTag);
+        }
     }
+
+    /**
+     * Syncs the chain system state into the contraption's NBT for persistence.
+     * Called periodically from serverTickMovement.
+     */
+    private void syncChainSystemToContraption() {
+        if (this.contraption instanceof MissileContraption mc) {
+            mc.chainSystemTag = chainSystem.save();
+        }
+    }
+
     @Override
     public void tick() {
         if (this.contraption == null) {
@@ -292,6 +313,20 @@ public class MissileEntity extends OrientedContraptionEntity {
     private void serverTickMovement() {
         fallDistance = 0;
         hasImpulse = true;
+
+        // Tick chain system before movement
+        if (level() instanceof ServerLevel sl) {
+            chainSystem.tickFromEntity(position(), sl);
+            // Sync chain data to contraption NBT every 20 ticks for persistence
+            if (tickCount % 20 == 0) {
+                syncChainSystemToContraption();
+                chainSystem.populateEntityIds(sl);
+                NetworkHandler.CHANNEL.send(
+                        PacketDistributor.TRACKING_ENTITY.with(() -> this),
+                        new com.happysg.kaboom.networking.ChainSystemSyncPacket(getId(), chainSystem.save())
+                );
+            }
+        }
 
         tickChunkLoading();
         if ((tickCount % 5 == 0)) {
@@ -347,6 +382,10 @@ public class MissileEntity extends OrientedContraptionEntity {
         Vec3 aBase = getForcesWithParam(vel0);              // drag + gravity (uses vel0)
         Vec3 aCtrl = computeControlAccel(latestPlan, vel0); // steering always, thrust with fuel
         Vec3 aTick = aBase.add(aCtrl);
+
+        // TODO: Apply chain system weight modifier to thrust/gravity when launched would be cool
+        // double chainWeight = chainSystem.calculateWeight((ServerLevel) level());
+        // if (chainWeight > 0) { /* reduce thrust, increase gravity drag */ }
 
         // 3) Integrate predicted position (substeps help at high speed)
         PhysicsStep step = integrateSubsteps(pos0, vel0, aTick, SUBSTEPS);
@@ -874,10 +913,10 @@ public class MissileEntity extends OrientedContraptionEntity {
                 sl.setChunkForced(p.x, p.z, false);
             }
             forcedChunks.clear();
+            chainSystem.releaseAll(sl);
         }
         super.remove(reason);
     }
-
 
 
 
@@ -1527,6 +1566,9 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
+        if (!level().isClientSide && level() instanceof ServerLevel sl) {
+            chainSystem.releaseAll(sl);
+        }
         Minecraft.getInstance().getSoundManager().stop(engineSound);
         LOGGER.warn("kaboom");
         BlockPos oldPos = this.blockPosition();

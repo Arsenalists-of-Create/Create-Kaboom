@@ -36,6 +36,8 @@ public class MissileContraption extends MountedContraption {
     public Vec3 guidanceTargetPoint = null; // copied at launch
     @Nullable
     public CompoundTag guidanceTag = null;
+    @Nullable
+    public CompoundTag chainSystemTag = null; // serialized ChainSystem data, synced from MissileEntity
 
 
 
@@ -137,6 +139,8 @@ public class MissileContraption extends MountedContraption {
         }
         if (guidanceTag != null && !guidanceTag.isEmpty())
             tag.put("Guidance", guidanceTag);
+        if (chainSystemTag != null && !chainSystemTag.isEmpty())
+            tag.put("kaboom:ChainSystem", chainSystemTag);
 
         return tag;
     }
@@ -167,6 +171,7 @@ public class MissileContraption extends MountedContraption {
         }
         // readNBT
         guidanceTag = tag.contains("Guidance") ? tag.getCompound("Guidance") : null;
+        chainSystemTag = tag.contains("kaboom:ChainSystem") ? tag.getCompound("kaboom:ChainSystem") : null;
     }
 
 }

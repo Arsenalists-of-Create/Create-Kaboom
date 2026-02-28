@@ -2,6 +2,8 @@ package com.happysg.kaboom.block.missiles.assembly;
 
 import com.happysg.kaboom.block.missiles.MissileContraption;
 import com.happysg.kaboom.block.missiles.MissileEntity;
+import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
+import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.registry.ModEntities;
@@ -10,9 +12,13 @@ import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
+
+import java.util.UUID;
 
 public class MissileLaunchHelper {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -47,6 +53,16 @@ public class MissileLaunchHelper {
         // 3) Store the guidance blob on the contraption (this is your “full system” handoff)
         mc.guidanceTag = guidance.toTag();
 
+        // 3b) Read chain system from controller thruster BE BEFORE removing blocks
+        BlockEntity controllerBE = level.getBlockEntity(controllerPos);
+        ChainSystem chainSystem = null;
+        if (controllerBE instanceof ThrusterBlockEntity thrusterBE) {
+            chainSystem = thrusterBE.getChainSystem();
+            // Break only dangling chains
+            chainSystem.breakDanglingChains(controllerPos, level);
+            mc.chainSystemTag = chainSystem.save();
+        }
+
         // 4) Remove blocks (BE is gone after this)
         for (int i = result.getBlocks().size() - 1; i >= 0; i--) {
             level.removeBlock(result.getBlocks().get(i), false);
@@ -59,6 +75,16 @@ public class MissileLaunchHelper {
         entity.initFromAssembly(mc, controllerPos, warheadLocalPos);
 
         boolean added = level.addFreshEntity(entity);
+
+        //Cant really secure mobs yet but this will mount them when we get that working
+        if (added && chainSystem != null) {
+            for (UUID mobId : chainSystem.getSecuredMobIds()) {
+                Entity mob = level.getEntity(mobId);
+                if (mob instanceof Mob m) {
+                    m.startRiding(entity, true);
+                }
+            }
+        }
 
         LOGGER.warn("[LAUNCH] addFreshEntity -> {} id={} pos={}", added, entity.getId(), entity.position());
         LOGGER.warn("[MISSILE] controllerWorld={} warheadWorld={} warheadLocal={} guidanceWorld={} guidanceTag={}",
