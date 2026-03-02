@@ -19,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
@@ -26,6 +27,7 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
+import org.joml.Vector3dc;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -212,7 +214,10 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         projectile.setSize(size);
 
         projectile.setPos(VS2Utils.getWorldPos(this).below().getCenter());
-
+        Vector3dc shipVel = VS2Utils.getVelocity(level,this.worldPosition);
+        if(shipVel != null) {
+            projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
+        }
         // give projectile the state for visuals, but don't mutate it weirdly here
         projectile.setState(state);
 

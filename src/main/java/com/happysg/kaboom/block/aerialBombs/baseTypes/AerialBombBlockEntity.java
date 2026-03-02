@@ -6,6 +6,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3dc;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 
 public class AerialBombBlockEntity extends FuzedBlockEntity {
@@ -23,6 +25,10 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         if (projectile == null) return;
 
         projectile.setPos(VS2Utils.getWorldPos(this).below().getCenter());
+        Vector3dc shipVel = VS2Utils.getVelocity(level,this.worldPosition);
+        if(shipVel != null) {
+            projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
+        }
         projectile.setState(state);
 
         ItemStack fuzeStack = getFuze();
@@ -51,7 +57,4 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         }
     }
 
-    // (These aren't used in the snippet; safe to delete unless you plan to use them soon)
-    private ItemStack fuzeStack = ItemStack.EMPTY;
-    private int fuzeTicksRemaining = 0;
 }
