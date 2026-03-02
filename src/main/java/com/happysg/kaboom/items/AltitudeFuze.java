@@ -28,12 +28,17 @@ import java.util.List;
 public class AltitudeFuze extends FuzeItem {
     public static final String TAG_HEIGHT = "HeightBlocks";
 
+    // Per-projectile fuze state stored on the fuze stack
+    private static final String TAG_INIT = "AltitudeFuzeInitialized";
+    private static final String TAG_ARMED = "AltitudeFuzeArmed";
+
     public static final int DEFAULT_HEIGHT = 8;
     public static final int MIN_HEIGHT = 1;
     public static final int MAX_HEIGHT = 256;
 
     // How far down to search for ground
     private static final double MAX_TRACE_DOWN = 512.0;
+    private static final double DETONATION_EPSILON = 0.01;
 
     public AltitudeFuze(Item.Properties properties) {
         super(properties);
@@ -47,15 +52,31 @@ public class AltitudeFuze extends FuzeItem {
 
         int height = getHeight(stack);
 
-        // Measure distance from projectile to the first collidable block below
         double dist = distanceToGround(level, projectile.position(), MAX_TRACE_DOWN);
 
-        if (dist != Double.POSITIVE_INFINITY && dist <= (double) height + 0.01) {
+        CompoundTag tag = stack.getOrCreateTag();
 
-            return true;
+
+        if (!tag.getBoolean(TAG_INIT)) {
+            tag.putBoolean(TAG_INIT, true);
+
+
+            boolean startsAboveHeight = dist == Double.POSITIVE_INFINITY || dist > (double) height + DETONATION_EPSILON;
+            tag.putBoolean(TAG_ARMED, startsAboveHeight);
         }
 
-        return false;
+        boolean armed = tag.getBoolean(TAG_ARMED);
+
+        // If not armed yet, arm only after rising above the set height
+        if (!armed) {
+            if (dist == Double.POSITIVE_INFINITY || dist > (double) height + DETONATION_EPSILON) {
+                tag.putBoolean(TAG_ARMED, true);
+            }
+            return false;
+        }
+
+        // Once armed, detonate the next time it drops to/below the set height
+        return dist != Double.POSITIVE_INFINITY && dist <= (double) height + DETONATION_EPSILON;
     }
 
     public static int getHeight(ItemStack stack) {
@@ -71,8 +92,7 @@ public class AltitudeFuze extends FuzeItem {
     private static double distanceToGround(Level level, Vec3 from, double maxDown) {
         Vec3 to = from.subtract(0, maxDown, 0);
 
-        // COLLIDER = solid-ish blocks; Fluid.NONE = ignore water/lava surface.
-        // If you want water to count as "ground", switch Fluid.NONE -> Fluid.ANY.
+
         ClipContext ctx = new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null);
 
         HitResult hit = level.clip(ctx);
@@ -81,20 +101,13 @@ public class AltitudeFuze extends FuzeItem {
         return from.y - hit.getLocation().y;
     }
 
-    /**
-     * IMPORTANT: This must call CBC's detonation for the projectile.
-     * You likely want to call a method on the concrete projectile class (HE shell, etc.)
-     * that already handles config, fragments, block damage, etc.
-     */
-
-
     @Override
     public void appendHoverText(ItemStack stack, Level level, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
 
         int h = getHeight(stack);
 
-        tooltip.add(Component.translatable(CreateKaboom.MODID + ".item.altitude_fuse.detonation_alt").append(""+h)
+        tooltip.add(Component.translatable(CreateKaboom.MODID + ".item.altitude_fuse.detonation_alt").append("" + h)
                 .withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable(CreateKaboom.MODID + ".item.altitude_fuse.base_info")
                 .withStyle(ChatFormatting.DARK_GRAY));
@@ -106,7 +119,7 @@ public class AltitudeFuze extends FuzeItem {
         int h = getHeight(stack);
 
         MutableComponent info = CreateLang.builder(CreateKaboom.MODID)
-                .translate("item.altitude_fuze.tooltip").add(Component.literal(""+h))
+                .translate("item.altitude_fuze.tooltip").add(Component.literal("" + h))
                 .component();
 
         tooltip.addAll(TooltipHelper.cutTextComponent(info, Style.EMPTY, Style.EMPTY, 6));
