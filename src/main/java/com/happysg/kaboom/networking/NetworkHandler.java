@@ -41,5 +41,12 @@ public class NetworkHandler {
                 GPSGuidancePacket::decode,
                 GPSGuidancePacket::handle
         );
+        CHANNEL.registerMessage(
+                id++,
+                ChainSystemSyncPacket.class,
+                ChainSystemSyncPacket::encode,
+                ChainSystemSyncPacket::decode,
+                ChainSystemSyncPacket::handle
+        );
     }
 }

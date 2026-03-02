@@ -25,7 +25,11 @@ public class ModBlockEntityTypes {
 
     public static final BlockEntityEntry<ThrusterBlockEntity> MISSILE_THRUSTER_BE =
             REGISTRATE.blockEntity("missile_engine",ThrusterBlockEntity::new)
-                    .validBlocks(ModBlocks.MISSILE_THRUSTER)
+                    .validBlocks(
+                            ModBlocks.MISSILE_THRUSTER,
+                            ModBlocks.MISSILE_THRUSTER_SMALL,
+                            ModBlocks.MISSILE_THRUSTER_HUGE
+                    )
                     .register();
     public static final BlockEntityEntry<MissileFuelTankBlockEntity> FUEL_TANK_SMALL =
             REGISTRATE.blockEntity("small_tank", MissileFuelTankBlockEntity::new)

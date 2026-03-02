@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 
 import com.happysg.kaboom.block.missiles.nav.MissileNavStack;
+import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.util.*;
 import com.happysg.kaboom.compat.vs2.VS2Utils;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
@@ -88,9 +89,9 @@ public class MissileEntity extends OrientedContraptionEntity {
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
 
     private static final double MAX_SPEED = 10;
-    private static final double MAX_THRUST_ACCEL = 0.5;   
-    private static final int BURN_MB_PER_TICK_AT_FULL = 1; 
-    private static final double BOUNCE_RESTITUTION = 0.35; 
+    private static final double MAX_THRUST_ACCEL = 0.5;
+    private static final int BURN_MB_PER_TICK_AT_FULL = 1;
+    private static final double BOUNCE_RESTITUTION = 0.35;
     private static final int SUBSTEPS = 20;
 
     private boolean latchedInGround = false;
@@ -117,32 +118,36 @@ public class MissileEntity extends OrientedContraptionEntity {
     private BlockPos navTargetPos = null;
     private List<AABB> customColliders = List.of();
     private Direction.Axis forwardAxis = Direction.Axis.Y;
-    private int forwardSign = +1; 
+    private int forwardSign = +1;
 
-    
+
     private BlockPos noseLocal = BlockPos.ZERO;
 
 
-    
+
     private static final double NOSE_TIP_AHEAD = 0.55;
     private boolean launched = false;
+    private final ChainSystem chainSystem = new ChainSystem();
 
 
     public MissileEntity(EntityType<?> type, Level level) {
         super(type, level);
     }
 
+    public ChainSystem getChainSystem() {
+        return chainSystem;
+    }
 
     public void initFromAssembly(Contraption contraption, BlockPos controllerPos, BlockPos warheadLocalPos) {
         setPos(VS2Utils.getWorldPos(level(),controllerPos).getCenter());
 
         setContraption(contraption);
         setNoGravity(false);
-        this.entityData.set(GRAVITY, -0.08f); 
+        this.entityData.set(GRAVITY, -0.08f);
         startAtInitialYaw();
-        
+
         this.warheadpos = warheadLocalPos;
-        
+
 
         if (contraption instanceof MissileContraption mc) {
             this.fuelMb = mc.fuelAmountMb;
@@ -160,7 +165,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
         recomputeForwardAxisAndNose();
 
-        
+
         this.capPos = BlockPos.ZERO;
         if (this.contraption != null && !this.contraption.getBlocks().isEmpty()) {
             BlockPos best = BlockPos.ZERO;
@@ -169,7 +174,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
             this.capPos = best;
         }
-        rebuildCustomColliders(0.40); 
+        rebuildCustomColliders(0.40);
         enforceCustomColliders();
 
         Vector3dc vector3dc =  VS2Utils.getVelocity(level(),controllerPos);
@@ -203,6 +208,21 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
+        // Load chain system data from contraption if present
+        if (contraption instanceof MissileContraption mc && mc.chainSystemTag != null) {
+            chainSystem.load(mc.chainSystemTag);
+        }
+    }
+
+
+    /**
+     * Syncs the chain system state into the contraption's NBT for persistence.
+     * Called periodically from serverTickMovement.
+     */
+    private void syncChainSystemToContraption() {
+        if (this.contraption instanceof MissileContraption mc) {
+            mc.chainSystemTag = chainSystem.save();
+        }
     }
 
     @Override
@@ -215,7 +235,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         enforceCustomColliders();
         if (level().isClientSide) {
-            if (!launched && getFuelMbSynced() > 0) { 
+            if (!launched && getFuelMbSynced() > 0) {
                 launched = true;
                 engineSound = new MissileEngineSound(this);
                 Minecraft.getInstance().getSoundManager().play(engineSound);
@@ -231,7 +251,7 @@ public class MissileEntity extends OrientedContraptionEntity {
                 float up = 0.0f;
                 float right = 0.0f;
 
-                Vec3 p = position(); 
+                Vec3 p = position();
                 level().addParticle(
                         new MissileAttachedParticleOptions(getId(), back, up, right), true,
                         p.x, p.y, p.z,
@@ -242,16 +262,30 @@ public class MissileEntity extends OrientedContraptionEntity {
             return;
         }
 
-        serverTickMovement(); 
+        serverTickMovement();
     }
 
     private void serverTickMovement() {
         fallDistance = 0;
         hasImpulse = true;
 
+        // Tick chain system before movement
+        if (level() instanceof ServerLevel sl) {
+            chainSystem.tickFromEntity(position(), sl);
+            // Sync chain data to contraption NBT every 20 ticks for persistence
+            if (tickCount % 20 == 0) {
+                syncChainSystemToContraption();
+                chainSystem.populateEntityIds(sl);
+                NetworkHandler.CHANNEL.send(
+                        PacketDistributor.TRACKING_ENTITY.with(() -> this),
+                        new com.happysg.kaboom.networking.ChainSystemSyncPacket(getId(), chainSystem.save())
+                );
+            }
+        }
+
         tickChunkLoading();
 
-        
+
         this.noPhysics = true;
         this.setNoGravity(false);
 
@@ -272,18 +306,18 @@ public class MissileEntity extends OrientedContraptionEntity {
         final Vec3 pos0 = position();
         final Vec3 vel0 = getDeltaMovement();
 
-        
+
         MissileNavStack.NavOut navCmd = null;
         if (!navStack.isEmpty() && navTargetPos != null) {
             navCmd = navStack.tick(level(), pos0, vel0, navTargetPos);
         }
 
-        
+
         if (navCmd == null && navTargetPos != null) {
             navCmd = computeTerminalNav(pos0, vel0, navTargetPos);
         }
 
-        
+
         if ((tickCount % 5) == 0) {
             if (navCmd != null) {
                 LOGGER.warn("[MISSILE] t={} pos={} v={} speed={} thr={} phase={} dbg={}",
@@ -304,7 +338,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
-        
+
         Vec3 aBase = getForcesWithParam(vel0);
 
         Vec3 aCtrl = (navCmd != null)
@@ -313,28 +347,32 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         Vec3 aTick = aBase.add(aCtrl);
 
-        
+        // TODO: Apply chain system weight modifier to thrust/gravity when launched would be cool
+        // double chainWeight = chainSystem.calculateWeight((ServerLevel) level());
+        // if (chainWeight > 0) { /* reduce thrust, increase gravity drag */ }
+
+        // 3) Integrate predicted position (substeps help at high speed)
         PhysicsStep step = integrateSubsteps(pos0, vel0, aTick, SUBSTEPS);
         Vec3 posPred = step.pos();
         Vec3 velPred = step.vel();
 
-        
+
         move(MoverType.SELF, posPred.subtract(pos0));
         final Vec3 pos1 = position();
 
-        
+
         Vec3 velNext = clampSpeed(velPred, MAX_SPEED);
         setContraptionMotion(velNext);
         super.setDeltaMovement(velNext);
 
-        
+
         resolvedPosThisTick = null;
         tickCBCImpacts(pos0, pos1);
         tickWarhead();
 
         if (resolvedPosThisTick != null) {
             setPos(resolvedPosThisTick.x, resolvedPosThisTick.y, resolvedPosThisTick.z);
-            
+
             return;
         }
 
@@ -368,41 +406,41 @@ public class MissileEntity extends OrientedContraptionEntity {
         if (dist <= NO_CORRECT_DIST) {
             Vec3 vHat = (speed > 1e-6) ? vel.scale(1.0 / speed) : rHat;
 
-            
-            
+
+
             return new MissileNavStack.NavOut(
-                    vHat,   
-                    vHat,   
-                    0.0,    
-                    true,   
+                    vHat,
+                    vHat,
+                    0.0,
+                    true,
                     "terminal:nocorrect5"
             );
         }
-        
-        final double aMax = MAX_THRUST_ACCEL; 
-        final double vMax = MAX_SPEED;        
 
-        
+        final double aMax = MAX_THRUST_ACCEL;
+        final double vMax = MAX_SPEED;
+
+
         double vSafe = Math.sqrt(Math.max(0.0, 2.0 * aMax * dist));
-        double vDes = Math.min(vMax, 0.80 * vSafe);     
-        vDes = Math.max(vDes, 1.0);                     
+        double vDes = Math.min(vMax, 0.80 * vSafe);
+        vDes = Math.max(vDes, 1.0);
 
         Vec3 vDesVec = rHat.scale(vDes);
 
-        
+
         final double tau = 6.0;
         Vec3 aCmd = vDesVec.subtract(vel).scale(1.0 / tau);
 
-        
+
         if (speed > vDes + 0.25) {
             Vec3 vHat = speed > 1e-6 ? vel.scale(1.0 / speed) : rHat;
-            Vec3 brakeBias = vHat.scale(-0.85).add(rHat.scale(0.15)); 
+            Vec3 brakeBias = vHat.scale(-0.85).add(rHat.scale(0.15));
             if (brakeBias.lengthSqr() > 1e-10) {
                 aCmd = brakeBias.normalize().scale(aMax);
             }
         }
 
-        
+
         double aMag = aCmd.length();
         if (aMag < 1e-8) {
             return new MissileNavStack.NavOut(rHat, rHat, 0.0, dist < 1.5 && speed < 1.5, "terminal:zero");
@@ -415,7 +453,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         Vec3 thrustDir = aCmd.scale(1.0 / aMag);
         double throttle = aMag / aMax;
 
-        boolean done = dist < 1.5 && speed < 1.5; 
+        boolean done = dist < 1.5 && speed < 1.5;
         String dbg = String.format(Locale.ROOT, "terminal:vDes=%.2f dist=%.1f", vDes, dist);
 
         return new MissileNavStack.NavOut(thrustDir, rHat, throttle, done, dbg);
@@ -433,7 +471,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         navTargetPos = BlockPos.containing(tgt);
 
-        
+
         Vec3 launch = position();
 
         double boostY  = launch.y + 120.0;
@@ -448,8 +486,8 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     protected Vec3 getForcesWithParam(Vec3 velocity) {
-        
-        
+
+
         double g = this.isNoGravity() ? 0.0
                 : this.entityData.get(GRAVITY) *
                 DimensionMunitionPropertiesHandler.getProperties(this.level()).gravityMultiplier();
@@ -493,14 +531,14 @@ public class MissileEntity extends OrientedContraptionEntity {
 
 
     private Vec3 tipWorldAtEntityPos(Vec3 entityPos, BlockPos localBlock, Vec3 worldDirUnit, double ahead) {
-        
+
         Vec3 now = toGlobalVector(Vec3.atCenterOf(localBlock), 0);
 
-        
+
         Vec3 delta = entityPos.subtract(this.position());
         Vec3 base = now.add(delta);
 
-        
+
         return base.add(worldDirUnit.scale(ahead));
     }
 
@@ -512,7 +550,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         BlockPos bestPos = BlockPos.ZERO;
 
         for (BlockPos lp : contraption.getBlocks().keySet()) {
-            Vec3 wp = toGlobalVector(Vec3.atCenterOf(lp), 0); 
+            Vec3 wp = toGlobalVector(Vec3.atCenterOf(lp), 0);
             double score = wp.dot(worldDirUnit);
             if (score > best) {
                 best = score;
@@ -576,7 +614,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
-        
+
         forcedChunks.removeIf(key -> {
             if (wanted.contains(key)) return false;
             ChunkPos p = new ChunkPos(key);
@@ -587,7 +625,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     @Override
     public void applyLocalTransforms(PoseStack stack, float partialTicks) {
-        
+
         Vector3f toDir = new Vector3f(
                 entityData.get(HEADING_X),
                 entityData.get(HEADING_Y),
@@ -599,12 +637,12 @@ public class MissileEntity extends OrientedContraptionEntity {
         else
             toDir.normalize();
 
-        
+
         Vector3f fromUp = new Vector3f(0, 1, 0);
 
         Quaternionf q = new Quaternionf().rotationTo(fromUp, toDir);
 
-        
+
         stack.translate(-0.5f, 0.0f, -0.5f);
         TransformStack tstack = TransformStack.of(stack)
                 .nudge(getId())
@@ -654,13 +692,13 @@ public class MissileEntity extends OrientedContraptionEntity {
         int spanY = maxY - minY;
         int spanZ = maxZ - minZ;
 
-        
+
         if (spanX >= spanY && spanX >= spanZ) forwardAxis = Direction.Axis.X;
         else if (spanY >= spanX && spanY >= spanZ) forwardAxis = Direction.Axis.Y;
         else forwardAxis = Direction.Axis.Z;
 
-        
-        
+
+
         int maxAbsPos, minAbsPos;
         switch (forwardAxis) {
             case X -> {
@@ -680,7 +718,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
         }
 
-        
+
         BlockPos best = BlockPos.ZERO;
         int bestProj = Integer.MIN_VALUE;
 
@@ -698,7 +736,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         noseLocal = best;
 
-        
+
         this.capPos = noseLocal;
 
         LOGGER.warn("[MISSILE AXIS] axis={} sign={} noseLocal={} warheadLocal={}",
@@ -709,7 +747,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         if (!forceCustomColliders) return;
         if (contraption == null) return;
 
-        
+
         contraption.simplifiedEntityColliders = Optional.of(customColliders);
     }
 
@@ -731,7 +769,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             maxZ = Math.max(maxZ, p.getZ());
         }
 
-        
+
         double x0 = minX, x1 = maxX + 1.0;
         double y0 = minY, y1 = maxY + 1.0;
         double z0 = minZ, z1 = maxZ + 1.0;
@@ -775,8 +813,8 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     private PhysicsStep integrateSubsteps(Vec3 pos0, Vec3 vel0, Vec3 aTick, int substeps) {
         if (substeps <= 1) {
-            Vec3 vel1 = vel0.add(aTick);              
-            Vec3 pos1 = pos0.add(vel1);               
+            Vec3 vel1 = vel0.add(aTick);
+            Vec3 pos1 = pos0.add(vel1);
             return new PhysicsStep(pos1, vel1);
         }
 
@@ -786,10 +824,10 @@ public class MissileEntity extends OrientedContraptionEntity {
         Vec3 vel = vel0;
 
         for (int i = 0; i < substeps; i++) {
-            
+
             vel = vel.add(aTick.scale(dt));
 
-            
+
             pos = pos.add(vel.scale(dt));
         }
 
@@ -806,14 +844,14 @@ public class MissileEntity extends OrientedContraptionEntity {
         if (surfaceNormal.lengthSqr() < 1e-12) return velocity;
         Vec3 n = surfaceNormal.normalize();
         double vn = velocity.dot(n);
-        if (vn >= 0.0) return velocity; 
+        if (vn >= 0.0) return velocity;
         double e = Mth.clamp(restitution, 0.0, 1.0);
         return velocity.subtract(n.scale((1.0 + e) * vn));
     }
 
     @OnlyIn(Dist.CLIENT)
     private void clientTickVisuals() {
-        
+
         if (!fuelDepleted) spawnSmokeClient(position(), getDeltaMovement());
 
     }
@@ -862,6 +900,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
             forcedChunks.clear();
 
+            chainSystem.releaseAll(sl);
         }
 
 
@@ -869,9 +908,9 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
 
-    
-    
-    
+
+
+
     @OnlyIn(Dist.CLIENT)
     private void spawnSmokeClient(Vec3 pos, Vec3 v) {
         ClientLevel cl = (ClientLevel) level();
@@ -925,18 +964,18 @@ public class MissileEntity extends OrientedContraptionEntity {
         int before = fuelMb;
         fuelMb = Math.max(0, fuelMb - mb);
 
-        
+
         entityData.set(FUEL_MB, fuelMb);
         entityData.set(FUEL_CAP_MB, fuelCapacityMb);
 
-        
+
         if (fuelMb == 0 && before > 0) {
             LOGGER.warn("[MISSILE] Fuel depleted at tick {}", level().getGameTime());
         }
     }
 
 
-    
+
 
 
 
@@ -976,7 +1015,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         resolvedPosThisTick = null;
         MissileProjectileContext ctx = new MissileProjectileContext(this, CBCConfigs.server().munitions.damageRestriction.get());
 
-        
+
         Vec3 entDisp = newPos.subtract(oldPos);
         if (entDisp.lengthSqr() < 1e-10) return;
 
@@ -991,8 +1030,8 @@ public class MissileEntity extends OrientedContraptionEntity {
             return;
         }
 
-        
-        final double r = 0.35; 
+
+        final double r = 0.35;
         Vec3 dirUnit = disp0.normalize();
 
         Vec3 right = dirUnit.cross(new Vec3(0, 1, 0));
@@ -1008,7 +1047,7 @@ public class MissileEntity extends OrientedContraptionEntity {
                 up.scale(-r)
         };
 
-        
+
         java.util.function.BiFunction<Vec3, Vec3, BlockHitResult> clipCapsule = (segStart, segEnd) -> {
             BlockHitResult best = null;
             double bestDist = Double.POSITIVE_INFINITY;
@@ -1031,7 +1070,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
             if (best != null) return best;
 
-            
+
             Direction missDir = Direction.getNearest(dirUnit.x, dirUnit.y, dirUnit.z);
             return BlockHitResult.miss(segEnd, missDir, BlockPos.containing(segEnd));
         };
@@ -1044,7 +1083,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         Vec3 accel = getForces(vel0);
         Vec3 traj = vel0.add(accel);
 
-        
+
         double reach = Math.max(getBbWidth(), getBbHeight()) * 0.5;
 
         Vec3 nose = start;
@@ -1060,7 +1099,7 @@ public class MissileEntity extends OrientedContraptionEntity {
 
             Vec3 segDirUnit = disp.normalize();
 
-            
+
             BlockHitResult blockHit = clipCapsule.apply(start, end);
 
             Vec3 hitEnd = end;
@@ -1069,9 +1108,9 @@ public class MissileEntity extends OrientedContraptionEntity {
 
             }
 
-            
+
             if (i == 0) {
-                
+
                 BlockHitResult fluidHit = level().clip(new ClipContext(
                         start, hitEnd,
                         ClipContext.Block.OUTLINE,
@@ -1092,13 +1131,13 @@ public class MissileEntity extends OrientedContraptionEntity {
                 }
             }
 
-            
+
             if (onClip(ctx, start, hitEnd)) {
                 shouldRemove = true;
                 break;
             }
 
-            
+
             AABB movementRegion = noseBox.expandTowards(disp).inflate(1);
             for (Entity target : level().getEntities(this, movementRegion)) {
                 if (ctx.hasHitEntity(target)) continue;
@@ -1108,7 +1147,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
 
 
-            
+
             if (blockHit.getType() != HitResult.Type.MISS) {
                 BlockPos bp = blockHit.getBlockPos().immutable();
                 BlockState hitState = level().getChunkAt(bp).getBlockState(bp);
@@ -1136,9 +1175,9 @@ public class MissileEntity extends OrientedContraptionEntity {
                         double total = start.distanceTo(end);
                         double fracLeft = (total <= 1.0e-6) ? 0.0 : Math.max(0.0, (total - used) / total);
 
-                        
+
                         start = hitEnd;
-                        end = hitEnd.add(segDirUnit.scale((total - used))); 
+                        end = hitEnd.add(segDirUnit.scale((total - used)));
                     }
                     case STOP -> {
                         resolvedPosThisTick = snappedEntityPos;
@@ -1167,7 +1206,7 @@ public class MissileEntity extends OrientedContraptionEntity {
                 break;
             }
 
-            
+
             noseBox = new AABB(start, start).inflate(0.25);
         }
 
@@ -1215,11 +1254,11 @@ public class MissileEntity extends OrientedContraptionEntity {
         fuzed.setPos(this.toGlobalVector(Vec3.atCenterOf(warheadpos), 0));
         fuzed.setDeltaMovement(this.getDeltaMovement());
 
-        var acc = (FuzeMixin) fuzed; 
+        var acc = (FuzeMixin) fuzed;
         ItemStack fuzeStack = acc.getFuze();
         boolean baseFuze = acc.invokeGetFuzeProperties().baseFuze();
 
-        
+
         ProjectileContext pctx = new ProjectileContext(fuzed, CBCConfigs.server().munitions.damageRestriction.get());
         for (Entity e : ctx.hitEntities()) pctx.addEntity(e);
 
@@ -1236,16 +1275,16 @@ public class MissileEntity extends OrientedContraptionEntity {
 
     protected boolean onHitEntity(Entity entity, MissileProjectileContext ctx) {
         if (level().isClientSide) {
-            
+
             return false;
         }
 
         if (warhead != null) {
-            
+
             ProjectileContext wctx = new ProjectileContext(warhead, CBCConfigs.server().munitions.damageRestriction.get());
             for (Entity e : ctx.hitEntities()) wctx.addEntity(e);
 
-            
+
 
             ((AbstractProjectileAccessor) warhead).invokeImpact(
                     new EntityHitResult(entity),
@@ -1256,7 +1295,7 @@ public class MissileEntity extends OrientedContraptionEntity {
                     wctx
             );
 
-            
+
             EntityDamagePropertiesComponent props = warhead.getDamageProperties();
             if (props != null) {
                 entity.setDeltaMovement(getDeltaMovement().scale(props.knockback()));
@@ -1270,7 +1309,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
 
 
-        
+
         return this.onImpact(
                 new EntityHitResult(entity),
                 new AbstractCannonProjectile.ImpactResult(AbstractCannonProjectile.ImpactResult.KinematicOutcome.PENETRATE, false),
@@ -1290,15 +1329,15 @@ public class MissileEntity extends OrientedContraptionEntity {
             return;
         }
 
-        
+
         if (!(this.warhead instanceof FuzedBigCannonProjectile fuzed))
             return;
 
-        
+
         fuzed.setPos(this.toGlobalVector(Vec3.atCenterOf(warheadpos), 0));
         fuzed.setDeltaMovement(this.getDeltaMovement());
 
-        
+
         FuzeMixin acc = (FuzeMixin) fuzed;
         if (acc.invokeCanDetonate(fz -> fz.onProjectileTick(acc.getFuze(), fuzed))) {
             this.detonate(warheadpos, fuzed);
@@ -1490,6 +1529,9 @@ public class MissileEntity extends OrientedContraptionEntity {
     }
 
     protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
+        if (!level().isClientSide && level() instanceof ServerLevel sl) {
+            chainSystem.releaseAll(sl);
+        }
         Minecraft.getInstance().getSoundManager().stop(engineSound);
         LOGGER.warn("kaboom");
         BlockPos oldPos = this.blockPosition();
@@ -1527,7 +1569,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         Vec3 warheadWorld = this.toGlobalVector(Vec3.atCenterOf(this.warheadpos), 1.0f);
         fuzed.setPos(warheadWorld);
 
-        
+
         fuzed.setDeltaMovement(this.getDeltaMovement());
 
         FuzeMixin acc = (FuzeMixin) fuzed;
