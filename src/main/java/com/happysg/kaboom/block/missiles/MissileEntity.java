@@ -209,7 +209,7 @@ public class MissileEntity extends OrientedContraptionEntity {
         }
 
         // Load chain system data from contraption if present
-        if (contraption instanceof MissileContraption mc && mc.chainSystemTag != null) {
+        if (mc.chainSystemTag != null) {
             chainSystem.load(mc.chainSystemTag);
         }
     }
