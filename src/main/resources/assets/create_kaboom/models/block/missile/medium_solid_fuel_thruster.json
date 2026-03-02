@@ -2,10 +2,10 @@
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "medium_solid_fuel_thruster",
-		"1": "medium_nozzle",
-		"2": "medium_fins",
-		"particle": "medium_solid_fuel_thruster"
+		"0": "create_kaboom:block/medium_solid_fuel_thruster",
+		"1": "create_kaboom:block/medium_nozzle",
+		"2": "create_kaboom:block/medium_fins",
+		"particle": "create_kaboom:block/medium_solid_fuel_thruster"
 	},
 	"elements": [
 		{

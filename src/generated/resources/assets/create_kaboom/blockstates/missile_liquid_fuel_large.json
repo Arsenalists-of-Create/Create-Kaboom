@@ -1,15 +1,15 @@
 {
   "variants": {
     "axis=y": {
-      "model": "create_kaboom:block/missile/missile_solid_fuel_tank"
+      "model": "create_kaboom:block/missile/medium_solid_fuel_tank"
     },
     "axis=x": {
-      "model": "create_kaboom:block/missile/missile_solid_fuel_tank",
+      "model": "create_kaboom:block/missile/medium_solid_fuel_tank",
       "x": 90,
       "y": 90
     },
     "axis=z": {
-      "model": "create_kaboom:block/missile/missile_solid_fuel_tank",
+      "model": "create_kaboom:block/missile/medium_solid_fuel_tank",
       "x": 90
     }
   }

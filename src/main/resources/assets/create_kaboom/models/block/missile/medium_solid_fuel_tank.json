@@ -2,9 +2,9 @@
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "medium_solid_fuel_tank",
-		"1": "medium_missile_part_top",
-		"particle": "medium_solid_fuel_tank"
+		"0": "create_kaboom:block/medium_solid_fuel_tank",
+		"1": "create_kaboom:block/medium_missile_part_top",
+		"particle": "create_kaboom:block/medium_solid_fuel_tank"
 	},
 	"elements": [
 		{

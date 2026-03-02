@@ -29,11 +29,11 @@ public class MissileContraption extends MountedContraption {
     private Direction initialOrientation;
     public int fuelAmountMb = 0;
     public int fuelCapacityMb = 0;
-    public CompoundTag fuelFluidTag = null; // optional: store FluidStack in tag
+    public CompoundTag fuelFluidTag = null;
     public BlockPos warheadLocalPos = null;
-    public BlockPos capLocalPos = BlockPos.ZERO; // leading tip
-    public BlockPos endLocalPos = BlockPos.ZERO; // same idea, optional
-    public Vec3 guidanceTargetPoint = null; // copied at launch
+    public BlockPos capLocalPos = BlockPos.ZERO;
+    public BlockPos endLocalPos = BlockPos.ZERO;
+    public Vec3 guidanceTargetPoint = null;
     @Nullable
     public CompoundTag guidanceTag = null;
 
@@ -42,8 +42,7 @@ public class MissileContraption extends MountedContraption {
     public void captureFromScan(Level level, MissileAssemblyResult result) {
         this.controllerWorldPos = result.getControllerPos();
         this.warheadLocalPos = result.getWarhead();
-        this.capLocalPos = this.warheadLocalPos; // if warhead is the nose
-        // Fill the blocks map (local coords relative to controller)
+        this.capLocalPos = this.warheadLocalPos;
         for (BlockPos worldPos : result.getBlocks()) {
             BlockState state = level.getBlockState(worldPos);
             BlockEntity be = level.getBlockEntity(worldPos);
@@ -54,7 +53,6 @@ public class MissileContraption extends MountedContraption {
                     guidanceTag = provider.exportGuidance().toTag();   // <-- correct format
                     LOGGER.warn("[MISSILE CAPTURE] captured guidance via provider: {}", guidanceTag);
                 } else if (state.getBlock() instanceof IMissileComponent part && part.isGuidance()) {
-                    // fallback: raw BE tag (older format) if you really want
                     guidanceTag = be.saveWithoutMetadata();
                     LOGGER.warn("[MISSILE CAPTURE] captured guidance via BE raw tag: {}", guidanceTag);
                 }
@@ -66,8 +64,8 @@ public class MissileContraption extends MountedContraption {
             this.getBlocks().put(localPos, new StructureBlockInfo(localPos, state, tag));
         }
         this.computeFuelFromCapturedBlocks(level);
-        this.anchor = BlockPos.ZERO;      // local origin (since your blocks are local)
-        this.startPos =BlockPos.ZERO;    // safe default; Create expects non-null
+        this.anchor = BlockPos.ZERO;
+        this.startPos =BlockPos.ZERO;
         BlockPos best = BlockPos.ZERO;
         for (BlockPos p : getBlocks().keySet()) {
             if (p.getY() > best.getY()) best = p;
@@ -80,8 +78,6 @@ public class MissileContraption extends MountedContraption {
     }
 
     private AABB computeAabbFromLocalBlocks() {
-
-        // include full block volumes
         return new AABB(0, 0, 0, 1, 1, 1);
     }
 

@@ -88,8 +88,9 @@ public class ModBlocks {
                 )
                 .simpleItem();
     }
-    public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_solid_thruster", ThrusterBlock::new)
+    public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_liquid_thruster_large", ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
+            .addLayer(() -> RenderType::cutoutMipped)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
                     .getExistingFile(ctx.getId()), 0))
             .simpleItem()
