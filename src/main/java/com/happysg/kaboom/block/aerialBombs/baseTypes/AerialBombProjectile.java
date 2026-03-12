@@ -347,11 +347,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     protected void detonate(Position position) {
         if(type==null)return;
         switch (type){
-            case HE -> {ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 30/size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+            case HE -> {ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 /size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case AP ->{
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 15/size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 /size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case FRAG -> {

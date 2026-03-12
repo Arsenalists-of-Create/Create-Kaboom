@@ -5,6 +5,8 @@ import com.happysg.kaboom.block.missiles.nav.MissileNavStack;
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.util.*;
 import com.happysg.kaboom.compat.vs2.VS2Utils;
+import com.happysg.kaboom.config.KaboomConfig;
+import com.happysg.kaboom.config.KaboomServerConfig;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.NetworkHandler;
@@ -88,9 +90,9 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final EntityDataAccessor<Integer> FUEL_CAP_MB =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
 
-    private static final double MAX_SPEED = 10;
-    private static final double MAX_THRUST_ACCEL = 0.5;
-    private static final int BURN_MB_PER_TICK_AT_FULL = 1;
+    private static final double MAX_SPEED = KaboomConfig.server().maxMissileSpeed.get();
+    private static final double MAX_THRUST_ACCEL = KaboomConfig.server().maxMissileAccel.getF();
+    private static final int BURN_MB_PER_TICK_AT_FULL = KaboomConfig.server().maxFuelBurnPerTick.get();
     private static final double BOUNCE_RESTITUTION = 0.35;
     private static final int SUBSTEPS = 20;
 

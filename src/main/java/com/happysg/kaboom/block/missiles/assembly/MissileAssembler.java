@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedProjectileBlock;
 import rbasamoyai.createbigcannons.munitions.big_cannon.SimpleShellBlock;
 
 import java.util.ArrayList;
@@ -146,7 +147,7 @@ public class MissileAssembler {
             }
 
 
-            if (block instanceof SimpleShellBlock<?>) {
+            if (block instanceof FuzedProjectileBlock<?,?>) {
                 foundFuzedProjectile = true;
                 log(server, "Warhead accepted: " + block.getName().getString());
                 LogUtils.getLogger().warn("[MISSILE SCAN] warhead={} class={}", id, block.getClass().getName());

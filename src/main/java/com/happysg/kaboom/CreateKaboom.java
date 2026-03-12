@@ -3,6 +3,7 @@ package com.happysg.kaboom;
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.MissileRenderer;
 import com.happysg.kaboom.block.missiles.chaining.client.ChainRenderer;
+import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.networking.ModMessages;
 import com.happysg.kaboom.networking.NetworkHandler;
 
@@ -11,6 +12,8 @@ import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
 import com.happysg.kaboom.registry.*;
+import com.happysg.radar.CreateRadar;
+import com.happysg.radar.config.RadarConfig;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.foundation.data.CreateRegistrate;
@@ -19,11 +22,14 @@ import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 import net.createmod.ponder.foundation.PonderIndex;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModContainer;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -61,7 +67,11 @@ public class CreateKaboom {
         modEventBus.addListener(CreateKaboom::init);
         modEventBus.addListener(CreateKaboom::clientInit);
         modEventBus.addListener(CreateKaboom::registerAdditionalModels);
-
+        ModContainer container = ModList.get()
+                .getModContainerById(CreateKaboom.MODID)
+                .orElseThrow(() -> new IllegalStateException("Radar mod container missing on LoadComplete"));
+        container.registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new ConfigScreenHandler.ConfigScreenFactory(KaboomConfig::createConfigScreen));
     }
 
     public static Logger getLogger() {

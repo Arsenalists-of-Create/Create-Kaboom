@@ -27,7 +27,7 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         projectile.setPos(VS2Utils.getWorldPos(this).below().getCenter());
         Vector3dc shipVel = VS2Utils.getVelocity(level,this.worldPosition);
         if(shipVel != null) {
-            projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
+            projectile.setDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
         }
         projectile.setState(state);
 

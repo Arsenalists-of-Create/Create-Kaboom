@@ -145,6 +145,17 @@ dependencies {
     implementation fg.deobf("maven.modrinth:create-big-cannons:${cbc_version}") { transitive = false }
     implementation fg.deobf("maven.modrinth:rpl:${rpl_version}") { transitive = false }
 
+    //CBCMW
+    //replace implementation instead of compileOnly after CBCMW is compatible with 6.0
+    compileOnly fg.deobf("maven.modrinth:cbcmodernwarfare:${cbc_mw_version}+mc.${minecraft_version}-forge")
+
+    //CBCAT
+    //replace implementation instead of compileOnly after CBCAT is compatible with 6.0
+    compileOnly( fg.deobf("maven.modrinth:create-big-cannons-advanced-technologies:${cbc_at_version}-${minecraft_version}"))
+
+//    //CBCWPF
+//    compileOnly fg.deobf("maven.modrinth:cbc-warium-projectiles:${cbc_wpf_version}")
+//    compileOnly fg.deobf("maven.modrinth:cbc-warium-projectiles:${cbc_wpf_version}")
     //JEI
     compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
     compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
