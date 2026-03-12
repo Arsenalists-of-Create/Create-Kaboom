@@ -27,8 +27,6 @@ public class KaboomConfig {
     }
     public static boolean DEBUG_BEAMS = false;
 
-
-
     public static KaboomServerConfig server() {
         return server;
     }

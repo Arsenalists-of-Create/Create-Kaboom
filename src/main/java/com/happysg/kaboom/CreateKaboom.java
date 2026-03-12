@@ -30,6 +30,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -50,6 +51,7 @@ public class CreateKaboom {
     public CreateKaboom() {
         getLogger().info("Initializing Create Kaboom!");
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModLoadingContext context = ModLoadingContext.get();
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(new ChainInteractionHandler());
         MinecraftForge.EVENT_BUS.register(new ChainTickHandler());
@@ -64,6 +66,7 @@ public class CreateKaboom {
         ModLang.register();
         ModEntities.register(modEventBus);
         ModSounds.register(modEventBus);
+        KaboomConfig.register(context);
         modEventBus.addListener(CreateKaboom::init);
         modEventBus.addListener(CreateKaboom::clientInit);
         modEventBus.addListener(CreateKaboom::registerAdditionalModels);

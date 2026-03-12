@@ -90,9 +90,9 @@ public class MissileEntity extends OrientedContraptionEntity {
     private static final EntityDataAccessor<Integer> FUEL_CAP_MB =
             SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
 
-    private static final double MAX_SPEED = KaboomConfig.server().maxMissileSpeed.get();
-    private static final double MAX_THRUST_ACCEL = KaboomConfig.server().maxMissileAccel.getF();
-    private static final int BURN_MB_PER_TICK_AT_FULL = KaboomConfig.server().maxFuelBurnPerTick.get();
+    private double MAX_SPEED = KaboomConfig.server().maxMissileSpeed.get();
+    private double MAX_THRUST_ACCEL = KaboomConfig.server().maxMissileAccel.getF();
+    private int BURN_MB_PER_TICK_AT_FULL = KaboomConfig.server().maxFuelBurnPerTick.get();
     private static final double BOUNCE_RESTITUTION = 0.35;
     private static final int SUBSTEPS = 20;
 
