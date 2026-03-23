@@ -12,6 +12,7 @@ import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.NetworkHandler;
 import com.happysg.kaboom.registry.ModParticles;
 import com.happysg.kaboom.sounds.MissileEngineSound;
+import com.happysg.radar.config.RadarConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -419,7 +420,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             );
         }
 
-        final double aMax = MAX_THRUST_ACCEL;
+        final double aMax = KaboomConfig.server().maxSlowDown.getF();
         final double vMax = MAX_SPEED;
 
 
@@ -476,8 +477,8 @@ public class MissileEntity extends OrientedContraptionEntity {
 
         Vec3 launch = position();
 
-        double boostY  = launch.y + 120.0;
-        double cruiseY = launch.y + 400;
+        double boostY  = launch.y + KaboomConfig.server().boostHeight.get();
+        double cruiseY = KaboomConfig.server().cruiseHeight.get();
 
         navStack.setBoostAndCruiseHeights(boostY, cruiseY, level());
 
