@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "create_kaboom:missile_liquid_fuel_huge"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "create_kaboom:blocks/missile_liquid_fuel_huge"
+}

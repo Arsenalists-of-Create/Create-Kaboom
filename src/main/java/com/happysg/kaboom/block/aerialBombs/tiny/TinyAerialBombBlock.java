@@ -4,7 +4,7 @@ import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -17,22 +17,21 @@ public class TinyAerialBombBlock extends AerialBombBlock {
     private static final int MAX_COUNT = 9;
 
     public TinyAerialBombBlock(Properties properties) {
-        super(properties, AerialBombProjectile.BombType.HE, 4); // size = 4 constant
+        super(properties, AerialBombProjectile.BombType.HE, 4);
         this.registerDefaultState(this.defaultBlockState().setValue(COUNT, 1));
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos,
-                                 Player player, InteractionHand hand, BlockHitResult hit) {
-        InteractionResult base = super.use(state, level, pos, player, hand, hit);
+    protected ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hit) {
+        ItemInteractionResult base = super.useItemOn(held, state, level, pos, player, hand, hit);
         if (base.consumesAction())
             return base;
-        ItemStack held = player.getItemInHand(hand);
         if (!(held.getItem() instanceof BlockItem bi) || bi.getBlock() != this)
-            return InteractionResult.PASS;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         int count = state.getValue(COUNT);
         if (count >= MAX_COUNT)
-            return InteractionResult.CONSUME; // already full
+            return ItemInteractionResult.CONSUME;
         if (!level.isClientSide) {
             level.setBlock(pos, state.setValue(COUNT, count + 1), 3);
 
@@ -41,6 +40,6 @@ public class TinyAerialBombBlock extends AerialBombBlock {
             }
         }
 
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 }

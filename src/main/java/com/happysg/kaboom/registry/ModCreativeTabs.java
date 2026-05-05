@@ -6,9 +6,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
 import java.util.function.Supplier;
 
@@ -17,11 +17,10 @@ import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 public class ModCreativeTabs {
     public static DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, CreateKaboom.MODID);
 
-    public static final RegistryObject<CreativeModeTab> KABOOM_CREATIVE_TAB = addTab("kaboom", "Create: Kaboom",
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> KABOOM_CREATIVE_TAB = addTab("kaboom", "Create: Kaboom",
             ModBlocks.HEAVY_AERIAL_BOMB::asStack);
 
-
-    public static RegistryObject<CreativeModeTab> addTab(String id, String name, Supplier<ItemStack> icon) {
+    public static DeferredHolder<CreativeModeTab, CreativeModeTab> addTab(String id, String name, Supplier<ItemStack> icon) {
         String itemGroupId = "itemGroup." + CreateKaboom.MODID + "." + id;
         REGISTRATE.addRawLang(itemGroupId, name);
         CreativeModeTab.Builder tabBuilder = CreativeModeTab.builder()
@@ -45,7 +44,6 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.SMALL_FLUID_AERIAL_BOMB);
         pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
 
-
         pOutput.accept(ModBlocks.MISSILE_THRUSTER);
         pOutput.accept(ModBlocks.MISSILE_FUEL);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_LARGE);
@@ -54,17 +52,8 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.HEATSEEKER_SMALL);
         pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
 
-//        pOutput.accept(ModBlocks.GPS_GUIDANCE_HUGE);
-//        pOutput.accept(ModBlocks.MISSILE_FUEL_HUGE);
-//        pOutput.accept(ModBlocks.MISSILE_THRUSTER_HUGE);
-
-
-
-
-
         pOutput.accept(ModItems.ALTITUDE_FUZE);
     }
-
 
     public static void register(IEventBus eventBus) {
         CreateKaboom.getLogger().info("Registering CreativeTabs!");

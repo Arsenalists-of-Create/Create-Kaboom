@@ -5,8 +5,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 @OnlyIn(Dist.CLIENT)
 public class MissileAttachedParticle extends TextureSheetParticle {
@@ -28,9 +28,9 @@ public class MissileAttachedParticle extends TextureSheetParticle {
         this.hasPhysics = false;
         this.friction = 1.0f;
 
-        this.lifetime = 20 * 60 * 5; // 5 minutes (or longer)
+        this.lifetime = 20 * 60 * 5;
         this.setSpriteFromAge(sprites);
-        this.quadSize = 3; // tune
+        this.quadSize = 3;
     }
 
     @Override
@@ -41,8 +41,6 @@ public class MissileAttachedParticle extends TextureSheetParticle {
             return;
         }
 
-        // Use entity rotation. (If your OrientedContraptionEntity uses custom pitch/yaw fields,
-        // swap these to your values.)
         float pitch = e.getXRot();
         float yaw = e.getYRot();
 
@@ -50,7 +48,7 @@ public class MissileAttachedParticle extends TextureSheetParticle {
         Vec3 worldUp = new Vec3(0, 1, 0);
 
         Vec3 rightVec = forward.cross(worldUp);
-        if (rightVec.lengthSqr() < 1.0e-6) rightVec = new Vec3(1, 0, 0); // looking straight up/down fallback
+        if (rightVec.lengthSqr() < 1.0e-6) rightVec = new Vec3(1, 0, 0);
         rightVec = rightVec.normalize();
 
         Vec3 upVec = rightVec.cross(forward).normalize();
@@ -60,7 +58,6 @@ public class MissileAttachedParticle extends TextureSheetParticle {
                 .add(upVec.scale(up))
                 .add(rightVec.scale(right));
 
-        // Hard snap + kill interpolation jitter
         this.x = pos.x;
         this.y = pos.y;
         this.z = pos.z;

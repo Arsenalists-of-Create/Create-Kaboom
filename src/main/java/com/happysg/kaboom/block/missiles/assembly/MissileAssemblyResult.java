@@ -6,11 +6,11 @@ import java.util.List;
 
 public class MissileAssemblyResult {
     private final boolean valid;
-    private final List<BlockPos> blocks;       // absolute world positions, bottom->top
-    private final BlockPos controllerPos;      // bottom-most thruster position
+    private final List<BlockPos> blocks;
+    private final BlockPos controllerPos;
     private final BlockPos warhead;
-    private final int warheadIndex; // -1 when invalid
-    private final BlockPos guidance; // NEW
+    private final int warheadIndex;
+    private final BlockPos guidance;
 
     private MissileAssemblyResult(boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex,BlockPos guidance) {
         this.valid = valid;
@@ -53,9 +53,5 @@ public class MissileAssemblyResult {
         return toLocal(warhead);
     }
     public BlockPos guidance() { return guidance; }
-
-
-
-
 
 }

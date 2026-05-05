@@ -4,25 +4,23 @@ import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.happysg.kaboom.registry.ModTags;
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Position;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,8 +32,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 import rbasamoyai.createbigcannons.CreateBigCannons;
 import rbasamoyai.createbigcannons.block_armor_properties.BlockArmorPropertiesHandler;
@@ -65,8 +62,8 @@ import java.util.function.Predicate;
 
 public class AerialBombProjectile extends AbstractCannonProjectile {
 
-    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1,.01,false,2.0f,1,1,0.70f);
-    public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30,false,true,true,2);
+    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1, .01, false, 2.0f, 1, 1, 0.70f);
+    public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30, false, true, true, 2);
 
     protected static final EntityDataAccessor<Integer> TIME_REQUIRED = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
     protected static final EntityDataAccessor<Integer> TIME = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
@@ -78,14 +75,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private int size;
     private int count;
     boolean onImpact = false;
-    private int apRemaining = 0; // blocks left to penetrate (AP only)
+    private int apRemaining = 0;
+
     public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
         this.fuze = ItemStack.EMPTY;
         this.explosionCountdown = -1;
     }
-
-
 
     public void setFluidStack(EndFluidStack fstack) {
         this.fluidStack = fstack;
@@ -96,19 +92,18 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return DAMAGE_PROPERTIES;
     }
 
-
     @Override
     protected @NotNull BallisticPropertiesComponent getBallisticProperties() {
         return BALLISTIC_PROPERTIES;
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(TIME, 0);
-        this.entityData.define(TIME_REQUIRED, 10);
-        this.entityData.define(STATE, ModBlocks.HEAVY_AERIAL_BOMB.getDefaultState());
-        this.entityData.define(PAYLOAD_FLUID, new CompoundTag());
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(TIME, 0);
+        builder.define(TIME_REQUIRED, 10);
+        builder.define(STATE, ModBlocks.HEAVY_AERIAL_BOMB.getDefaultState());
+        builder.define(PAYLOAD_FLUID, new CompoundTag());
     }
 
     public void setState(BlockState pState) {
@@ -141,13 +136,14 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         FLUID,
         FRAG,
         INCENDIARY,
-        CLUSTER;
+        CLUSTER
     }
 
-    public void setBombType(BombType type){
-            this.type = type;
-            if (type == BombType.AP) apRemaining = 20; // your target
-
+    public void setBombType(BombType type) {
+        this.type = type;
+        if (type == BombType.AP) {
+            apRemaining = 20;
+        }
     }
 
     public void tick() {
@@ -157,14 +153,12 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             --this.explosionCountdown;
         }
 
-
-        if(!level().isClientSide) {
+        if (!level().isClientSide) {
             this.entityData.set(TIME, this.entityData.get(TIME) + 1);
         }
 
         if (this.canDetonate((fz) -> fz.onProjectileTick(this.fuze, this)) || !this.level().isClientSide && this.explosionCountdown == 0) {
             this.detonate(this.position());
-            this.removeNextTick = true;
         }
 
     }
@@ -248,10 +242,10 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Level.ExplosionInteraction.NONE);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
-            SoundType sound = state.getSoundType();
+            SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)
                 this.level().playSound(null, spallLoc.x, spallLoc.y, spallLoc.z, sound.getBreakSound(), SoundSource.BLOCKS,
                         sound.getVolume(), sound.getPitch());
@@ -277,8 +271,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     protected boolean onImpact(HitResult hitResult, AbstractCannonProjectile.ImpactResult impactResult, ProjectileContext projectileContext) {
         super.onImpact(hitResult, impactResult, projectileContext);
         boolean baseFuze = this.getFuzeProperties().baseFuze();
-        this.onImpact =true;
-        if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, impactResult, baseFuze))) {
+        ImpactResult fuzeImpact = new ImpactResult(impactResult.kinematics(), false);
+        this.onImpact = true;
+        if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, fuzeImpact, baseFuze))) {
             this.detonate(hitResult.getLocation());
             return true;
         } else {
@@ -290,31 +285,30 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         this.explosionCountdown = -1;
     }
-    // extra safety
+
     public void setFuzeStackUnsafe(ItemStack stack) {
         this.fuze = stack.copy();
         this.explosionCountdown = -1;
     }
 
     @Nonnull
-    protected BigCannonFuzePropertiesComponent getFuzeProperties(){
+    protected BigCannonFuzePropertiesComponent getFuzeProperties() {
         return new BigCannonFuzePropertiesComponent(false);
     }
 
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.put("Fuze", this.fuze.save(new CompoundTag()));
+        tag.put("Fuze", this.fuze.saveOptional(this.registryAccess()));
         tag.put("PayloadFluid", this.entityData.get(PAYLOAD_FLUID));
         if (this.explosionCountdown >= 0) {
             tag.putInt("ExplosionCountdown", this.explosionCountdown);
         }
 
-
     }
 
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        this.fuze = ItemStack.of(tag.getCompound("Fuze"));
+        this.fuze = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("Fuze"));
         this.explosionCountdown = tag.contains("ExplosionCountdown", 3) ? tag.getInt("ExplosionCountdown") : -1;
         if (tag.contains("PayloadFluid", Tag.TAG_COMPOUND))
             this.entityData.set(PAYLOAD_FLUID, tag.getCompound("PayloadFluid"));
@@ -322,44 +316,43 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     }
 
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
-        boolean var10000;
-        if (!this.level().isClientSide && this.level().hasChunkAt(this.blockPosition()) && !this.isRemoved()) {
-            Item var3 = this.fuze.getItem();
-            if (var3 instanceof FuzeItem) {
-                FuzeItem fuzeItem = (FuzeItem)var3;
-                if (cons.test(fuzeItem)) {
-                    var10000 = true;
-                    return var10000;
-                }
+        if (!this.level().isClientSide && this.level().isLoaded(this.blockPosition()) && !this.isRemoved()) {
+            Item item = this.fuze.getItem();
+            if (item instanceof FuzeItem fuzeItem) {
+                return cons.test(fuzeItem);
             }
         }
 
-        var10000 = false;
-        return var10000;
+        return false;
     }
 
-    /** @deprecated */
     @Deprecated
     protected void detonate() {
         this.detonate(this.position());
     }
 
     protected void detonate(Position position) {
-        if(type==null)return;
-        switch (type){
-            case HE -> {ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 /size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+        if (type == null || this.level().isClientSide) {
+            return;
+        }
+
+        this.removeNextTick = true;
+
+        switch (type) {
+            case HE -> {
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
-            case AP ->{
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 /size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+            case AP -> {
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case FRAG -> {
                 ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        4.0f/size,          // TNT-ish block damage
-                        false,         // no fire
+                        4.0f / size,
+                        false,
                         CBCConfigs.server()
                                 .munitions.damageRestriction.get()
                                 .explosiveInteraction()
@@ -369,14 +362,14 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     boolean noDamage = false;
                     if (!noDamage) {
 
-                        final double breakRadius = (double) 22 / size; // separate knob from entity radius (tune!)
+                        final double breakRadius = (double) 22 / size;
                         final double breakRadiusSqr = breakRadius * breakRadius;
 
                         BlockPos center = BlockPos.containing(position.x(), position.y(), position.z());
                         int r = Mth.ceil(breakRadius);
 
                         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
-                            // cheap sphere filter
+
                             double dx = (pos.getX() + 0.5) - position.x();
                             double dy = (pos.getY() + 0.5) - position.y();
                             double dz = (pos.getZ() + 0.5) - position.z();
@@ -393,10 +386,10 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 }
                 spawnCutterBomblets(new Vec3(position.x(), position.y(), position.z()), size);
                 if (!this.level().isClientSide) {
-                    final double radius = (double) 60 /size;
-                    final float maxDamage = 60; // tune: 60 = nasty, 30 = moderate
+                    final double radius = (double) 60 / size;
+                    final float maxDamage = 60;
 
-                    final double k = Math.log(10.0) / radius; // ~10% at edge
+                    final double k = Math.log(10.0) / radius;
 
                     AABB box = new AABB(
                             position.x() - radius, position.y() - radius, position.z() - radius,
@@ -426,12 +419,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     }
                 }
 
-
             }
             case INCENDIARY -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20/size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
-                int fireRadius = 40/size;
+                int fireRadius = 40 / size;
 
                 AABB area = new AABB(
                         position.x() - fireRadius,
@@ -442,14 +434,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                         position.z() + fireRadius
                 );
 
-                int attempts = 750/size; // how many random fire placement attempts
+                int attempts = 750 / size;
 
                 BlockPos center = BlockPos.containing(position);
                 RandomSource random = this.level().getRandom();
 
                 for (int i = 0; i < attempts; i++) {
 
-                    // Random polar distribution (more natural than cube sampling)
                     double angle = random.nextDouble() * Math.PI * 2;
                     double distance = Math.sqrt(random.nextDouble()) * fireRadius;
                     int offsetX = (int) (Math.cos(angle) * distance);
@@ -457,11 +448,10 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
                     BlockPos groundCheck = center.offset(offsetX, 5, offsetZ);
 
-                    // Drop down until we hit ground (max 10 blocks down)
                     for (int y = 0; y < 10; y++) {
                         BlockPos below = groundCheck.below(y);
 
-                        if (this.level().getBlockState(below).isSolid()) {
+                        if (this.level().getBlockState(below).isCollisionShapeFullBlock(this.level(), below)) {
 
                             BlockPos firePos = below.above();
 
@@ -479,15 +469,14 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 List<LivingEntity> entities = this.level().getEntitiesOfClass(LivingEntity.class, area);
 
                 for (LivingEntity entity : entities) {
-                    double distance = entity.distanceToSqr(position.x(),position.y(),position.z());
+                    double distance = entity.distanceToSqr(position.x(), position.y(), position.z());
                     if (distance <= fireRadius * fireRadius) {
 
-
                         double dist = Math.sqrt(distance);
-                        float damage = (float)(20.0 * (1.0 - dist / fireRadius));
+                        float damage = (float) (20.0 * (1.0 - dist / fireRadius));
 
                         entity.hurt(this.damageSources().explosion(this, this.getOwner()), damage);
-                        entity.setSecondsOnFire(6);
+                        entity.igniteForSeconds(6);
                     }
                 }
             }
@@ -496,7 +485,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        2.5f/size, false,
+                        2.5f / size, false,
                         CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
                 );
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
@@ -508,21 +497,19 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
                     Vec3 origin = new Vec3(position.x(), position.y(), position.z());
 
-                    boolean onImpact = /* your flag here */ false;
+                    boolean detonatedOnImpact = this.onImpact;
                     ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                     CreateBigCannons.handleCustomExplosion(this.level(), explosion);
-                    // Total bomblets and split
-                    int total = 20 + random.nextInt(10);            // 20–29 total
-                    int outerCount = (int) Math.ceil(total * 0.55); // ~55% outer
-                    int innerCount = total - outerCount;            // ~45% inner
 
-                    // Inherit some parent velocity (usually keep this for “feel”)
+                    int total = 20 + random.nextInt(10);
+                    int outerCount = (int) Math.ceil(total * 0.55);
+                    int innerCount = total - outerCount;
+
                     Vec3 inheritedBase = this.getDeltaMovement().scale(0.35);
-                    if (!onImpact) {
+                    if (!detonatedOnImpact) {
                         inheritedBase = new Vec3(inheritedBase.x, inheritedBase.y * 0.6, inheritedBase.z);
                     }
 
-                    // Helper lambda so we don't duplicate the whole spawn boilerplate
                     Vec3 finalInheritedBase = inheritedBase;
                     java.util.function.BiConsumer<Double, Double> spawnOne = (alpha, speed) -> {
                         ClusterBombletProjectile sub = ModProjectiles.CLUSTER_BOMBLET.get().create(level());
@@ -548,7 +535,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
                         Vec3 outward = dir.scale(speed);
 
-                        double yBias = onImpact
+                        double yBias = detonatedOnImpact
                                 ? (0.55 + random.nextDouble() * 0.45)
                                 : (0.05 + random.nextDouble() * 0.18);
 
@@ -562,23 +549,20 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                         level().addFreshEntity(sub);
                     };
 
-                    // -------------------------
-                    // 1) OUTER SET (edge-biased)
-                    // -------------------------
                     for (int i = 0; i < outerCount; i++) {
                         double alpha;
                         double speed;
 
-                        if (onImpact) {
-                            // Upward cone, but slightly wider so you still get some spread
+                        if (detonatedOnImpact) {
+
                             double max = Math.toRadians(28.0);
-                            alpha = Math.sqrt(random.nextDouble()) * max; // edge-ish within the cone
+                            alpha = Math.sqrt(random.nextDouble()) * max;
                             speed = 0.75 + random.nextDouble() * 0.90;
                         } else {
-                            // Wide outward band, biased toward horizontal (outer ring)
+
                             double min = Math.toRadians(35.0);
                             double max = Math.toRadians(90.0);
-                            double t = Math.sqrt(random.nextDouble()); // pushes toward 1 => near-horizontal
+                            double t = Math.sqrt(random.nextDouble());
                             alpha = min + (max - min) * t;
                             speed = 0.60 + random.nextDouble() * 1.05;
                         }
@@ -586,41 +570,31 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                         spawnOne.accept(alpha, speed);
                     }
 
-                    // --------------------------------
-                    // 2) INNER SET (center-biased fill)
-                    // --------------------------------
                     for (int i = 0; i < innerCount; i++) {
                         double alpha;
                         double speed;
 
-                        if (onImpact) {
-                            // Very center-biased (more straight up)
+                        if (detonatedOnImpact) {
+
                             double max = Math.toRadians(22.0);
-                            alpha = Math.pow(random.nextDouble(), 2.2) * max; // strong bias toward 0
-                            speed = 0.55 + random.nextDouble() * 0.65;        // slightly slower
+                            alpha = Math.pow(random.nextDouble(), 2.2) * max;
+                            speed = 0.55 + random.nextDouble() * 0.65;
                         } else {
-                            // Fill the middle: same band, but bias toward smaller alpha (less horizontal)
+
                             double min = Math.toRadians(35.0);
                             double max = Math.toRadians(90.0);
-                            double t = Math.pow(random.nextDouble(), 2.0);    // bias toward 0 => closer to min
+                            double t = Math.pow(random.nextDouble(), 2.0);
                             alpha = min + (max - min) * t;
-                            speed = 0.50 + random.nextDouble() * 0.80;        // slightly slower
+                            speed = 0.50 + random.nextDouble() * 0.80;
                         }
 
                         spawnOne.accept(alpha, speed);
                     }
                 }
             }
-            default ->{
-
-                }
         }
 
-
     }
-    private static final TagKey<Block> BLAST_TRANSPARENT =
-            TagKey.create(Registries.BLOCK, new ResourceLocation("kaboom", "blast_transparent"));
-
     private boolean hasBlastLineOfSight(Vec3 from, Vec3 to) {
         Level level = this.level();
 
@@ -628,9 +602,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         double len = dir.length();
         if (len < 1e-6) return true;
 
-        Vec3 step = dir.scale(1.0 / len); // unit direction
+        Vec3 step = dir.scale(1.0 / len);
 
-        // step along the ray in small increments (0.3 block is plenty)
         double stepSize = 0.3;
         int steps = (int) Math.ceil(len / stepSize);
 
@@ -642,16 +615,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         for (int i = 0; i <= steps; i++) {
             mp.set(p.x, p.y, p.z);
 
-            // only evaluate when entering a new blockpos
             if (lastPos == null || !mp.equals(lastPos)) {
                 lastPos = mp.immutable();
 
                 BlockState state = level.getBlockState(mp);
 
-                // ignore air + “blast transparent” (glass etc.)
-                if (!state.isAir() && !state.is(BLAST_TRANSPARENT)) {
-                    // Solid cover blocks the blast
-                    // If you want “fences/panes block less”, you can tweak this later.
+                if (!state.isAir() && !state.is(ModTags.Blocks.BLAST_TRANSPARENT)) {
+
                     return false;
                 }
             }
@@ -662,11 +632,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return true;
     }
 
-
-
     public boolean canLingerInGround() {
         boolean var10000;
-        if (!this.level().isClientSide && this.level().hasChunkAt(this.blockPosition())) {
+        if (!this.level().isClientSide && this.level().isLoaded(this.blockPosition())) {
             Item var2 = this.fuze.getItem();
             if (var2 instanceof FuzeItem) {
                 FuzeItem fuzeItem = (FuzeItem)var2;
@@ -695,19 +663,17 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private static final EntityDataAccessor<CompoundTag> PAYLOAD_FLUID =
             SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.COMPOUND_TAG);
 
-
     public void setPayloadFluid(FluidStack stack) {
         CompoundTag tag = new CompoundTag();
         if (!stack.isEmpty())
-            stack.writeToNBT(tag);
+            tag = (CompoundTag) stack.saveOptional(this.registryAccess());
         this.entityData.set(PAYLOAD_FLUID, tag);
     }
 
     public FluidStack getPayloadFluid() {
         CompoundTag tag = this.entityData.get(PAYLOAD_FLUID);
-        return tag.isEmpty() ? FluidStack.EMPTY : FluidStack.loadFluidStackFromNBT(tag);
+        return FluidStack.parseOptional(this.registryAccess(), tag);
     }
-
 
     private void spillFluid(Position position, FluidStack payload) {
         Level level = this.level();
@@ -717,11 +683,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         Fluid fluid = payload.getFluid();
         int totalMb = payload.getAmount();
 
-        // How far to scatter + how many tries
-        int radius = 20/size;
+        int radius = 20 / size;
         int attempts = Math.min(240, 30 + totalMb / 40);
 
-        // How many "bucket-equivalents" we’re willing to place as source blocks
         int remainingSources = Math.max(1, Math.min(16, totalMb / 1000));
 
         BlockState placeState = getPlaceableFluidBlockState(fluid);
@@ -740,7 +704,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 ox = random.nextInt(radius * 2 + 1) - radius;
                 oz = random.nextInt(radius * 2 + 1) - radius;
                 tries++;
-                // reject points outside circle
+
             } while (tries < 8 && (ox * ox + oz * oz) > radius * radius);
 
             if ((ox * ox + oz * oz) > radius * radius) continue;
@@ -750,7 +714,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             BlockPos ground = null;
             for (int y = 0; y < 20; y++) {
                 BlockPos below = start.below(y);
-                if (level.getBlockState(below).isSolid()) {
+                if (level.getBlockState(below).isCollisionShapeFullBlock(level, below)) {
                     ground = below;
                     break;
                 }
@@ -769,10 +733,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
         }
 
-        if (fluid ==Fluids.LAVA|| fluid ==Fluids.FLOWING_LAVA) {
-            int fireAttempts = 500/size;
+        if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {
+            int fireAttempts = 500 / size;
             for (int i = 0; i < fireAttempts; i++) {
-                LogUtils.getLogger().warn("lavaaaa ooooohhhhh");
                 BlockPos p = center.offset(
                         random.nextInt(radius * 2 + 1) - radius,
                         0,
@@ -785,10 +748,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         }
     }
 
-    /**
-     * Returns a blockstate that actually places this fluid into the world.
-     * Works for vanilla + most mod fluids that register a LiquidBlock.
-     */
     @Nullable
     private static BlockState getPlaceableFluidBlockState(Fluid fluid) {
         BlockState legacy = fluid.defaultFluidState().createLegacyBlock();
@@ -796,8 +755,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             return legacy;
         }
 
-        for (Block b : ForgeRegistries.BLOCKS) {
-            if (b instanceof LiquidBlock lb && lb.getFluid() == fluid) {
+        for (Block b : BuiltInRegistries.BLOCK) {
+            if (b instanceof LiquidBlock lb && lb.fluid == fluid) {
                 return b.defaultBlockState();
             }
         }
@@ -810,10 +769,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         var random = this.level().random;
 
-        int count = 60 + random.nextInt(25); // 35–59 cutters
-        int maxTravelBlocks = 35 + random.nextInt(25); // each cutter lives 35–59 blocks (tune)
+        int count = 60 + random.nextInt(25);
+        int maxTravelBlocks = 35 + random.nextInt(25);
 
-        // Inherit some of the parent velocity so it “continues” the blast direction
         Vec3 inherited = this.getDeltaMovement().scale(0.25);
         double maxInherit = 0.8;
         if (inherited.length() > maxInherit)
@@ -822,15 +780,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             ClusterBombletProjectile sub = ModProjectiles.CLUSTER_BOMBLET.get().create(level());
             if (sub == null) continue;
 
-
             sub.configureCutter(ItemStack.EMPTY, size, maxTravelBlocks);
-
 
             sub.setPos(origin.x, origin.y + 1.5, origin.z);
             double theta = random.nextDouble() * Math.PI * 2.0;
 
-            // alpha = angle-from-up (0=up, PI/2=horizontal)
-            // bias toward horizontal
             double alpha = Math.toRadians(25.0) + (Math.toRadians(90.0) - Math.toRadians(25.0)) * Math.sqrt(random.nextDouble());
 
             Vec3 dir = new Vec3(
@@ -839,10 +793,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     Math.sin(alpha) * Math.sin(theta)
             );
 
-            double speed = 0.65 + random.nextDouble() * 50; // tune
+            double speed = 0.65 + random.nextDouble() * 1.2;
             Vec3 outward = dir.scale(speed);
 
-            // Small vertical lift so they don’t instantly faceplant
             outward = outward.add(0, 0.08 + random.nextDouble() * 0.18, 0);
 
             sub.setDeltaMovement(inherited.add(outward));
@@ -853,6 +806,5 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             level().addFreshEntity(sub);
         }
     }
-
 
 }

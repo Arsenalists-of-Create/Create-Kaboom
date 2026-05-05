@@ -10,7 +10,7 @@ import rbasamoyai.createbigcannons.munitions.config.components.BallisticProperti
 @Mixin(AbstractCannonProjectile.class)
 public interface AbstractProjectileAccessor {
 
-    @Invoker("getBallisticProperties")
+    @Invoker(value = "getBallisticProperties", remap = false)
     BallisticPropertiesComponent invokeGetBallisticProperties();
     @Invoker(value = "onImpact", remap = false)
     boolean invokeImpact(HitResult hitResult, AbstractCannonProjectile.ImpactResult impactResult, ProjectileContext projectileContext);

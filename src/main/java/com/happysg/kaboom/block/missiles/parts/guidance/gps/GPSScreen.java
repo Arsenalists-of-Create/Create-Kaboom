@@ -74,7 +74,7 @@ public class GPSScreen extends AbstractSimiScreen {
         double z = parseNumber(zBox, 0.0);
 
         sent = true;
-        NetworkHandler.CHANNEL.sendToServer(new GPSGuidancePacket(pos, x, y, z));
+        NetworkHandler.sendToServer(new GPSGuidancePacket(pos, x, y, z));
     }
 
     private EditBox createNumberBox(int x, int y) {

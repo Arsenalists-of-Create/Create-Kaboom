@@ -41,7 +41,6 @@ public class VerletChain {
 
         this.currentState = linkState;
 
-        // Detect large endpoint jumps → reinitialize
         Vec3 currentFirst = points.get(0).pos;
         Vec3 currentLast = points.get(points.size() - 1).pos;
         double chainLen = (points.size() - 1) * LINK_LENGTH;
@@ -51,7 +50,6 @@ public class VerletChain {
             initializePoints(anchorPos, targetPos, points.size());
         }
 
-        // Pin first point to anchor
         VerletPoint first = points.get(0);
         first.pinned = true;
         first.pos = anchorPos;
@@ -70,7 +68,6 @@ public class VerletChain {
             }
         }
 
-        // Tension wave: when tethered mob hits max chain length, inject impulse
         if (linkState == ChainLink.State.TETHERED && prevTargetPos != null) {
             Vec3 mobVel = targetPos.subtract(prevTargetPos);
             double mobSpeed = mobVel.length();
@@ -87,7 +84,6 @@ public class VerletChain {
         }
         prevTargetPos = targetPos;
 
-        // Winching: remove trailing points as chain shortens
         if (isWinching && points.size() > 2) {
             double endpointDist = anchorPos.distanceTo(targetPos);
             int desiredPoints = Math.max(2, (int) (endpointDist / LINK_LENGTH) + 1);
@@ -111,12 +107,10 @@ public class VerletChain {
     public void tick(Level level) {
         tickCount++;
 
-        // Save render snapshots once before sub-stepping
         for (VerletPoint p : points) {
             p.saveRenderSnapshot();
         }
 
-        // Build SDF collision field once per tick
         collisionField.build(level, points);
 
         int iterations = Math.max(6, Math.min(20, points.size() / 4));
@@ -124,24 +118,20 @@ public class VerletChain {
 
         for (int step = 0; step < SUB_STEPS; step++) {
 
-            // Integrate with fractional gravity
             for (VerletPoint p : points) {
                 p.integrate(subGravity);
             }
 
-            // Surface friction (uses onSurface from previous sub-step)
             for (VerletPoint p : points) {
                 p.applyFriction();
             }
 
-            // Clear onSurface once before constraint loop
             for (VerletPoint p : points) {
                 p.onSurface = false;
             }
 
-            // Constraint solving with SDF collision interleaved
             for (int iter = 0; iter < iterations; iter++) {
-                // Alternate direction each iteration
+
                 if (iter % 2 == 0) {
                     for (int i = 0; i < points.size() - 1; i++) {
                         solveConstraintPair(i);
@@ -154,13 +144,11 @@ public class VerletChain {
 
                 solveTotalLengthConstraint();
 
-                // SDF collision after each constraint pass
                 for (VerletPoint p : points) {
                     solveCollisionConstraint(p, collisionField);
                 }
             }
 
-            // Angular stiffness after constraints settle
             solveAngularConstraints();
         }
     }
@@ -175,7 +163,6 @@ public class VerletChain {
         p.pos = p.pos.add(q.gradient().scale(penetration + 0.001));
         p.onSurface = true;
 
-        // Apply friction: remove normal velocity component, scale tangential by friction
         Vec3 vel = p.pos.subtract(p.oldPos);
         double normalVel = vel.dot(q.gradient());
         if (normalVel < 0) {
@@ -234,7 +221,7 @@ public class VerletChain {
         Vec3 correction = diff.normalize().scale(error);
 
         if (a.pinned && b.pinned) {
-            // Both pinned, no correction
+
         } else if (a.pinned) {
             b.pos = b.pos.subtract(correction);
         } else if (b.pinned) {

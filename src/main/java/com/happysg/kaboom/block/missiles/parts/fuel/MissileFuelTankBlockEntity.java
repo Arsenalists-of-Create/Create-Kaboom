@@ -4,7 +4,9 @@ import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.Packet;
@@ -14,13 +16,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
-import org.jetbrains.annotations.NotNull;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -29,26 +27,22 @@ import java.util.List;
 public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGoggleInformation {
     private boolean needsBalance = false;
     private long lastBalanceGameTime = -9999;
-    private static final int BALANCE_COOLDOWN_TICKS = 2; // tweak
+    private static final int BALANCE_COOLDOWN_TICKS = 2;
     private final FluidTank tank;
-    private LazyOptional<IFluidHandler> tankCap = LazyOptional.empty();
-    public static final int CAPACITY = 8000; // 8 buckets (tweak)
+    public static final int CAPACITY = 8000;
     private FluidStack cachedStackFluid = FluidStack.EMPTY;
     private int cachedStackAmount = 0;
     private int cachedStackCapacity = 0;
     private int cachedStackTanks = 1;
 
     private boolean isValidFuel(FluidStack stack) {
-        return !stack.isEmpty(); // allow anything for now
+        return !stack.isEmpty();
     }
-
-
-
 
     public MissileFuelTankBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
 
-        int cap = MissileFuelTankBlockEntity.CAPACITY; // fallback
+        int cap = MissileFuelTankBlockEntity.CAPACITY;
         if (state.getBlock() instanceof MissileFuelTankBlock b) {
             cap = b.getCapacity();
         }
@@ -59,15 +53,12 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
                 super.onContentsChanged();
                 setChanged();
 
-                // Only do stack logic server-side
                 if (MissileFuelTankBlockEntity.this.level != null && !MissileFuelTankBlockEntity.this.level.isClientSide) {
                     List<MissileFuelTankBlockEntity> stack =
                             collectVerticalStack(MissileFuelTankBlockEntity.this.level, MissileFuelTankBlockEntity.this.worldPosition);
 
-                    // Update overlay cache NOW so every tank shows the same info instantly
                     updateStackCache(stack);
 
-                    // Schedule a balance pass (mark ALL tanks so any of them can tick it)
                     for (MissileFuelTankBlockEntity be : stack) {
                         be.needsBalance = true;
                     }
@@ -81,21 +72,12 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
 
         };
 
-        this.tankCap = LazyOptional.of(() -> this.tank);
-        // Initialize cache for goggles even before any balancing happens
         this.cachedStackTanks = 1;
         this.cachedStackCapacity = cap;
         this.cachedStackAmount = this.tank.getFluidAmount();
         this.cachedStackFluid = this.tank.getFluid().isEmpty() ? FluidStack.EMPTY : this.tank.getFluid().copy();
     }
 
-
-
-    @Override
-    public void reviveCaps() {
-        super.reviveCaps();
-        tankCap = LazyOptional.of(() -> tank);
-    }
     private void updateStackCache(List<MissileFuelTankBlockEntity> stack) {
         int stackCap = 0;
         int stackAmt = 0;
@@ -107,7 +89,7 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             FluidStack fs = be.tank.getFluid();
             if (!fs.isEmpty() && stackType.isEmpty()) {
                 stackType = fs.copy();
-                stackType.setAmount(1); // type marker only
+                stackType.setAmount(1);
             }
             stackAmt += fs.getAmount();
         }
@@ -138,11 +120,9 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
     private void balanceVerticalStack() {
         if (level == null) return;
 
-        // Gather contiguous vertical stack
         List<MissileFuelTankBlockEntity> stack = collectVerticalStack(this.level, this.worldPosition);
         if (stack.size() <= 1) return;
 
-        // Determine "common" fluid type. If you want to forbid mixing, pick the first non-empty.
         FluidStack fluidType = FluidStack.EMPTY;
         int total = 0;
 
@@ -150,11 +130,10 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             FluidStack fs = be.tank.getFluid();
             if (!fs.isEmpty() && fluidType.isEmpty()) {
                 fluidType = fs.copy();
-                fluidType.setAmount(1); // just type marker
+                fluidType.setAmount(1);
             }
         }
 
-        // Sum only matching fluid, and (optionally) dump/ignore mismatches
         for (MissileFuelTankBlockEntity be : stack) {
             FluidStack fs = be.tank.getFluid();
             if (fs.isEmpty()) continue;
@@ -164,7 +143,7 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
                 return;
             }
 
-            if (!FluidStack.areFluidStackTagsEqual(fs, fluidType)) {
+            if (!FluidStack.isSameFluidSameComponents(fs, fluidType)) {
 
                 return;
             }
@@ -172,12 +151,11 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             total += fs.getAmount();
         }
 
-        if (fluidType.isEmpty()) return; // all empty
+        if (fluidType.isEmpty()) return;
 
         int per = total / stack.size();
         int rem = total % stack.size();
 
-        // Distribute: even split, remainder goes from bottom->top (or top->bottom, your choice)
         for (int i = 0; i < stack.size(); i++) {
             MissileFuelTankBlockEntity be = stack.get(i);
 
@@ -185,15 +163,14 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             FluidStack newStack = fluidType.copy();
             newStack.setAmount(amt);
 
-            // Avoid infinite churn: only set if different
             FluidStack cur = be.tank.getFluid();
-            if (cur.getAmount() != amt || !FluidStack.areFluidStackTagsEqual(cur, newStack)) {
+            if (cur.getAmount() != amt || !FluidStack.isSameFluidSameComponents(cur, newStack)) {
                 be.tank.setFluid(newStack);
                 be.setChanged();
                 be.markForSync();
             }
         }
-        // After distribution, compute stack totals once and cache to all tanks in the stack
+
         int stackCap = 0;
         int stackAmt = 0;
         FluidStack stackType = FluidStack.EMPTY;
@@ -216,7 +193,7 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             be.cachedStackFluid = stackType.isEmpty() ? FluidStack.EMPTY : stackType.copy();
 
             be.setChanged();
-            be.markForSync(); // ensures client gets overlay info
+            be.markForSync();
         }
         updateStackCache(stack);
 
@@ -251,36 +228,22 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
     }
 
     private void markForSync() {
-        // Minimal, reliable sync pattern for BE changes
+
         if (level == null) return;
         BlockState state = getBlockState();
         level.sendBlockUpdated(worldPosition, state, state, 3);
     }
 
-    // --- Capabilities (Create pipes will use this) ---
-    @Override
-    public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-        if (cap == ForgeCapabilities.FLUID_HANDLER) {
-            if (!tankCap.isPresent())
-                tankCap = LazyOptional.of(() -> tank);
-            return tankCap.cast();
-        }
-        return super.getCapability(cap, side);
-    }
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        tankCap.invalidate();
-        tankCap = LazyOptional.empty(); // <-- important
+    public IFluidHandler getFluidHandler(@Nullable Direction side) {
+        return tank;
     }
 
-
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        tag.put("Tank", tank.writeToNBT(new CompoundTag()));
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.put("Tank", tank.writeToNBT(registries, new CompoundTag()));
         if (!cachedStackFluid.isEmpty())
-            tag.put("CachedStackFluid", cachedStackFluid.writeToNBT(new CompoundTag()));
+            tag.put("CachedStackFluid", cachedStackFluid.saveOptional(registries));
         tag.putInt("CachedStackAmount", cachedStackAmount);
         tag.putInt("CachedStackCapacity", cachedStackCapacity);
         tag.putInt("CachedStackTanks", cachedStackTanks);
@@ -291,13 +254,13 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
         return ClientboundBlockEntityDataPacket.create(this);
     }
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         if (tag.contains("Tank")) {
-            tank.readFromNBT(tag.getCompound("Tank"));
+            tank.readFromNBT(registries, tag.getCompound("Tank"));
         }
         if (tag.contains("CachedStackFluid"))
-            cachedStackFluid = FluidStack.loadFluidStackFromNBT(tag.getCompound("CachedStackFluid"));
+            cachedStackFluid = FluidStack.parseOptional(registries, tag.getCompound("CachedStackFluid"));
         else
             cachedStackFluid = FluidStack.EMPTY;
 
@@ -307,7 +270,6 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
     }
 
     public record FuelStackInfo(FluidStack fluid, int totalAmount, int totalCapacity, int tanks) {}
-
 
     public FluidTank getTank() {
         return tank;
@@ -324,10 +286,9 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
         return new FuelStackInfo(f, cachedStackAmount, cap, cachedStackTanks);
     }
     @Override
-    public CompoundTag getUpdateTag() {
-        return this.saveWithoutMetadata();
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(registries);
     }
-
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
@@ -345,7 +306,7 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             return true;
         }
 
-        MutableComponent fluidName = fluid.getDisplayName().copy().withStyle(ChatFormatting.AQUA);
+        MutableComponent fluidName = fluid.getHoverName().copy().withStyle(ChatFormatting.AQUA);
 
         tooltip.add(Component.literal("  Fluid: ").withStyle(ChatFormatting.GRAY).append(fluidName));
         tooltip.add(Component.literal("  " + amt + " / " + cap + " mB").withStyle(ChatFormatting.GRAY));
@@ -354,16 +315,23 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             tooltip.add(Component.literal("  Tanks: " + info.tanks()).withStyle(ChatFormatting.DARK_GRAY));
         }
 
-        return true; // "we handled it"
+        return true;
     }
     public static int getAmountFromTag(@Nullable CompoundTag beTag) {
         if (beTag == null || !beTag.contains("Tank")) return 0;
-        FluidStack fs = FluidStack.loadFluidStackFromNBT(beTag.getCompound("Tank"));
-        return fs.getAmount();
+        CompoundTag tankTag = beTag.getCompound("Tank");
+        if (!tankTag.contains("Fluid", Tag.TAG_COMPOUND)) return 0;
+        return tankTag.getCompound("Fluid").getInt("amount");
+    }
+
+    public static FluidStack getFluidFromTag(@Nullable CompoundTag beTag, HolderLookup.Provider registries) {
+        if (beTag == null || !beTag.contains("Tank")) return FluidStack.EMPTY;
+        CompoundTag tankTag = beTag.getCompound("Tank");
+        if (!tankTag.contains("Fluid", Tag.TAG_COMPOUND)) return FluidStack.EMPTY;
+        return FluidStack.parseOptional(registries, tankTag.getCompound("Fluid"));
     }
 
     public static FluidStack getFluidFromTag(@Nullable CompoundTag beTag) {
-        if (beTag == null || !beTag.contains("Tank")) return FluidStack.EMPTY;
-        return FluidStack.loadFluidStackFromNBT(beTag.getCompound("Tank"));
+        return FluidStack.EMPTY;
     }
 }

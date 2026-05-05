@@ -1,18 +1,15 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.gps;
 
-
-
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,11 +19,10 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     public GPSGuidanceBlockEntity(BlockEntityType<?> pType, BlockPos pPos, BlockState pBlockState) {
         super(pType, pPos, pBlockState);
     }
-    // hardcode now
+
     public double tx = 0.5, ty = 80.0, tz = -5000.5;
     private boolean highArc = false;
 
-    // flight profile (GUI later edits these)
     private MissileFlightProfile profile = MissileFlightProfile.defaults();
 
     @Override
@@ -35,13 +31,11 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         return new MissileGuidanceData(target, profile);
     }
 
-    // (Optional) setters for GUI later
     public void setTarget(Vec3 p, boolean highArc) {
         this.tx = p.x;
         this.ty = p.y;
         this.tz = p.z;
         this.highArc = highArc;
-        LogUtils.getLogger().warn(" "+ tx +ty + tz);
         setChanged();
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
@@ -62,16 +56,16 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     public void setProfile(MissileFlightProfile p) { this.profile=p; setChanged(); }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
         tag.putDouble("TX", tx); tag.putDouble("TY", ty); tag.putDouble("TZ", tz);
         tag.putBoolean("HighArc", highArc);
         tag.put("Profile", profile.toTag());
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
         if (tag.contains("TX")) { tx=tag.getDouble("TX"); ty=tag.getDouble("TY"); tz=tag.getDouble("TZ"); }
         if (tag.contains("HighArc")) highArc = tag.getBoolean("HighArc");
         if (tag.contains("Profile")) profile = MissileFlightProfile.fromTag(tag.getCompound("Profile"));
@@ -83,14 +77,14 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        CompoundTag tag = super.getUpdateTag();
-        saveAdditional(tag);
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = super.getUpdateTag(registries);
+        saveAdditional(tag, registries);
         return tag;
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag) {
-        load(tag);
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        loadAdditional(tag, registries);
     }
 }

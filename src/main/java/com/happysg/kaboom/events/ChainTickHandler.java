@@ -2,15 +2,13 @@ package com.happysg.kaboom.events;
 
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 public class ChainTickHandler {
 
     @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-
+    public void onServerTick(ServerTickEvent.Post event) {
         var pending = ThrusterBlockEntity.PENDING_ENFORCEMENTS;
         if (pending.isEmpty()) return;
 

@@ -48,7 +48,6 @@ public class ChainCollisionField {
         for (int i = 0, size = boxes.size(); i < size; i++) {
             AABB box = boxes.get(i);
 
-            // Quick reject: expand box by threshold and skip if point is outside
             if (point.x < box.minX - threshold || point.x > box.maxX + threshold ||
                 point.y < box.minY - threshold || point.y > box.maxY + threshold ||
                 point.z < box.minZ - threshold || point.z > box.maxZ + threshold) {
@@ -66,7 +65,6 @@ public class ChainCollisionField {
             return new CollisionQuery(minDist, Vec3.ZERO);
         }
 
-        // Analytical gradient from the nearest box
         Vec3 grad = gradientToAABB(point, nearest);
         return new CollisionQuery(minDist, grad);
     }
@@ -114,7 +112,7 @@ public class ChainCollisionField {
         boolean outside = qx > 0 || qy > 0 || qz > 0;
 
         if (outside) {
-            // Gradient points from nearest surface point to the query point
+
             double gx = qx > 0 ? Math.signum(dx) * qx : 0;
             double gy = qy > 0 ? Math.signum(dy) * qy : 0;
             double gz = qz > 0 ? Math.signum(dz) * qz : 0;
@@ -122,12 +120,11 @@ public class ChainCollisionField {
             if (len < 1e-10) return new Vec3(0, 1, 0);
             return new Vec3(gx / len, gy / len, gz / len);
         } else {
-            // Inside: gradient points toward nearest face
+
             double distMinX = Math.abs(qx);
             double distMinY = Math.abs(qy);
             double distMinZ = Math.abs(qz);
 
-            // qx, qy, qz are all negative inside; the one closest to 0 is the nearest face
             if (qx > qy && qx > qz) {
                 return new Vec3(Math.signum(dx), 0, 0);
             } else if (qy > qz) {

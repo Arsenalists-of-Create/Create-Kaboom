@@ -9,11 +9,9 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Locale;
 
-
 public final class MissileNavStack {
 
     public record NavOut(Vec3 thrustDir, Vec3 aimDir, double throttle, boolean done, String dbg) {}
-
 
     public record NavIn(Level level, Vec3 pos, Vec3 vel, BlockPos target, double boostY, double cruiseY) {}
 
@@ -27,7 +25,6 @@ public final class MissileNavStack {
     private double boostY;
     private double cruiseY;
 
-    
     public void setBoostAndCruiseHeights(double boostY, double cruiseY, Level level) {
         int maxY = level.getMaxBuildHeight() - 2;
         int minY = level.getMinBuildHeight() + 2;
@@ -35,7 +32,6 @@ public final class MissileNavStack {
         this.boostY  = Mth.clamp(boostY,  minY, maxY);
         this.cruiseY = Mth.clamp(cruiseY, minY, maxY);
 
-        
         stack.clear();
         stack.push(new CruiseAtAltitudeToTarget());
         stack.push(new BoostToAltitude());
@@ -45,7 +41,6 @@ public final class MissileNavStack {
         return stack.isEmpty();
     }
 
-    
     public NavOut tick(Level level, Vec3 pos, Vec3 vel, BlockPos target) {
         if (stack.isEmpty() || target == null) {
             Vec3 dir = vel.lengthSqr() > 1e-8 ? vel.normalize() : new Vec3(0, 1, 0);
@@ -65,13 +60,8 @@ public final class MissileNavStack {
         return new NavOut(out.thrustDir, out.aimDir, out.throttle, done, out.dbg + (done ? "|done" : ""));
     }
 
-    
-    
-    
-
-    
     private static final class BoostToAltitude implements NavNode {
-        private static final double ARRIVE_EPS = 2.0; 
+        private static final double ARRIVE_EPS = 2.0;
 
         @Override
         public NavOut tick(NavIn in) {
@@ -85,16 +75,13 @@ public final class MissileNavStack {
         }
     }
 
-    
     private static final class CruiseAtAltitudeToTarget implements NavNode {
 
-        
         private static final double MAX_TURN_RAD_PER_TICK = 0.55;
         private static final double KP_Y = 0.025;
         private static final double KD_Y = 0.12;
-        private static final double MAX_VY_CMD = 0.8; 
+        private static final double MAX_VY_CMD = 0.8;
 
-        
         private static final double TERMINAL_START_DIST = 430;
 
         @Override
@@ -104,7 +91,6 @@ public final class MissileNavStack {
             double horizDist = Math.sqrt(to.x * to.x + to.z * to.z);
             Vec3 toHoriz = (horizDist > 1e-6) ? new Vec3(to.x / horizDist, 0, to.z / horizDist) : new Vec3(0, 0, 0);
 
-            
             double errY = in.cruiseY - in.pos.y;
             double vyCmd = Mth.clamp(errY * KP_Y - in.vel.y * KD_Y, -MAX_VY_CMD, MAX_VY_CMD);
 
@@ -115,14 +101,11 @@ public final class MissileNavStack {
                 desired = desired.normalize();
             }
 
-            
             Vec3 currentDir = (in.vel.lengthSqr() > 1e-8) ? in.vel.normalize() : desired;
             Vec3 thrustDir = turnTowards(currentDir, desired, MAX_TURN_RAD_PER_TICK);
 
-            
             Vec3 aimDir = desired;
 
-            
             double throttle = 1.0;
             String dbg = String.format(Locale.ROOT, "cruise y=%.1f tgt=%.1f err=%.1f vy=%.2f",
                     in.pos.y, in.cruiseY, (in.cruiseY - in.pos.y), in.vel.y);
@@ -134,11 +117,10 @@ public final class MissileNavStack {
         public boolean isComplete(NavIn in) {
             Vec3 to = Vec3.atCenterOf(in.target).subtract(in.pos);
             double horizDist = Math.sqrt(to.x * to.x + to.z * to.z);
-            
+
             return horizDist < TERMINAL_START_DIST;
         }
 
-        
         private static Vec3 turnTowards(Vec3 from, Vec3 to, double maxRad) {
             from = from.normalize();
             to = to.normalize();
@@ -147,15 +129,13 @@ public final class MissileNavStack {
             double angle = Math.acos(dot);
             if (angle <= maxRad) return to;
 
-            
             Vec3 perp = from.cross(to).cross(from);
             if (perp.lengthSqr() < 1e-12) {
-                
+
                 return to;
             }
             perp = perp.normalize();
 
-            
             Vec3 stepped = from.scale(Math.cos(maxRad)).add(perp.scale(Math.sin(maxRad)));
             return stepped.normalize();
         }

@@ -2,10 +2,9 @@ package com.happysg.kaboom.block.missiles.parts.guidance.heatseeker;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
-import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
-import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -24,6 +23,11 @@ public class HeatseekerGuidanceBlock extends DirectionalBlock implements IBE<Hea
                 .setValue(FACING, Direction.UP));
     }
     private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
+
+    @Override
+    protected MapCodec<? extends DirectionalBlock> codec() {
+        return simpleCodec(HeatseekerGuidanceBlock::new);
+    }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
@@ -56,5 +60,4 @@ public class HeatseekerGuidanceBlock extends DirectionalBlock implements IBE<Hea
     }
 
 }
-
 

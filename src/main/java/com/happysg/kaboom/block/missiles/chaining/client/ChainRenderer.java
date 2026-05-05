@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -27,8 +28,9 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.bus.api.SubscribeEvent;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,8 +40,8 @@ public class ChainRenderer {
     public static final Set<BlockPos> TRACKED_THRUSTERS = ConcurrentHashMap.newKeySet();
     public static final Set<Integer> TRACKED_MISSILES = ConcurrentHashMap.newKeySet();
 
-    private static final ResourceLocation ANCHOR_MODEL_LOC =
-            new ResourceLocation("create_kaboom", "block/chain_anchor");
+    private static final ModelResourceLocation ANCHOR_MODEL_LOC =
+            ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath("create_kaboom", "block/chain_anchor"));
 
     private final VerletChainManager verletManager = new VerletChainManager();
     private long lastTickedGameTime = -1;
@@ -55,9 +57,8 @@ public class ChainRenderer {
         Vec3 camera = event.getCamera().getPosition();
         PoseStack ms = event.getPoseStack();
         MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
-        float partialTick = event.getPartialTick();
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
 
-        // Tick simulation once per game tick
         long gameTime = level.getGameTime();
         if (gameTime != lastTickedGameTime) {
             lastTickedGameTime = gameTime;
@@ -66,7 +67,6 @@ public class ChainRenderer {
 
         activeLinkIdsThisFrame.clear();
 
-        // Render pre-launch thrusters
         Iterator<BlockPos> thrusterIt = TRACKED_THRUSTERS.iterator();
         while (thrusterIt.hasNext()) {
             BlockPos pos = thrusterIt.next();
@@ -79,7 +79,6 @@ public class ChainRenderer {
             renderChainSystem(ms, bufferSource, cs, pos, null, camera, partialTick, level);
         }
 
-        // Render post-launch missiles
         Iterator<Integer> missileIt = TRACKED_MISSILES.iterator();
         while (missileIt.hasNext()) {
             int entityId = missileIt.next();
@@ -92,7 +91,6 @@ public class ChainRenderer {
             renderChainSystem(ms, bufferSource, cs, null, missile, camera, partialTick, level);
         }
 
-        // Prune chains that are no longer active
         verletManager.pruneStaleChains(activeLinkIdsThisFrame);
 
         bufferSource.endBatch();
@@ -115,10 +113,8 @@ public class ChainRenderer {
                 continue;
             }
 
-            // Render anchor cube (with missile rotation when in flight)
             renderAnchor(ms, buffer, anchorWorld, anchor.getFace(), camera, level, missile, partialTick);
 
-            // Render chain if link exists
             ChainLink link = anchor.getLink();
             if (link == null) continue;
 
@@ -132,7 +128,7 @@ public class ChainRenderer {
                     }
                 }
             } else if (link.getState() == ChainLink.State.DANGLING) {
-                // Check if this dangling chain is being held by a player
+
                 UUID activeChainId = cs.getActiveLinkerChainId();
                 int linkerEntityId = cs.getActiveLinkerEntityId();
                 boolean heldByPlayer = activeChainId != null
@@ -140,7 +136,7 @@ public class ChainRenderer {
                         && linkerEntityId != -1;
 
                 if (heldByPlayer) {
-                    // Pin chain end to the player's hand
+
                     Entity linkerEntity = level.getEntity(linkerEntityId);
                     if (linkerEntity instanceof Player player) {
                         Vec3 handPos = getPlayerHandPos(player, partialTick);
@@ -148,14 +144,14 @@ public class ChainRenderer {
                         chain.updateEndpoints(anchorWorld, handPos, ChainLink.State.TETHERED, false);
                         renderVerletChain(ms, buffer, chain, partialTick, level, camera);
                     } else {
-                        // Fallback: player not found, render as free-hanging
+
                         VerletChain chain = verletManager.getOrCreateDanglingChain(link, anchorWorld);
                         Vec3 danglingEnd = anchorWorld.add(0, -1, 0);
                         chain.updateEndpoints(anchorWorld, danglingEnd, ChainLink.State.DANGLING, false);
                         renderVerletChain(ms, buffer, chain, partialTick, level, camera);
                     }
                 } else {
-                    // Normal dangling: physics sim, last point unpinned
+
                     VerletChain chain = verletManager.getOrCreateDanglingChain(link, anchorWorld);
                     Vec3 danglingEnd = anchorWorld.add(0, -1, 0);
                     boolean linkWinching = isWinching && link.getTargetMobId() != null
@@ -164,7 +160,7 @@ public class ChainRenderer {
                     renderVerletChain(ms, buffer, chain, partialTick, level, camera);
                 }
             } else if (link.getTargetEntityId() != -1) {
-                // TETHERED: physics sim, both ends pinned
+
                 Entity mob = level.getEntity(link.getTargetEntityId());
                 if (mob != null) {
                     AABB aabb = mob.getBoundingBox();
@@ -247,9 +243,6 @@ public class ChainRenderer {
         ms.popPose();
     }
 
-    /**
-     * Approximate the player's main hand position for chain rendering.
-     */
     private static Vec3 getPlayerHandPos(Player player, float partialTick) {
         Vec3 pos = player.getPosition(partialTick);
         float yaw = (float) Math.toRadians(Mth.lerp(partialTick, player.yBodyRotO, player.yBodyRot));
@@ -284,20 +277,16 @@ public class ChainRenderer {
                 level.getBrightness(LightLayer.SKY, lightPos)
         );
 
-        // Center the model element at origin: element center is at (0.5, 0.5, 0.0625) in block space
         ms.translate(-0.5, -0.5, -0.0625);
 
         BakedModel model = Minecraft.getInstance().getModelManager().getModel(ANCHOR_MODEL_LOC);
         VertexConsumer vc = buffer.getBuffer(RenderType.solid());
         Minecraft.getInstance().getBlockRenderer().getModelRenderer()
-                .renderModel(ms.last(), vc, null, model, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY);
+                .renderModel(ms.last(), vc, null, model, 1f, 1f, 1f, light, OverlayTexture.NO_OVERLAY, ModelData.EMPTY, RenderType.solid());
 
         ms.popPose();
     }
 
-    /**
-     * Transform for SECURED straight-line chains (original behavior).
-     */
     private void setupChainTransform(PoseStack ms, Vec3 anchorWorld, Vec3 camera,
                                      float yaw, float pitch) {
         ms.translate(
@@ -314,10 +303,6 @@ public class ChainRenderer {
         ts.uncenter();
     }
 
-    /**
-     * Transform for per-segment Verlet chain rendering.
-     * Uses alternating 45/135 degree Y rotation for interlocking chain look.
-     */
     private void setupChainTransformForSegment(PoseStack ms, Vec3 segStart, Vec3 camera,
                                                float yaw, float pitch, boolean alternate) {
         ms.translate(

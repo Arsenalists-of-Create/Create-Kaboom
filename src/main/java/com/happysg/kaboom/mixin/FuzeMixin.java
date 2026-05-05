@@ -12,7 +12,7 @@ import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
 import java.util.function.Predicate;
 @Mixin(value = FuzedBigCannonProjectile.class)
 public interface FuzeMixin {
-    @Accessor
+    @Accessor(value = "fuze", remap = false)
     ItemStack getFuze();
 
     @Invoker(value = "detonate", remap = false)

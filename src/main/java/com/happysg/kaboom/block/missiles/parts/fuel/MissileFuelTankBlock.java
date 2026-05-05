@@ -6,6 +6,7 @@ import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -18,7 +19,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.minecraftforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import javax.annotation.Nullable;
 
@@ -60,7 +61,6 @@ public class MissileFuelTankBlock extends RotatedPillarBlock implements IMissile
         return MissileFuelTankBlockEntity.class;
     }
 
-
     @Override
     public BlockEntityType<? extends MissileFuelTankBlockEntity> getBlockEntityType() {
         return ModBlockEntityTypes.FUEL_TANK_SMALL.get();
@@ -85,6 +85,11 @@ public class MissileFuelTankBlock extends RotatedPillarBlock implements IMissile
     @Override
     public FluidStack getFuelFluid(@Nullable CompoundTag beTag) {
         return MissileFuelTankBlockEntity.getFluidFromTag(beTag);
+    }
+
+    @Override
+    public FluidStack getFuelFluid(@Nullable CompoundTag beTag, HolderLookup.Provider registries) {
+        return MissileFuelTankBlockEntity.getFluidFromTag(beTag, registries);
     }
 
 }

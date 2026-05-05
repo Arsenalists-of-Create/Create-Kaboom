@@ -11,8 +11,8 @@ import java.util.UUID;
 public class AnchorPoint {
 
     private final UUID id;
-    private final BlockPos blockOffset; // offset from thruster position
-    private final Direction face;       // which face of the block the anchor is on
+    private final BlockPos blockOffset;
+    private final Direction face;
     @Nullable
     private ChainLink link;
 
@@ -38,12 +38,9 @@ public class AnchorPoint {
         return face;
     }
 
-    /**
-     * Get the world position of this anchor given the thruster's world position.
-     */
     public Vec3 getWorldPos(BlockPos thrusterPos) {
         BlockPos worldBlock = thrusterPos.offset(blockOffset);
-        // Position at the center of the face
+
         return Vec3.atCenterOf(worldBlock).add(
                 face.getStepX() * 0.5,
                 face.getStepY() * 0.5,
@@ -51,18 +48,10 @@ public class AnchorPoint {
         );
     }
 
-    /**
-     * Get the world position of this anchor given a moving entity's world position.
-     */
     public Vec3 getWorldPos(Vec3 entityPos) {
         return entityPos.add(toContraptionLocalVec3());
     }
 
-    /**
-     * Convert to a contraption-local Vec3 for use after assembly.
-     * The blockOffset is already relative to the controller (thruster),
-     * so it maps directly to contraption local space.
-     */
     public Vec3 toContraptionLocalVec3() {
         return Vec3.atCenterOf(blockOffset).add(
                 face.getStepX() * 0.5,

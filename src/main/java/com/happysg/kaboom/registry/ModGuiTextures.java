@@ -7,18 +7,14 @@ import net.createmod.catnip.gui.element.ScreenElement;
 import net.createmod.catnip.theme.Color;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 public enum ModGuiTextures implements ScreenElement {
     ALT_FUSE_SCREEN("altitude_fuze_gui",187,78),
     CHECK("altitude_fuze_gui",156,56,16,16),
     GPS_SCREEN_BG("gps_guidance_gui",179,83),
     TARGET("gps_guidance_gui",147,60,16,16);
-
-
-
-
 
     public static final int FONT_COLOR = 0x575F7A;
 
@@ -40,7 +36,7 @@ public enum ModGuiTextures implements ScreenElement {
     }
 
     ModGuiTextures(String namespace, String location, int startX, int startY, int width, int height, int textureWidth, int textureHeight) {
-        this.location = new ResourceLocation(namespace, "textures/gui/" + location + ".png");
+        this.location = ResourceLocation.fromNamespaceAndPath(namespace, "textures/gui/" + location + ".png");
         this.width = width;
         this.height = height;
         this.startX = startX;

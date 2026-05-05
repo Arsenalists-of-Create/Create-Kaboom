@@ -12,6 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
@@ -50,24 +51,19 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
     private static final EntityDataAccessor<Byte> MODE =
             SynchedEntityData.defineId(ClusterBombletProjectile.class, EntityDataSerializers.BYTE);
 
-    // Lighter, “bomblet-ish” ballistics: slightly less gravity than your big bomb
     public static final BallisticPropertiesComponent BALLISTICS =
             new BallisticPropertiesComponent(
-                    -0.05,   // gravity-ish (CBC uses its own model; you’ve already used negatives)
-                    0.01,    // drag
-                    false,   // can penetrate fluids etc (depends on CBC internals)
-                    0.35f,   // toughness
+                    -0.05,
+                    0.01,
+                    false,
+                    0.35f,
                     1, 1,
-                    0.80f    // restitution / bounce-ish
+                    0.80f
             );
-
-
 
     private ItemStack fuze = ItemStack.EMPTY;
 
-    // airburst timer (ticks); -1 means disabled
     private int explosionCountdown = -1;
-
 
     private int size = 1;
     private float explosionPower = 1;
@@ -77,9 +73,6 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         CUTTER
     }
 
-
-
-    // Server-tracked travel distance for CUTTER mode
     private double traveledBlocks = 0.0;
     private double maxTravelBlocks = 0.0;
     private Vec3 lastPosServer = null;
@@ -98,7 +91,6 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         setFuzeStack(fuzeStack);
         this.size = Math.max(1, size);
 
-        // CUTTER: no explosion, no countdown
         this.explosionPower = 0;
         this.causesFire = false;
         this.explosionCountdown = -1;
@@ -111,7 +103,6 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         return this;
     }
 
-    // --- Quick setup from your cluster bomb ---
     public ClusterBombletProjectile configure(ItemStack fuzeStack, int size, float explosionPower, boolean causesFire, int airburstTicks) {
         setFuzeStack(fuzeStack);
         this.size = Math.max(1, size);
@@ -120,7 +111,6 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         this.explosionCountdown = airburstTicks <= 0 ? -1 : airburstTicks;
         return this;
     }
-
 
     @Override
     public @NotNull EntityDamagePropertiesComponent getDamageProperties() {
@@ -133,10 +123,10 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(LIFE, 0);
-        this.entityData.define(MODE, (byte) 0);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(LIFE, 0);
+        builder.define(MODE, (byte) 0);
     }
 
     @Override
@@ -148,21 +138,18 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             double speed = vel.length();
 
             if (speed > 0.05) {
-                // Segment this tick (Entity keeps these updated)
+
                 Vec3 start = new Vec3(xo, yo, zo);
                 Vec3 end   = position();
 
-                // how dense the trail is: bigger = more particles
                 int samples = Mth.clamp((int) (speed * 6.0), 8, 12);
 
-                // random offset radius around the trail line
                 double radius = 0.06;
 
                 Vec3 dir = end.subtract(start);
                 double len = dir.length();
                 Vec3 forward = len < 1e-6 ? vel.normalize() : dir.scale(1.0 / len);
 
-                // pick two perpendicular vectors so we can spread in a circle
                 Vec3 up = new Vec3(0, 1, 0);
                 Vec3 right = forward.cross(up);
                 if (right.lengthSqr() < 1e-6) right = forward.cross(new Vec3(1, 0, 0));
@@ -170,11 +157,10 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
                 Vec3 up2 = right.cross(forward).normalize();
 
                 for (int i = 0; i < samples; i++) {
-                    // t in [0..1] along the segment
+
                     double t = (i + random.nextDouble()) / samples;
                     Vec3 p = start.lerp(end, t);
 
-                    // random disk offset (cylindrical plume)
                     double a = random.nextDouble() * Math.PI * 2.0;
                     double r = radius * Math.sqrt(random.nextDouble());
                     Vec3 offset = right.scale(Math.cos(a) * r).add(up2.scale(Math.sin(a) * r));
@@ -192,10 +178,19 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             return;
         }
 
-        // --- server logic ---
         int life = entityData.get(LIFE) + 1;
         entityData.set(LIFE, life);
 
+        if (explosionCountdown > 0) {
+            --explosionCountdown;
+        }
+
+        if (getMode() == BombletMode.EXPLOSIVE && explosionCountdown == 0) {
+            detonate(position());
+            discard();
+            removeNextTick = true;
+            return;
+        }
 
         if (life > 400) {
             if (getMode() == BombletMode.EXPLOSIVE) {
@@ -206,7 +201,6 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             return;
         }
 
-        // CUTTER: die after traveling N blocks
         if (getMode() == BombletMode.CUTTER) {
             Vec3 now = position();
             if (lastPosServer == null) lastPosServer = now;
@@ -221,12 +215,11 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             return;
         }
 
-        // EXPLOSIVE: (optional) countdown handling if you implement it elsewhere
     }
 
     @Override
     protected boolean onImpact(HitResult hitResult, ImpactResult impactResult, ProjectileContext projectileContext) {
-        if(getMode() == BombletMode.CUTTER) return true;
+        if (getMode() == BombletMode.CUTTER) return true;
         super.onImpact(hitResult, impactResult, projectileContext);
         detonate(hitResult.getLocation());
         return true;
@@ -313,10 +306,10 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Level.ExplosionInteraction.NONE);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
-            SoundType sound = state.getSoundType();
+            SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)
                 this.level().playSound(null, spallLoc.x, spallLoc.y, spallLoc.z, sound.getBreakSound(), SoundSource.BLOCKS,
                         sound.getVolume(), sound.getPitch());
@@ -325,16 +318,15 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         return new ImpactResult(outcome, shatter);
     }
 
-    // Keep this consistent with your AerialBombProjectile
     @Nonnull
     protected BigCannonFuzePropertiesComponent getFuzeProperties() {
         return new BigCannonFuzePropertiesComponent(false);
     }
 
-    // --- CBC ShellExplosion detonation (the important part) ---
     protected void detonate(Position pos) {
-        if(this.explosionCountdown == 0) return;
         if (level().isClientSide) return;
+
+        removeNextTick = true;
 
         float pwr = explosionPower / Math.max(1, size);
 
@@ -351,10 +343,9 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         CreateBigCannons.handleCustomExplosion(level(), explosion);
     }
 
-    // --- Fuze + countdown API ---
     public void setFuzeStack(ItemStack stack) {
         this.fuze = (stack == null || stack.isEmpty()) ? ItemStack.EMPTY : stack.copy();
-        // don’t force-reset countdown here; configure() decides
+
     }
 
     public void setExplosionCountdown(int ticks) {
@@ -362,7 +353,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
     }
 
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
-        if (!level().isClientSide && level().hasChunkAt(blockPosition()) && !isRemoved()) {
+        if (!level().isClientSide && level().isLoaded(blockPosition()) && !isRemoved()) {
             Item item = fuze.getItem();
             if (item instanceof FuzeItem fuzeItem) {
                 return cons.test(fuzeItem);
@@ -371,12 +362,11 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
         return false;
     }
 
-    // --- NBT ---
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
 
-        tag.put("Fuze", fuze.save(new CompoundTag()));
+        tag.put("Fuze", fuze.saveOptional(this.registryAccess()));
         if (explosionCountdown >= 0) tag.putInt("ExplosionCountdown", explosionCountdown);
 
         tag.putInt("Size", size);
@@ -390,7 +380,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
 
-        fuze = tag.contains("Fuze", Tag.TAG_COMPOUND) ? ItemStack.of(tag.getCompound("Fuze")) : ItemStack.EMPTY;
+        fuze = tag.contains("Fuze", Tag.TAG_COMPOUND) ? ItemStack.parseOptional(this.registryAccess(), tag.getCompound("Fuze")) : ItemStack.EMPTY;
         explosionCountdown = tag.contains("ExplosionCountdown", Tag.TAG_INT) ? tag.getInt("ExplosionCountdown") : -1;
 
         size = Math.max(1, tag.getInt("Size"));
@@ -399,6 +389,5 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
 
         if (tag.contains("Life", Tag.TAG_INT)) entityData.set(LIFE, tag.getInt("Life"));
     }
-
 
 }

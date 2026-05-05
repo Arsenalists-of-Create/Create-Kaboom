@@ -1,8 +1,8 @@
 {
   "pack": {
     "description": {
-      "text": "create_radar resources"
+      "text": "${mod_name} resources"
     },
-    "pack_format": 15
+    "pack_format": 34
   }
 }

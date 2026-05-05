@@ -1,19 +1,22 @@
 package com.happysg.kaboom.items;
 
-import com.happysg.kaboom.items.AltitudeFuze;
-import com.mojang.logging.LogUtils;
+import com.happysg.kaboom.CreateKaboom;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
-
-public class AltitudeFuzePacket {
+public class AltitudeFuzePacket implements CustomPacketPayload {
+    public static final Type<AltitudeFuzePacket> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "altitude_fuze"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, AltitudeFuzePacket> STREAM_CODEC =
+            StreamCodec.ofMember(AltitudeFuzePacket::encode, AltitudeFuzePacket::decode);
 
     private final InteractionHand hand;
     private final int altitude;
@@ -33,10 +36,9 @@ public class AltitudeFuzePacket {
         int altitude = buf.readVarInt();
         return new AltitudeFuzePacket(hand, altitude);
     }
-    public static void handle(AltitudeFuzePacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ServerPlayer player = ctx.get().getSender();
-            if (player == null) return;
+    public static void handle(AltitudeFuzePacket msg, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
 
             InteractionHand hand = msg.hand;
             ItemStack stack = player.getItemInHand(hand);
@@ -50,17 +52,13 @@ public class AltitudeFuzePacket {
 
             AltitudeFuze.setHeight(stack, clamped);
 
-            // Force the modified stack back into the slot (helps with some sync edge cases)
             player.setItemInHand(hand, stack);
-            LogUtils.getLogger().warn("new_value"+msg.altitude);
-            // Sync to client
             player.inventoryMenu.broadcastChanges();
-
-            // Optional: quick sanity ping in actionbar (remove once confirmed)
-            // player.displayClientMessage(Component.literal("Altitude set to " + clamped), true);
         });
-
-        ctx.get().setPacketHandled(true);
     }
 
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
 }

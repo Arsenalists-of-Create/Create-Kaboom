@@ -3,7 +3,7 @@ package com.happysg.kaboom.block.aerialBombs.small;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -17,20 +17,20 @@ public class FluidSmallAerialBombBlock extends FluidAerialBombBlock {
     }
 
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos,
-                                 Player player, InteractionHand hand, BlockHitResult hit) {
-        ItemStack held = player.getItemInHand(hand);
-        super.use(state,level,pos,player,hand,hit);
+    protected ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hit) {
+        ItemInteractionResult base = super.useItemOn(held, state, level, pos, player, hand, hit);
+        if (base.consumesAction())
+            return base;
 
-        // Only if holding another instance of this same block
         if (!(held.getItem() instanceof BlockItem bi) || bi.getBlock() != this)
-            return InteractionResult.PASS;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
         int size = state.getValue(COUNT);
-        int max = 4;// or just hardcode
+        int max = 4;
 
         if (size >= max)
-            return InteractionResult.CONSUME; // already full
+            return ItemInteractionResult.CONSUME;
 
         if (!level.isClientSide) {
             level.setBlock(pos, state.setValue(COUNT, size + 1), 3);
@@ -40,6 +40,6 @@ public class FluidSmallAerialBombBlock extends FluidAerialBombBlock {
             }
         }
 
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 }

@@ -8,6 +8,7 @@ import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.simibubi.create.AllItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -18,12 +19,13 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
 import rbasamoyai.createbigcannons.munitions.big_cannon.SimpleShellBlock;
 
 import javax.annotation.Nullable;
@@ -31,8 +33,6 @@ import javax.annotation.Nullable;
 public class ChainInteractionHandler {
 
     private static final String TAG_LINKING_THRUSTER = "ChainLinkingThruster";
-
-    //Wrench: place anchors
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onWrenchRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
@@ -45,7 +45,6 @@ public class ChainInteractionHandler {
         BlockPos clickedPos = event.getPos();
         if (!isMissileBlock(level, clickedPos)) return;
 
-        // Let wrench handle non-missile blocks normally
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.SUCCESS);
 
@@ -74,8 +73,6 @@ public class ChainInteractionHandler {
         thrusterBE.notifyUpdate();
     }
 
-    // Chain: link anchors to mobs
-
     @SubscribeEvent
     public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         Player player = event.getEntity();
@@ -87,7 +84,6 @@ public class ChainInteractionHandler {
         BlockPos clickedPos = event.getPos();
         if (!isMissileBlock(level, clickedPos)) return;
 
-        // Cancel on BOTH client and server to prevent vanilla chain block placement
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.CONSUME);
 
@@ -109,7 +105,6 @@ public class ChainInteractionHandler {
             return;
         }
 
-        // Consume 1 chain
         if (!player.isCreative()) {
             held.shrink(1);
         }
@@ -118,16 +113,14 @@ public class ChainInteractionHandler {
         nearestAnchor.setLink(link);
         chainSystem.setActiveLinker(player.getUUID(), link.getId());
 
-        // Store thruster position on the chain item NBT so we can find it on mob click
-        // After shrink the held stack may be empty, so find the next chain in inventory
         ItemStack currentHeld = player.getItemInHand(event.getHand());
         if (!currentHeld.isEmpty() && currentHeld.is(Items.CHAIN)) {
-            currentHeld.getOrCreateTag().putLong(TAG_LINKING_THRUSTER, thrusterPos.asLong());
+            setLinkingThruster(currentHeld, thrusterPos);
         } else {
             for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                 ItemStack s = player.getInventory().getItem(i);
                 if (s.is(Items.CHAIN)) {
-                    s.getOrCreateTag().putLong(TAG_LINKING_THRUSTER, thrusterPos.asLong());
+                    setLinkingThruster(s, thrusterPos);
                     break;
                 }
             }
@@ -151,10 +144,9 @@ public class ChainInteractionHandler {
         ItemStack held = player.getItemInHand(event.getHand());
         if (!held.is(Items.CHAIN)) return;
 
-        CompoundTag tag = held.getTag();
-        if (tag == null || !tag.contains(TAG_LINKING_THRUSTER)) return;
+        CompoundTag tag = getCustomTag(held);
+        if (!tag.contains(TAG_LINKING_THRUSTER)) return;
 
-        // Cancel on both sides
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.CONSUME);
 
@@ -163,6 +155,7 @@ public class ChainInteractionHandler {
         BlockPos thrusterPos = BlockPos.of(tag.getLong(TAG_LINKING_THRUSTER));
         if (!(level.getBlockEntity(thrusterPos) instanceof ThrusterBlockEntity thrusterBE)) {
             tag.remove(TAG_LINKING_THRUSTER);
+            setCustomTag(held, tag);
             return;
         }
 
@@ -170,10 +163,10 @@ public class ChainInteractionHandler {
         ChainLink danglingLink = chainSystem.findDanglingChainForPlayer(player.getUUID());
         if (danglingLink == null) {
             tag.remove(TAG_LINKING_THRUSTER);
+            setCustomTag(held, tag);
             return;
         }
 
-        // Calculate distance from anchor to mob
         AnchorPoint anchor = chainSystem.findAnchorForLink(danglingLink);
         float distance = 1f;
         if (anchor != null) {
@@ -182,9 +175,8 @@ public class ChainInteractionHandler {
         }
 
         int totalChainsNeeded = Math.max(1, (int) Math.ceil(distance));
-        int additionalChainsNeeded = totalChainsNeeded - 1; // 1 already consumed on block click
+        int additionalChainsNeeded = totalChainsNeeded - 1;
 
-        // Count available chains across inventory
         if (!player.isCreative() && additionalChainsNeeded > 0) {
             int available = countChains(player);
             if (available < additionalChainsNeeded) {
@@ -195,16 +187,16 @@ public class ChainInteractionHandler {
             consumeChains(player, additionalChainsNeeded);
         }
 
-        // Complete the link
         danglingLink.setTargetMobId(mob.getUUID());
         danglingLink.setTargetEntityId(mob.getId());
         danglingLink.setState(ChainLink.State.TETHERED);
         danglingLink.setMaxLength(distance);
 
         chainSystem.clearActiveLinker();
-        // Force state recalculation so the system transitions to TETHERING
+
         chainSystem.recalculateState();
         tag.remove(TAG_LINKING_THRUSTER);
+        setCustomTag(held, tag);
 
         level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
                 SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 1.0f, 0.8f);
@@ -238,7 +230,19 @@ public class ChainInteractionHandler {
         }
     }
 
-    // Shared utility methods
+    private static CompoundTag getCustomTag(ItemStack stack) {
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+    }
+
+    private static void setCustomTag(ItemStack stack, CompoundTag tag) {
+        CustomData.set(DataComponents.CUSTOM_DATA, stack, tag);
+    }
+
+    private static void setLinkingThruster(ItemStack stack, BlockPos thrusterPos) {
+        CompoundTag tag = getCustomTag(stack);
+        tag.putLong(TAG_LINKING_THRUSTER, thrusterPos.asLong());
+        setCustomTag(stack, tag);
+    }
 
     public static boolean isMissileBlock(Level level, BlockPos pos) {
         var block = level.getBlockState(pos).getBlock();

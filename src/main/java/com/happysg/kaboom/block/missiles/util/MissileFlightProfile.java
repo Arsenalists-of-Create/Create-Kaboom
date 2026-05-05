@@ -1,10 +1,9 @@
-package com.happysg.kaboom.block.missiles.util;// com.happysg.kaboom.targeting.MissileFlightProfile.java
-
+package com.happysg.kaboom.block.missiles.util;
 
 import net.minecraft.nbt.CompoundTag;
 
 public record MissileFlightProfile(
-        // NEW: vertical boost stage (no turning)
+
         double boostAltitude,
         double boostTolerance,
         double boostThrottle,
@@ -26,7 +25,7 @@ public record MissileFlightProfile(
 ) {
     public static MissileFlightProfile defaults() {
         return new MissileFlightProfile(
-                10, 1.0, .7,     // boost straight up ~40 blocks (tune 20–80)
+                10, 1.0, .7,
                 128.0, 2.0, 1.0,
                 1, 0.0, 1.0,
                 20, 6.0, 0,

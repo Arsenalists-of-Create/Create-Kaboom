@@ -15,7 +15,6 @@ public class VerletChainManager {
     private static final float MIN_CHAIN_LENGTH = 4.0f;
     private static final int MIN_POINTS = 12;
 
-
     public VerletChain getOrCreateChain(ChainLink link, Vec3 anchorPos, Vec3 targetPos) {
         UUID linkId = link.getId();
         VerletChain chain = chains.get(linkId);
@@ -42,7 +41,6 @@ public class VerletChainManager {
         }
         return chain;
     }
-
 
     public VerletChain getOrCreateFixedChain(ChainLink link, Vec3 anchorPos, Vec3 targetPos) {
         UUID linkId = link.getId();

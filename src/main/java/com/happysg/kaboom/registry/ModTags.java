@@ -9,6 +9,8 @@ import net.minecraft.world.level.block.Block;
 public class ModTags {
     public static final class Blocks {
         public static final TagKey<Block> FRAG_SHATTERS =
-                TagKey.create(Registries.BLOCK, new ResourceLocation(CreateKaboom.MODID, "blast_transparent"));
+                TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "frag_shatters"));
+        public static final TagKey<Block> BLAST_TRANSPARENT =
+                TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "blast_transparent"));
     }
 }

@@ -3,50 +3,20 @@ package com.happysg.kaboom.networking;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidancePacket;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.items.AltitudeFuzePacket;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
-
-import static com.happysg.kaboom.CreateKaboom.MODID;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 public class NetworkHandler {
-    private static final String PROTOCOL_VERSION = "1";
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(MODID, "main"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
-    );
+    public static void register(RegisterPayloadHandlersEvent event) {
+        var registrar = event.registrar("1");
+        registrar.playToServer(AltitudeFuzePacket.TYPE, AltitudeFuzePacket.STREAM_CODEC, AltitudeFuzePacket::handle);
+        registrar.playToServer(GPSGuidancePacket.TYPE, GPSGuidancePacket.STREAM_CODEC, GPSGuidancePacket::handle);
+        registrar.playToClient(PreciseMotionSyncPacket.TYPE, PreciseMotionSyncPacket.STREAM_CODEC, PreciseMotionSyncPacket::handle);
+        registrar.playToClient(ChainSystemSyncPacket.TYPE, ChainSystemSyncPacket.STREAM_CODEC, ChainSystemSyncPacket::handle);
+    }
 
-    private static int id = 0;
-    public static void register() {
-        CHANNEL.registerMessage(
-                id++,
-                AltitudeFuzePacket.class,
-                AltitudeFuzePacket::encode,
-                AltitudeFuzePacket::decode,
-                AltitudeFuzePacket::handle
-        );
-        CHANNEL.registerMessage(
-                id++,
-                PreciseMotionSyncPacket.class,
-                PreciseMotionSyncPacket::encode,
-                PreciseMotionSyncPacket::decode,
-                PreciseMotionSyncPacket::handle
-        );
-        CHANNEL.registerMessage(
-                id++,
-                GPSGuidancePacket.class,
-                GPSGuidancePacket::encode,
-                GPSGuidancePacket::decode,
-                GPSGuidancePacket::handle
-        );
-        CHANNEL.registerMessage(
-                id++,
-                ChainSystemSyncPacket.class,
-                ChainSystemSyncPacket::encode,
-                ChainSystemSyncPacket::decode,
-                ChainSystemSyncPacket::handle
-        );
+    public static void sendToServer(CustomPacketPayload payload) {
+        PacketDistributor.sendToServer(payload);
     }
 }
