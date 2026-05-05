@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "#create_kaboom:blast_transparent",
+    "minecraft:ice",
+    "minecraft:packed_ice",
+    "minecraft:blue_ice"
+  ]
+}

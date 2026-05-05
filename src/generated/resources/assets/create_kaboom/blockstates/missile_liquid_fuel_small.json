@@ -1,12 +1,12 @@
 {
   "variants": {
-    "axis=y": {
-      "model": "create_kaboom:block/missile/small_liquid_fuel_tank"
-    },
     "axis=x": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_tank",
       "x": 90,
       "y": 90
+    },
+    "axis=y": {
+      "model": "create_kaboom:block/missile/small_liquid_fuel_tank"
     },
     "axis=z": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_tank",

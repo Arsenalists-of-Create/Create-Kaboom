@@ -1,7 +1,6 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.happysg.kaboom.compat.vs2.VS2Utils;
-import com.happysg.kaboom.registry.ModProjectiles;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.content.fluids.transfer.GenericItemFilling;
@@ -10,6 +9,7 @@ import net.createmod.catnip.data.Pair;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -20,13 +20,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import org.joml.Vector3dc;
 
 import javax.annotation.Nullable;
@@ -35,13 +32,10 @@ import java.util.List;
 public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements IHaveGoggleInformation {
 
     protected final FluidTank tank;
-    private LazyOptional<IFluidHandler> fluidOptional;
 
     public FluidAerialBombBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
 
-        // NOTE: this runs before load(), so size is probably default=1 here.
-        // We'll refresh capacity in load() after size is read from NBT.
         tank = new SmartFluidTank(getFluidBombCapacity(), this::onFluidStackChanged);
     }
     private int getBombSizeFromBlock() {
@@ -51,20 +45,16 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         return 1;
     }
     protected int getFluidBombCapacity() {
-        int size = Math.max(1,getBombSizeFromBlock()); // getSize() comes from AerialBombBlockEntity
+        int size = Math.max(1,getBombSizeFromBlock());
         return 12000 / size;
     }
 
-    /** Call this after size changes or after loading NBT. */
     protected void refreshTankCapacity() {
         int newCap = getFluidBombCapacity();
         if (tank.getCapacity() == newCap) return;
 
-        // SmartFluidTank supports setCapacity in Create; if not available in your mappings,
-        // you can replace tank with a custom tank implementation that supports resizing.
         tank.setCapacity(newCap);
 
-        // Ensure we don't exceed capacity
         if (tank.getFluidAmount() > newCap) {
             FluidStack f = tank.getFluid().copy();
             f.setAmount(tank.getFluidAmount() - newCap);
@@ -73,17 +63,16 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag) {
-        super.saveAdditional(tag);
-        tag.put("FluidContent", tank.writeToNBT(new CompoundTag()));
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.put("FluidContent", tank.writeToNBT(registries, new CompoundTag()));
     }
 
     @Override
-    public void load(CompoundTag tag) {
-        super.load(tag);
-        tank.readFromNBT(tag.getCompound("FluidContent"));
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        tank.readFromNBT(registries, tag.getCompound("FluidContent"));
 
-        // size is now loaded by the super (AerialBombBlockEntity), so update capacity after load
         refreshTankCapacity();
     }
 
@@ -91,12 +80,9 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         return tank.getFluid().copy();
     }
 
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
-        if (cap == ForgeCapabilities.FLUID_HANDLER && getFuze().isEmpty()) {
-            return getFluidOptional().cast();
-        }
-        return super.getCapability(cap, side);
+    @Nullable
+    public IFluidHandler getFluidHandler(@Nullable Direction side) {
+        return getFuze().isEmpty() ? tank : null;
     }
 
     public boolean tryEmptyItemIntoTE(Level worldIn, Player player, InteractionHand handIn, ItemStack heldItem) {
@@ -157,19 +143,6 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         return false;
     }
 
-    public LazyOptional<IFluidHandler> getFluidOptional() {
-        if (fluidOptional == null) {
-            fluidOptional = LazyOptional.of(() -> tank);
-        }
-        return fluidOptional;
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        if (fluidOptional != null) fluidOptional.invalidate();
-    }
-
     protected void onFluidStackChanged(FluidStack newStack) {
         if (getLevel() != null && !getLevel().isClientSide) notifyUpdate();
     }
@@ -186,7 +159,7 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         if (fluid.isEmpty()) {
             tooltip.add(Component.literal(" - Empty").withStyle(ChatFormatting.DARK_GRAY));
         } else {
-            MutableComponent name = fluid.getDisplayName().copy().withStyle(ChatFormatting.AQUA);
+            MutableComponent name = fluid.getHoverName().copy().withStyle(ChatFormatting.AQUA);
             tooltip.add(Component.literal(" - ").append(name));
 
             tooltip.add(Component.literal(" - ")
@@ -201,38 +174,35 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
     public void activate() {
         if (level == null || level.isClientSide) return;
 
-        // payload snapshot
-        FluidStack payload = getContainedFluidCopy();
-
         BlockState state = getBlockState();
 
-        var projectile = ModProjectiles.AERIAL_BOMB_PROJECTILE.create(level);
+        AerialBombProjectile projectile = createConfiguredProjectile(state);
         if (projectile == null) return;
-
-        // size now comes from BE
-        int size = Math.max(1, getBombSizeFromBlock());
-        projectile.setSize(size);
 
         projectile.setPos(VS2Utils.getWorldPos(this).below().getCenter());
         Vector3dc shipVel = VS2Utils.getVelocity(level,this.worldPosition);
         if(shipVel != null) {
             projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
         }
-        // give projectile the state for visuals, but don't mutate it weirdly here
-        projectile.setState(state);
-
-        projectile.setFuzeStack(getFuze().copy());
-        projectile.setBombType(AerialBombProjectile.BombType.FLUID);
-        projectile.setPayloadFluid(payload);
 
         level.addFreshEntity(projectile);
 
-        // Decrement COUNT (ammo remaining), not SIZE.
         int count = state.getValue(FluidAerialBombBlock.COUNT);
         if (count > 1) {
             level.setBlock(worldPosition, state.setValue(FluidAerialBombBlock.COUNT, count - 1), 3);
         } else {
             level.destroyBlock(worldPosition, false);
         }
+    }
+
+    @Override
+    protected AerialBombProjectile createConfiguredProjectile(BlockState state) {
+        AerialBombProjectile projectile = super.createConfiguredProjectile(state);
+        if (projectile == null) return null;
+
+        projectile.setSize(Math.max(1, getBombSizeFromBlock()));
+        projectile.setBombType(AerialBombProjectile.BombType.FLUID);
+        projectile.setPayloadFluid(getContainedFluidCopy());
+        return projectile;
     }
 }

@@ -9,10 +9,10 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.RenderShape;
@@ -28,12 +28,9 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
 
     }
 
-
-
     public void render(T entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         BlockState renderState = entity.getState();
         int count =1;
-
 
         renderState = renderState.setValue(AerialBombBlock.COUNT,1);
         if (renderState.getRenderShape() == RenderShape.MODEL) {
@@ -62,7 +59,6 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
                 poseStack.pushPose();
                 poseStack.translate(-.5, 0.0, -.5);
 
-
                 BakedModel model = this.dispatcher.getBlockModel(renderState);
 
                 Minecraft.getInstance()
@@ -75,12 +71,8 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
         }
     }
 
-
-    /**
-     * Returns the location of an entity's texture.
-     */
     public ResourceLocation getTextureLocation(T entity) {
-        return TextureAtlas.LOCATION_BLOCKS;
+        return InventoryMenu.BLOCK_ATLAS;
     }
 
 }

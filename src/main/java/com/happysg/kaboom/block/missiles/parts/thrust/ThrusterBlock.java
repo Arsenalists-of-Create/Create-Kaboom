@@ -3,7 +3,7 @@ package com.happysg.kaboom.block.missiles.parts.thrust;
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
-import com.mojang.logging.LogUtils;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -18,10 +18,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.slf4j.Logger;
 
 public class ThrusterBlock extends DirectionalBlock implements IMissileComponent, EntityBlock {
-    private static final Logger LOGGER = LogUtils.getLogger();
     public ThrusterBlock(Properties pProperties) {
         super(pProperties);
         registerDefaultState(super.defaultBlockState()
@@ -30,6 +28,11 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
     }
     private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
     private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
+
+    @Override
+    protected MapCodec<? extends DirectionalBlock> codec() {
+        return simpleCodec(ThrusterBlock::new);
+    }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
@@ -45,10 +48,8 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
         super.neighborChanged(state, level, pos, neighborBlock, fromPos, isMoving);
 
         if (level.isClientSide) return;
-        LOGGER.warn("[THRUSTER] neighborChanged @ {} poweredNow={}", pos, level.hasNeighborSignal(pos));
 
         BlockEntity be = level.getBlockEntity(pos);
-        LOGGER.warn("[THRUSTER] BE @ {} is {}", pos, (be == null ? "null" : be.getClass().getName()));
 
         if (be instanceof ThrusterBlockEntity thrusterBE) {
             thrusterBE.onRedstoneUpdated();
@@ -60,7 +61,6 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
         super.createBlockStateDefinition(builder);
         builder.add(FACING);
     }
-
 
     @Override
     public MissilePartType getPartType() {

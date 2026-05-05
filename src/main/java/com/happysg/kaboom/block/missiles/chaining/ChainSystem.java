@@ -1,6 +1,5 @@
 package com.happysg.kaboom.block.missiles.chaining;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -17,14 +16,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
 public class ChainSystem {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     public enum ChainingState {
         EMPTY,
@@ -157,9 +153,6 @@ public class ChainSystem {
         recalculateState();
     }
 
-    /**
-     * Calculate total weight of all SECURED mobs.
-     */
     public double calculateWeight(ServerLevel level) {
         double totalWeight = 0;
         Set<UUID> securedMobs = new HashSet<>();
@@ -180,12 +173,6 @@ public class ChainSystem {
         return totalWeight;
     }
 
-    // ==================== PRE-LAUNCH: Block entity tick ====================
-
-    /**
-     * Tick the chain system from a ThrusterBlockEntity (pre-launch).
-     * @param thrusterPos the world position of the thruster (controller)
-     */
     public void tickFromBlock(BlockPos thrusterPos, ServerLevel level) {
         validationTimer++;
         if (validationTimer >= VALIDATION_INTERVAL) {
@@ -205,13 +192,6 @@ public class ChainSystem {
         enforceTetherRange(thrusterPos, level);
     }
 
-    // ==================== POST-LAUNCH: Entity tick ====================
-
-    /**
-     * Tick the chain system from a MissileEntity (post-launch).
-     * Enforces tether constraints on mobs dragged by the flying missile.
-     * @param entityPos the missile entity's current world position
-     */
     public void tickFromEntity(Vec3 entityPos, ServerLevel level) {
         validationTimer++;
         if (validationTimer >= VALIDATION_INTERVAL) {
@@ -219,11 +199,8 @@ public class ChainSystem {
             cleanupDeadLinksNoPos(level);
         }
 
-        // Enforce tether range for mobs dragged by the missile
         enforceTetherRangeFromEntity(entityPos, level);
     }
-
-    // ==================== Tethering logic ====================
 
     private void tickTethering(BlockPos thrusterPos, ServerLevel level) {
         Set<UUID> tetheredMobs = new HashSet<>();
@@ -256,7 +233,7 @@ public class ChainSystem {
                 ? mob.getAttributeValue(Attributes.ATTACK_DAMAGE) : 0;
         float breakForce = (float) (attackDamage + volume * 2.0);
 
-        if (!mob.canChangeDimensions()) {
+        if (!mob.canChangeDimensions(level, level)) {
             breakForce *= BOSS_BREAK_MULTIPLIER;
         }
 
@@ -280,13 +257,10 @@ public class ChainSystem {
 
         if (getAttachedChainCount(mobId) == 0) {
             breakAttemptTimers.remove(mobId);
-            LOGGER.info("[CHAIN] Mob {} broke free from all chains", mobId);
         }
 
         recalculateState();
     }
-
-    // ==================== Winching logic ====================
 
     private void tickWinching(BlockPos thrusterPos, ServerLevel level) {
         if (winchTargetMob == null) {
@@ -319,7 +293,6 @@ public class ChainSystem {
             float progressIncrement = (float) (netForce * 0.001);
             winchProgress = Math.min(1.0f, winchProgress + progressIncrement);
 
-            // Lerp mob toward the thruster position (center of missile base)
             Vec3 targetPos = Vec3.atCenterOf(thrusterPos).add(0, 1, 0);
             Vec3 mobPos = mob.position();
             Vec3 lerpedPos = mobPos.lerp(targetPos, winchProgress);
@@ -342,7 +315,6 @@ public class ChainSystem {
             }
 
             if (getAttachedChainCount(winchTargetMob) == 0) {
-                LOGGER.info("[CHAIN] All chains broke during winch for mob {}", winchTargetMob);
                 cancelWinch();
             }
         }
@@ -360,11 +332,8 @@ public class ChainSystem {
 
         winchTargetMob = null;
         winchProgress = 0.0f;
-        LOGGER.info("[CHAIN] Mob {} secured to missile", mob.getUUID());
         recalculateState();
     }
-
-    // ==================== Tether physics ====================
 
     private void enforceTetherRange(BlockPos thrusterPos, ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
@@ -375,7 +344,6 @@ public class ChainSystem {
 
             Entity entity = level.getEntity(link.getTargetMobId());
             if (!(entity instanceof Mob mob)) {
-                LOGGER.warn("[TETHER] Could not resolve mob for UUID {}", link.getTargetMobId());
                 continue;
             }
 
@@ -384,9 +352,6 @@ public class ChainSystem {
         }
     }
 
-    /**
-     * Enforce tether range from entity-relative anchor positions (post-launch flight).
-     */
     private void enforceTetherRangeFromEntity(Vec3 entityPos, ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
@@ -402,41 +367,32 @@ public class ChainSystem {
         }
     }
 
-    /**
-     * Shared constraint logic: snap mob back to max chain length and kill outward velocity.
-     */
     private void constrainMobToAnchor(Vec3 anchorWorld, ChainLink link, Mob mob, ServerLevel level) {
         Vec3 mobPos = mob.position();
         double distance = anchorWorld.distanceTo(mobPos);
         double maxLength = link.getMaxLength();
 
         if (maxLength <= 0) {
-            LOGGER.warn("[TETHER] maxLength is {} for link {}", maxLength, link.getId());
             return;
         }
         if (distance <= maxLength) return;
 
-        // Snap position back to exactly maxLength
         Vec3 direction = mobPos.subtract(anchorWorld).normalize();
         Vec3 correctedPos = anchorWorld.add(direction.scale(maxLength));
         mob.teleportTo(correctedPos.x, correctedPos.y, correctedPos.z);
         mob.hurtMarked = true;
 
-        // Stop the mob's AI navigation so it doesn't fight the constraint
         mob.getNavigation().stop();
 
-        // Kill ONLY the velocity component pointing away from anchor
-        // Preserve tangential velocity — this creates swinging
         Vec3 vel = mob.getDeltaMovement();
         Vec3 toAnchor = anchorWorld.subtract(correctedPos).normalize();
         double dot = vel.dot(toAnchor);
 
         if (dot < 0) {
-            // Moving away from anchor — remove that component
+
             Vec3 awayComponent = toAnchor.scale(dot);
             mob.setDeltaMovement(vel.subtract(awayComponent));
 
-            // Chain impact sound based on how hard they hit
             float impactForce = (float) Math.abs(dot);
             if (impactForce > 0.05f) {
                 level.playSound(null, mob.blockPosition(),
@@ -446,8 +402,6 @@ public class ChainSystem {
             }
         }
     }
-
-    // ==================== Cleanup / validation ====================
 
     private void cleanupDeadLinks(BlockPos thrusterPos, ServerLevel level) {
         boolean changed = false;
@@ -468,7 +422,6 @@ public class ChainSystem {
         if (changed) recalculateState();
     }
 
-    /** Cleanup without a block position (post-launch, used from entity tick). */
     private void cleanupDeadLinksNoPos(ServerLevel level) {
         boolean changed = false;
         for (AnchorPoint anchor : anchors) {
@@ -487,8 +440,6 @@ public class ChainSystem {
         }
         if (changed) recalculateState();
     }
-
-    // ==================== Utility ====================
 
     @Nullable
     public UUID findNearestTetheredMob(BlockPos thrusterPos, ServerLevel level) {
@@ -524,9 +475,6 @@ public class ChainSystem {
         return null;
     }
 
-    /**
-     * Get all unique SECURED mob UUIDs.
-     */
     public Set<UUID> getSecuredMobIds() {
         Set<UUID> ids = new HashSet<>();
         for (AnchorPoint anchor : anchors) {
@@ -538,9 +486,6 @@ public class ChainSystem {
         return ids;
     }
 
-    /**
-     * Get all unique TETHERED (not secured) mob UUIDs.
-     */
     public Set<UUID> getTetheredMobIds() {
         Set<UUID> ids = new HashSet<>();
         for (AnchorPoint anchor : anchors) {
@@ -552,9 +497,6 @@ public class ChainSystem {
         return ids;
     }
 
-    /**
-     * Release all secured mobs (on missile destruction/detonate).
-     */
     public void releaseAll(ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
@@ -572,10 +514,6 @@ public class ChainSystem {
         recalculateState();
     }
 
-    /**
-     * Break all non-secured chains, drop items, free mobs. Used at launch time
-     * for mobs that weren't fully winched in.
-     */
     public void breakUnsecuredChains(BlockPos thrusterPos, ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
@@ -596,10 +534,6 @@ public class ChainSystem {
         recalculateState();
     }
 
-    /**
-     * Break only DANGLING chains (no mob attached). Keeps TETHERED and SECURED chains
-     * intact so tethered mobs get dragged along during flight.
-     */
     public void breakDanglingChains(BlockPos thrusterPos, ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
@@ -607,7 +541,6 @@ public class ChainSystem {
             if (link.getState() == ChainLink.State.SECURED) continue;
             if (link.getState() == ChainLink.State.TETHERED) continue;
 
-            // Only DANGLING chains reach here
             spawnChainBreakEffects(level, Vec3.atCenterOf(thrusterPos));
             anchor.setLink(null);
         }
@@ -657,12 +590,6 @@ public class ChainSystem {
         level.addFreshEntity(drop);
     }
 
-    // ==================== Client sync ====================
-
-    /**
-     * Populate integer entity IDs on all chain links by resolving their UUID targets.
-     * Must be called server-side before syncing to clients.
-     */
     public void populateEntityIds(ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
@@ -675,7 +602,6 @@ public class ChainSystem {
             }
         }
 
-        // Resolve active linker player UUID to entity ID for client rendering
         if (activeLinkerPlayer != null) {
             net.minecraft.server.level.ServerPlayer player = level.getServer().getPlayerList().getPlayer(activeLinkerPlayer);
             activeLinkerEntityId = player != null ? player.getId() : -1;
@@ -683,8 +609,6 @@ public class ChainSystem {
             activeLinkerEntityId = -1;
         }
     }
-
-    // ==================== Serialization ====================
 
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();

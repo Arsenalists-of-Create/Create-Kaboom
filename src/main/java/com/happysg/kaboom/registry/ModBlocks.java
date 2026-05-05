@@ -22,10 +22,10 @@ import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.builders.BlockBuilder;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.tterrag.registrate.util.nullness.NonNullFunction;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraftforge.client.model.generators.ConfiguredModel;
+import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
 
 import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 
@@ -39,8 +39,6 @@ public class ModBlocks {
 
     public static final BlockEntry<ClusterHeavyAerialBombBlock> CLUSTER_HEAVY_AERIAL_BOMB =
             bomb("cluster_heavy_aerial_bomb", ClusterHeavyAerialBombBlock::new).register();
-
-
 
     public static final BlockEntry<FragHeavyAerialBombBlock> FRAG_HEAVY_AERIAL_BOMB =
             bomb("frag_heavy_aerial_bomb", FragHeavyAerialBombBlock::new).register();
@@ -71,104 +69,159 @@ public class ModBlocks {
                 .initialProperties(SharedProperties::softMetal)
                 .properties(BlockBehaviour.Properties::noOcclusion)
                 .properties(p -> p.isRedstoneConductor((s, l, pos) -> false))
-                .addLayer(() -> RenderType::cutoutMipped)
                 .blockstate((c, p) ->
                         p.getVariantBuilder(c.get())
                                 .forAllStates(state -> {
                                     String fuze = state.getValue(AerialBombBlock.FUZED) ? "fuzed_" : "";
                                     Direction facing = state.getValue(AerialBombBlock.FACING);
+                                    int count = state.getValue(AerialBombBlock.COUNT);
 
                                     return ConfiguredModel.builder()
                                             .modelFile(p.models().getExistingFile(
-                                                    CreateKaboom.asResource("block/" + fuze + c.getName())
+                                                    CreateKaboom.asResource("block/" + bombModelPath(c.getName(), fuze, count))
                                             ))
                                             .rotationY(((int) facing.toYRot() + 180) % 360)
                                             .build();
                                 })
                 )
-                .simpleItem();
+                .item()
+                .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                        CreateKaboom.asResource("block/" + bombModelPath(name, "", 1))))
+                .build();
+    }
+
+    private static String bombModelPath(String name, String fuze, int count) {
+        if (name.equals("tiny_aerial_bomb")) {
+            int suffixCount = Mth.clamp(count, 1, 9);
+            return "tiny_bomb/" + fuze + name + (suffixCount <= 1 ? "" : "_" + suffixCount);
+        }
+
+        if (name.contains("heavy_aerial_bomb"))
+            return "heavy_bomb/" + fuze + name;
+
+        int suffixCount = Mth.clamp(count, 1, 4);
+        return "aerial_bomb/" + fuze + name + (suffixCount <= 1 ? "" : "_" + suffixCount);
     }
     public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_liquid_thruster_large", ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
-            .addLayer(() -> RenderType::cutoutMipped)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(ctx.getId()), 0))
-            .simpleItem()
+                    .getExistingFile(CreateKaboom.asResource("block/missile/medium_solid_fuel_thruster")), 0))
+            .item()
+            .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                    CreateKaboom.asResource("block/missile/medium_solid_fuel_thruster")))
+            .build()
             .register();
     public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER_SMALL = REGISTRATE.block("missile_liquid_thruster_small",ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
-            .addLayer(() -> RenderType::cutoutMipped)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(ctx.getId()), 0))
-            .simpleItem()
+                    .getExistingFile(CreateKaboom.asResource("block/missile/small_liquid_fuel_thruster")), 0))
+            .item()
+            .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                    CreateKaboom.asResource("block/missile/small_liquid_fuel_thruster")))
+            .build()
             .register();
     public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER_HUGE = REGISTRATE.block("missile_liquid_thruster_huge",ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
-            .addLayer(() -> RenderType::cutoutMipped)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(ctx.getId()), 0))
-            .simpleItem()
+                    .getExistingFile(CreateKaboom.asResource("block/missile/huge_solid_fuel_thruster")), 0))
+            .item()
+            .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                    CreateKaboom.asResource("block/missile/huge_solid_fuel_thruster")))
+            .build()
             .register();
-
-
 
     public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL_SMALL =
             REGISTRATE.block("missile_liquid_fuel_small",
                             p -> new MissileFuelTankBlock(p, 4000))
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/small_liquid_fuel_tank"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/small_liquid_fuel_tank")))
+                    .build()
                     .register();
 
     public static final BlockEntry<MissileFuelTankBlock> MISSILE_FUEL =
             REGISTRATE.block("missile_liquid_fuel_large",
                             p -> new MissileFuelTankBlock(p, 16000))
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_solid_fuel_tank"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/medium_solid_fuel_tank")))
+                    .build()
                     .register();
     public static final BlockEntry<MissileFuelTankBlock>MISSILE_FUEL_HUGE =
             REGISTRATE.block("missile_liquid_fuel_huge",
                             p -> new MissileFuelTankBlock(p, 32000))
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/huge_solid_fuel_tank"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/huge_solid_fuel_tank")))
+                    .build()
                     .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_SMALL =
             REGISTRATE.block("gps_guidance_small", GPSGuidanceBlock::new)
-                    .addLayer(() -> RenderType::cutoutMipped)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/small_inertial_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/small_inertial_guidance")))
+                    .build()
                     .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_LARGE =
             REGISTRATE.block("gps_guidance_large", GPSGuidanceBlock::new)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_inertial_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/medium_inertial_guidance")))
+                    .build()
                     .register();
     public static final BlockEntry<GPSGuidanceBlock> GPS_GUIDANCE_HUGE =
             REGISTRATE.block("gps_guidance_huge", GPSGuidanceBlock::new)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.axisBlock(ctx.getEntry()))
-                    .simpleItem()
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_inertial_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/medium_inertial_guidance")))
+                    .build()
                     .register();
     public static final BlockEntry<HeatseekerGuidanceBlock> HEATSEEKER_SMALL=
             REGISTRATE.block("heatseeker_small", HeatseekerGuidanceBlock::new)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
                     .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                            .getExistingFile(ctx.getId()), 0))
-                    .simpleItem()
+                            .getExistingFile(CreateKaboom.asResource("block/missile/small_heat_seeker")), 0))
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/small_heat_seeker")))
+                    .build()
                     .register();
-
-
-
 
 }

@@ -1,32 +1,602 @@
 {
   "variants": {
-    "facing=east,fuzed=false": {
+    "count=0,facing=east,fuzed=false,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
       "y": 90
     },
-    "facing=east,fuzed=true": {
+    "count=0,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=0,facing=east,fuzed=true,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
       "y": 90
     },
-    "facing=north,fuzed=false": {
+    "count=0,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=0,facing=north,fuzed=false,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
     },
-    "facing=north,fuzed=true": {
+    "count=0,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=0,facing=north,fuzed=true,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
     },
-    "facing=south,fuzed=false": {
+    "count=0,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=0,facing=south,fuzed=false,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
       "y": 180
     },
-    "facing=south,fuzed=true": {
+    "count=0,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=0,facing=south,fuzed=true,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
       "y": 180
     },
-    "facing=west,fuzed=false": {
+    "count=0,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=0,facing=west,fuzed=false,powered=false": {
       "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
       "y": 270
     },
-    "facing=west,fuzed=true": {
+    "count=0,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=0,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=0,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=1,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=1,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=1,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=1,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=1,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=1,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=1,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=1,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=1,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=1,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=1,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=1,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=1,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=1,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=1,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=1,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=2,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=2,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=2,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=2,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=2,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=2,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=2,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=2,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=2,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=2,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=2,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=2,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=2,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=2,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=2,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=2,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=3,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=3,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=3,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=3,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=3,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=3,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=3,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=3,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=3,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=3,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=3,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=3,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=3,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=3,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=3,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=3,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=4,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=4,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=4,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=4,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=4,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=4,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=4,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=4,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=4,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=4,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=4,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=4,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=4,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=4,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=4,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=4,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=5,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=5,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=5,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=5,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=5,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=5,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=5,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=5,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=5,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=5,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=5,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=5,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=5,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=5,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=5,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=5,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=6,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=6,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=6,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=6,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=6,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=6,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=6,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=6,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=6,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=6,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=6,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=6,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=6,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=6,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=6,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=6,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=7,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=7,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=7,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=7,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=7,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=7,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=7,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=7,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=7,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=7,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=7,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=7,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=7,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=7,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=7,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=7,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=8,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=8,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=8,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=8,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=8,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=8,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=8,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=8,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=8,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=8,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=8,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=8,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=8,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=8,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=8,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=8,facing=west,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=9,facing=east,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=9,facing=east,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=9,facing=east,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=9,facing=east,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 90
+    },
+    "count=9,facing=north,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=9,facing=north,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb"
+    },
+    "count=9,facing=north,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=9,facing=north,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb"
+    },
+    "count=9,facing=south,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=9,facing=south,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=9,facing=south,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=9,facing=south,fuzed=true,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 180
+    },
+    "count=9,facing=west,fuzed=false,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=9,facing=west,fuzed=false,powered=true": {
+      "model": "create_kaboom:block/heavy_bomb/heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=9,facing=west,fuzed=true,powered=false": {
+      "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
+      "y": 270
+    },
+    "count=9,facing=west,fuzed=true,powered=true": {
       "model": "create_kaboom:block/heavy_bomb/fuzed_heavy_aerial_bomb",
       "y": 270
     }

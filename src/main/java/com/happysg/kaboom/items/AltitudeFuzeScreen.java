@@ -75,7 +75,7 @@ public class AltitudeFuzeScreen extends AbstractSimiScreen {
         addRenderableWidget(heightLabel);
 
         heightScroll = new ScrollInput(x + 47, y + 28, 25, 18)
-                .withRange(1, 257) // [min, maxExclusive) -> 1..256
+                .withRange(1, 257)
                 .titled(Component.translatable(CreateKaboom.MODID + ".altitude_screen.destination_alt_input"))
 
                 .writingTo(heightLabel)
@@ -105,12 +105,12 @@ public class AltitudeFuzeScreen extends AbstractSimiScreen {
         if (heightValue == initialHeight) return;
 
         sent = true;
-        NetworkHandler.CHANNEL.sendToServer(new AltitudeFuzePacket(hand, heightValue));
+        NetworkHandler.sendToServer(new AltitudeFuzePacket(hand, heightValue));
     }
 
     @Override
     public void onClose() {
-        // Auto-save on ESC / inventory-close too
+
         commitToServerIfDirty();
         super.onClose();
     }

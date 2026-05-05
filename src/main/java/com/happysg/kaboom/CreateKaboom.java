@@ -1,40 +1,32 @@
 package com.happysg.kaboom;
 
-import com.happysg.kaboom.block.missiles.MissileEntity;
-import com.happysg.kaboom.block.missiles.MissileRenderer;
-import com.happysg.kaboom.block.missiles.chaining.client.ChainRenderer;
+import com.happysg.kaboom.client.CreateKaboomClient;
 import com.happysg.kaboom.config.KaboomConfig;
-import com.happysg.kaboom.networking.ModMessages;
-import com.happysg.kaboom.networking.NetworkHandler;
-
-import com.happysg.kaboom.particles.MissileSmokeParticle;
-import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
-import com.happysg.kaboom.registry.*;
-import com.happysg.radar.CreateRadar;
-import com.happysg.radar.config.RadarConfig;
+import com.happysg.kaboom.networking.NetworkHandler;
+import com.happysg.kaboom.registry.ModBlockEntityTypes;
+import com.happysg.kaboom.registry.ModBlocks;
+import com.happysg.kaboom.registry.ModCreativeTabs;
+import com.happysg.kaboom.registry.ModEntities;
+import com.happysg.kaboom.registry.ModItems;
+import com.happysg.kaboom.registry.ModLang;
+import com.happysg.kaboom.registry.ModParticles;
+import com.happysg.kaboom.registry.ModProjectiles;
+import com.happysg.kaboom.registry.ModSounds;
 import com.mojang.logging.LogUtils;
-import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.foundation.data.CreateRegistrate;
-import dev.engine_room.flywheel.api.visualization.VisualizerRegistry;
-import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
-import net.createmod.ponder.foundation.PonderIndex;
-import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.client.ConfigScreenHandler;
-import net.minecraftforge.client.event.ModelEvent;
-import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModContainer;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.CreativeModeTab;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLEnvironment;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
@@ -44,21 +36,19 @@ import java.util.stream.Collectors;
 @Mod(CreateKaboom.MODID)
 public class CreateKaboom {
     public static final String MODID = "create_kaboom";
+    public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(MODID);
+
     private static final Logger LOGGER = LogUtils.getLogger();
 
-     public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(MODID);
-
-    public CreateKaboom() {
-        getLogger().info("Initializing Create Kaboom!");
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
-        ModLoadingContext context = ModLoadingContext.get();
-        MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(new ChainInteractionHandler());
-        MinecraftForge.EVENT_BUS.register(new ChainTickHandler());
+    public CreateKaboom(IEventBus modEventBus, ModContainer container) {
+        LOGGER.info("Initializing Create Kaboom");
+        NeoForge.EVENT_BUS.register(new ChainInteractionHandler());
+        NeoForge.EVENT_BUS.register(new ChainTickHandler());
+        REGISTRATE.defaultCreativeTab((ResourceKey<CreativeModeTab>) null);
         REGISTRATE.registerEventListeners(modEventBus);
+
         ModItems.register();
         ModBlocks.register();
-        NetworkHandler.register();
         ModBlockEntityTypes.register();
         ModProjectiles.register();
         ModParticles.register(modEventBus);
@@ -66,15 +56,14 @@ public class CreateKaboom {
         ModLang.register();
         ModEntities.register(modEventBus);
         ModSounds.register(modEventBus);
-        KaboomConfig.register(context);
-        modEventBus.addListener(CreateKaboom::init);
-        modEventBus.addListener(CreateKaboom::clientInit);
-        modEventBus.addListener(CreateKaboom::registerAdditionalModels);
-        ModContainer container = ModList.get()
-                .getModContainerById(CreateKaboom.MODID)
-                .orElseThrow(() -> new IllegalStateException("Radar mod container missing on LoadComplete"));
-        container.registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory(KaboomConfig::createConfigScreen));
+        KaboomConfig.register(container);
+
+        modEventBus.addListener(CreateKaboom::registerCapabilities);
+        modEventBus.addListener(NetworkHandler::register);
+
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            CreateKaboomClient.register(modEventBus, container);
+        }
     }
 
     public static Logger getLogger() {
@@ -82,37 +71,27 @@ public class CreateKaboom {
     }
 
     public static ResourceLocation asResource(String path) {
-        return new ResourceLocation(MODID, path);
+        return ResourceLocation.fromNamespaceAndPath(MODID, path);
     }
 
     public static String toHumanReadable(String key) {
-        String s = key.replace("_", " ");
-        s = Arrays.stream(StringUtils.splitByCharacterTypeCamelCase(s))
+        String value = key.replace("_", " ");
+        value = Arrays.stream(StringUtils.splitByCharacterTypeCamelCase(value))
                 .map(StringUtils::capitalize)
                 .collect(Collectors.joining(" "));
-        return StringUtils.normalizeSpace(s);
+        return StringUtils.normalizeSpace(value);
     }
 
-
-    public static void clientInit(final FMLClientSetupEvent event) {
-        PonderIndex.addPlugin(new KaboomPonderPlugin());
-        MinecraftForge.EVENT_BUS.register(new ChainRenderer());
-
-        event.enqueueWork(() -> {
-            EntityRenderers.register(ModEntities.MISSILE.get(), MissileRenderer::new);
-        });
-        VisualizerRegistry.setVisualizer(
-                ModEntities.MISSILE.get(),
-                new SimpleEntityVisualizer<MissileEntity>(ContraptionVisual::new, entity -> false)
+    public static void registerCapabilities(final RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                ModBlockEntityTypes.FLUID_AERIAL_BOMB_BE.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side)
         );
-    }
-
-
-    public static void registerAdditionalModels(final ModelEvent.RegisterAdditional event) {
-        event.register(new ResourceLocation(MODID, "block/chain_anchor"));
-    }
-
-    public static void init(final FMLCommonSetupEvent event) {
-        event.enqueueWork(ModMessages::register);
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                ModBlockEntityTypes.FUEL_TANK_SMALL.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side)
+        );
     }
 }

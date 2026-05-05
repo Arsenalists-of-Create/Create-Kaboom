@@ -34,7 +34,7 @@ public record MissileTargetSpec(TargetType type, Vec3 point, UUID entityId, bool
 
     public static MissileTargetSpec fromTag(CompoundTag tag) {
         String raw = tag.getString("Type");
-        TargetType type = TargetType.POINT; // default
+        TargetType type = TargetType.POINT;
 
         if (raw != null && !raw.isBlank()) {
             try {

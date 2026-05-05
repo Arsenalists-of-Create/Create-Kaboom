@@ -1,6 +1,5 @@
 package com.happysg.kaboom.block.aerialBombs.cluster;
 
-
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -17,12 +16,12 @@ import net.minecraft.world.item.Items;
 public class ClusterRenderer extends EntityRenderer<ClusterBombletProjectile> {
 
     private final ItemRenderer itemRenderer;
-    private final ItemStack renderStack = new ItemStack(Items.COBBLESTONE); // “tiny stone”
+    private final ItemStack renderStack = new ItemStack(Items.COBBLESTONE);
 
     public ClusterRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
         this.itemRenderer = ctx.getItemRenderer();
-        this.shadowRadius = 0.0f; // no shadow (it’s tiny)
+        this.shadowRadius = 0.0f;
     }
 
     @Override
@@ -31,18 +30,15 @@ public class ClusterRenderer extends EntityRenderer<ClusterBombletProjectile> {
 
         poseStack.pushPose();
 
-        // Follow motion: yaw/pitch from entity rotation
         float yaw = Mth.lerp(partialTicks, entity.yRotO, entity.getYRot());
         float pitch = Mth.lerp(partialTicks, entity.xRotO, entity.getXRot());
 
         poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180.0f - yaw));
         poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(pitch));
 
-        // Make it tiny
         float scale = 0.18f;
         poseStack.scale(scale, scale, scale);
 
-        // Render as a held item (flat-ish), looks like a chunk spinning through the air
         itemRenderer.renderStatic(
                 renderStack,
                 ItemDisplayContext.GROUND,
@@ -58,7 +54,6 @@ public class ClusterRenderer extends EntityRenderer<ClusterBombletProjectile> {
 
         super.render(entity, entityYaw, partialTicks, poseStack, buffer, packedLight);
     }
-
 
     @Override
     public ResourceLocation getTextureLocation(ClusterBombletProjectile entity) {

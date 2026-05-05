@@ -6,7 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -21,14 +21,12 @@ public class FluidAerialBombBlock extends AerialBombBlock {
         registerDefaultState(super.defaultBlockState().setValue(COUNT,1));
     }
 
-
     @Override
-    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+    protected ItemInteractionResult useItemOn(ItemStack held, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hit) {
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof FluidAerialBombBlockEntity fluidBE) {
-
-            ItemStack held = player.getItemInHand(hand);
 
             boolean canEmpty = GenericItemEmptying.canItemBeEmptied(level, held);
             boolean canFill  = GenericItemFilling.canItemBeFilled(level, held);
@@ -37,10 +35,9 @@ public class FluidAerialBombBlock extends AerialBombBlock {
                 if (!level.isClientSide) {
                     player.swing(hand, true);
 
-                    // Pick a sound; bucket empty is a good default
                     level.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 1.0f, 0.9f + level.random.nextFloat() * 0.2f);
                 }
-                return InteractionResult.sidedSuccess(level.isClientSide);
+                return ItemInteractionResult.sidedSuccess(level.isClientSide);
             }
 
             if (canFill && fluidBE.tryFillItemFromTE(level, player, hand, held)) {
@@ -49,11 +46,11 @@ public class FluidAerialBombBlock extends AerialBombBlock {
 
                     level.playSound(null, pos, SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 1.0f, 0.9f + level.random.nextFloat() * 0.2f);
                 }
-                return InteractionResult.sidedSuccess(level.isClientSide);
+                return ItemInteractionResult.sidedSuccess(level.isClientSide);
             }
         }
 
-        return super.use(state, level, pos, player, hand, hit);
+        return super.useItemOn(held, state, level, pos, player, hand, hit);
     }
     @Override
     public BlockEntityType<? extends FluidAerialBombBlockEntity> getBlockEntityType() {

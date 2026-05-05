@@ -3,13 +3,12 @@ package com.happysg.kaboom.config;
 import com.happysg.kaboom.CreateKaboom;
 import net.createmod.catnip.config.ConfigBase;
 import net.createmod.catnip.config.ui.BaseConfigScreen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.neoforge.common.ModConfigSpec;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.EnumMap;
@@ -36,7 +35,7 @@ public class KaboomConfig {
     }
 
     private static <T extends ConfigBase> T register(Supplier<T> factory, ModConfig.Type side) {
-        Pair<T, ForgeConfigSpec> specPair = new ForgeConfigSpec.Builder().configure(builder -> {
+        Pair<T, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure(builder -> {
             T config = factory.get();
             config.registerAll(builder);
             return config;
@@ -48,12 +47,12 @@ public class KaboomConfig {
         return config;
     }
 
-    public static void register(ModLoadingContext context) {
-       // client = register(KaboomClientConfig::new, ModConfig.Type.CLIENT);
+    public static void register(ModContainer container) {
+
         server = register(KaboomServerConfig::new, ModConfig.Type.SERVER);
 
         for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet())
-            context.registerConfig(pair.getKey(), pair.getValue().specification);
+            container.registerConfig(pair.getKey(), pair.getValue().specification);
     }
 
     @SubscribeEvent
@@ -72,7 +71,7 @@ public class KaboomConfig {
                 config.onReload();
     }
 
-    public static BaseConfigScreen createConfigScreen(Minecraft mc, Screen parent) {
+    public static BaseConfigScreen createConfigScreen(ModContainer container, Screen parent) {
         BaseConfigScreen.setDefaultActionFor(CreateKaboom.MODID, (base) -> base
                 .withSpecs(null,
                         null,

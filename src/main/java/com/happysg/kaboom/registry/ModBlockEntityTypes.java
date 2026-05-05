@@ -11,16 +11,27 @@ import com.tterrag.registrate.util.entry.BlockEntityEntry;
 
 import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 
-
 public class ModBlockEntityTypes {
 
     public static final BlockEntityEntry<AerialBombBlockEntity> AERIAL_BOMB = REGISTRATE
             .blockEntity("aerial_bomb", AerialBombBlockEntity::new)
-            .validBlocks(ModBlocks.HEAVY_AERIAL_BOMB)
+            .validBlocks(
+                    ModBlocks.HEAVY_AERIAL_BOMB,
+                    ModBlocks.AP_HEAVY_AERIAL_BOMB,
+                    ModBlocks.CLUSTER_HEAVY_AERIAL_BOMB,
+                    ModBlocks.FRAG_HEAVY_AERIAL_BOMB,
+                    ModBlocks.SMALL_AERIAL_BOMB,
+                    ModBlocks.AP_AERIAL_BOMB,
+                    ModBlocks.FRAG_AERIAL_BOMB,
+                    ModBlocks.TINY_AERIAL_BOMB
+            )
             .register();
     public static final BlockEntityEntry<FluidAerialBombBlockEntity> FLUID_AERIAL_BOMB_BE =
             REGISTRATE.blockEntity("fluid_aerial_bomb", FluidAerialBombBlockEntity::new)
-                    .validBlocks(ModBlocks.FLUID_AERIAL_BOMB)
+                    .validBlocks(
+                            ModBlocks.FLUID_AERIAL_BOMB,
+                            ModBlocks.SMALL_FLUID_AERIAL_BOMB
+                    )
                     .register();
 
     public static final BlockEntityEntry<ThrusterBlockEntity> MISSILE_THRUSTER_BE =
@@ -35,7 +46,8 @@ public class ModBlockEntityTypes {
             REGISTRATE.blockEntity("small_tank", MissileFuelTankBlockEntity::new)
                     .validBlocks(
                             ModBlocks.MISSILE_FUEL,
-                            ModBlocks.MISSILE_FUEL_SMALL
+                            ModBlocks.MISSILE_FUEL_SMALL,
+                            ModBlocks.MISSILE_FUEL_HUGE
                     )
                     .register();
 
@@ -43,7 +55,8 @@ public class ModBlockEntityTypes {
             REGISTRATE.blockEntity("gps_guidance_be",GPSGuidanceBlockEntity::new)
                     .validBlocks(
                             ModBlocks.GPS_GUIDANCE_SMALL,
-                            ModBlocks.GPS_GUIDANCE_LARGE
+                            ModBlocks.GPS_GUIDANCE_LARGE,
+                            ModBlocks.GPS_GUIDANCE_HUGE
                     )
                     .register();
     public static final BlockEntityEntry<HeatseekerGuidanceBlockEntity> HEATSEEKER_GUIDANCE =

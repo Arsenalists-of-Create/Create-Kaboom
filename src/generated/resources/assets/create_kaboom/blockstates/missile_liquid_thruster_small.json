@@ -1,28 +1,30 @@
 {
   "variants": {
-    "facing=north": {
+    "facing=down": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
-      "x": 270
+      "x": 180
     },
     "facing=east": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
-      "y": 90
+      "x": 90,
+      "y": 270
+    },
+    "facing=north": {
+      "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
+      "x": 90,
+      "y": 180
     },
     "facing=south": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
-      "y": 180
-    },
-    "facing=west": {
-      "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
-      "y": 270
+      "x": 90
     },
     "facing=up": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_thruster"
-
     },
-    "facing=down": {
+    "facing=west": {
       "model": "create_kaboom:block/missile/small_liquid_fuel_thruster",
-      "x": 90
+      "x": 90,
+      "y": 90
     }
   }
 }

@@ -25,6 +25,6 @@ submit a pull request on our [GitHub repository](https://github.com/Arsenalists-
 
 ## License
 
-The code is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+The code is released under a custom source-available license. See the LICENSE file for details.
 
 Enjoy playing with Create Kaboom!

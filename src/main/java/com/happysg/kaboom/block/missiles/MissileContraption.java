@@ -3,11 +3,11 @@ package com.happysg.kaboom.block.missiles;
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
-import com.mojang.logging.LogUtils;
 
 import com.simibubi.create.content.contraptions.mounted.MountedContraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -15,14 +15,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.fluids.FluidStack;
-import org.slf4j.Logger;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import javax.annotation.Nullable;
 
 public class MissileContraption extends MountedContraption {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
     public BlockState warheadState;
     public BlockPos controllerWorldPos = BlockPos.ZERO;
     private BlockPos startPos;
@@ -37,9 +35,7 @@ public class MissileContraption extends MountedContraption {
     @Nullable
     public CompoundTag guidanceTag = null;
     @Nullable
-    public CompoundTag chainSystemTag = null; // serialized ChainSystem data, synced from MissileEntity
-
-
+    public CompoundTag chainSystemTag = null;
 
     public void captureFromScan(Level level, MissileAssemblyResult result) {
         this.controllerWorldPos = result.getControllerPos();
@@ -49,18 +45,15 @@ public class MissileContraption extends MountedContraption {
             BlockState state = level.getBlockState(worldPos);
             BlockEntity be = level.getBlockEntity(worldPos);
 
-
             if (guidanceTag == null || guidanceTag.isEmpty()) {
                 if (be instanceof IMissileGuidanceProvider provider) {
-                    guidanceTag = provider.exportGuidance().toTag();   // <-- correct format
-                    LOGGER.warn("[MISSILE CAPTURE] captured guidance via provider: {}", guidanceTag);
-                } else if (state.getBlock() instanceof IMissileComponent part && part.isGuidance()) {
-                    guidanceTag = be.saveWithoutMetadata();
-                    LOGGER.warn("[MISSILE CAPTURE] captured guidance via BE raw tag: {}", guidanceTag);
+                    guidanceTag = provider.exportGuidance().toTag();
+                } else if (be != null && state.getBlock() instanceof IMissileComponent part && part.isGuidance()) {
+                    guidanceTag = be.saveWithoutMetadata(level.registryAccess());
                 }
             }
 
-            CompoundTag tag = be != null ? be.saveWithFullMetadata() : null;
+            CompoundTag tag = be != null ? be.saveWithFullMetadata(level.registryAccess()) : null;
 
             BlockPos localPos = worldPos.subtract(controllerWorldPos);
             this.getBlocks().put(localPos, new StructureBlockInfo(localPos, state, tag));
@@ -74,9 +67,8 @@ public class MissileContraption extends MountedContraption {
         }
         this.capLocalPos = best;
         this.endLocalPos = best;
-        this.initialOrientation = Direction.UP; // Direction
+        this.initialOrientation = Direction.UP;
         this.bounds = computeAabbFromLocalBlocks();
-        LOGGER.warn("[MISSILE] captured blocks={} bounds={}", this.getBlocks().size(), this.bounds);
     }
 
     private AABB computeAabbFromLocalBlocks() {
@@ -101,25 +93,21 @@ public class MissileContraption extends MountedContraption {
             int amt = part.getFuelMb(beTag);
             fuelAmountMb += amt;
 
-            FluidStack fs = part.getFuelFluid(beTag);
+            FluidStack fs = part.getFuelFluid(beTag, level.registryAccess());
             if (!fs.isEmpty() && chosen.isEmpty()) chosen = fs.copy();
         }
 
         if (!chosen.isEmpty()) {
-            CompoundTag t = new CompoundTag();
-            chosen.writeToNBT(t);
-            fuelFluidTag = t;
+            fuelFluidTag = (CompoundTag) chosen.saveOptional(level.registryAccess());
         }
-
-        LOGGER.warn("[MISSILE FUEL] total={} cap={}", fuelAmountMb, fuelCapacityMb);
     }
     @Override
-    public CompoundTag writeNBT(boolean clientData) {
+    public CompoundTag writeNBT(HolderLookup.Provider registries, boolean clientData) {
         if (this.anchor == null) this.anchor = BlockPos.ZERO;
         if (this.startPos == null) this.startPos = BlockPos.ZERO;
         if (this.initialOrientation == null) this.initialOrientation = Direction.UP;
 
-        CompoundTag tag = super.writeNBT(clientData);
+        CompoundTag tag = super.writeNBT(registries, clientData);
 
         tag.putInt("kaboom:FuelAmountMb", fuelAmountMb);
         tag.putInt("kaboom:FuelCapacityMb", fuelCapacityMb);
@@ -165,7 +153,7 @@ public class MissileContraption extends MountedContraption {
         } else {
             guidanceTargetPoint = null;
         }
-        // readNBT
+
         guidanceTag = tag.contains("Guidance") ? tag.getCompound("Guidance") : null;
         chainSystemTag = tag.contains("kaboom:ChainSystem") ? tag.getCompound("kaboom:ChainSystem") : null;
     }

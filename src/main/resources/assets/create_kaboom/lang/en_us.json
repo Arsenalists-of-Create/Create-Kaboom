@@ -26,11 +26,16 @@
 
   "block.create_kaboom.fluid_aerial_bomb": "Fluid Aerial Bomb",
   "block.create_kaboom.missile_solid_thruster": "Solid Fuel Thruster",
+  "block.create_kaboom.missile_liquid_thruster_large": "Large Liquid Fuel Thruster",
   "block.create_kaboom.missile_liquid_thruster_small": "Small Liquid Fuel Thruster",
+  "block.create_kaboom.missile_liquid_thruster_huge": "Huge Liquid Fuel Thruster",
   "block.create_kaboom.missile_liquid_fuel_small": "Small Liquid Fuel Tank",
   "block.create_kaboom.missile_liquid_fuel_large": "Large Liquid Fuel Tank",
+  "block.create_kaboom.missile_liquid_fuel_huge": "Huge Liquid Fuel Tank",
   "block.create_kaboom.missile_guidance_large": "Large Guidance Unit",
   "block.create_kaboom.gps_guidance_small": "Small Inertial Guidance Unit",
   "block.create_kaboom.gps_guidance_large": "Large Inertial Guidance Unit",
-  "block.create_kaboom.heatseeker_small": "Small Heatseeker Unit"
+  "block.create_kaboom.gps_guidance_huge": "Huge Inertial Guidance Unit",
+  "block.create_kaboom.heatseeker_small": "Small Heatseeker Unit",
+  "entity.create_kaboom.cluster_bomblet": "Cluster Bomblet"
 }

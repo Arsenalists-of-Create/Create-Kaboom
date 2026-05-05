@@ -9,7 +9,6 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-
 public class MissileRenderer extends ContraptionEntityRenderer<MissileEntity> {
 
     public MissileRenderer(EntityRendererProvider.Context ctx) {
@@ -26,13 +25,11 @@ public class MissileRenderer extends ContraptionEntityRenderer<MissileEntity> {
 
         poseStack.pushPose();
 
-        // Use synced delta movement
         Vec3 v = entity.getDeltaMovement();
         if (v.lengthSqr() < 1e-10) {
             v = new Vec3(0, 1, 0);
         }
 
-        // Build quaternion rotating +Y -> velocity direction
         Vector3f fromUp = new Vector3f(1, 0, 0);
         Vector3f toDir = new Vector3f((float) v.x, (float) v.y, (float) v.z);
         if (toDir.lengthSquared() < 1e-12f) {
@@ -43,7 +40,6 @@ public class MissileRenderer extends ContraptionEntityRenderer<MissileEntity> {
 
         Quaternionf rotation = new Quaternionf().rotationTo(fromUp, toDir);
 
-        // Rotate about contraption center
         poseStack.translate(0.5, 0.0, 0.5);
         poseStack.mulPose(rotation);
         poseStack.translate(-0.5, 0.0, -0.5);

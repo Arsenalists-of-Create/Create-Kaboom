@@ -1,13 +1,20 @@
 package com.happysg.kaboom.block.missiles.util;
 
+import com.happysg.kaboom.CreateKaboom;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
-
-public class PreciseMotionSyncPacket {
+public class PreciseMotionSyncPacket implements CustomPacketPayload {
+    public static final Type<PreciseMotionSyncPacket> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "precise_motion"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, PreciseMotionSyncPacket> STREAM_CODEC =
+            StreamCodec.ofMember(PreciseMotionSyncPacket::encode, PreciseMotionSyncPacket::decode);
 
     private final int entityId;
     private final double x, y, z;
@@ -60,15 +67,19 @@ public class PreciseMotionSyncPacket {
         );
     }
 
-    public static void handle(PreciseMotionSyncPacket pkt, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
+    public static void handle(PreciseMotionSyncPacket pkt, IPayloadContext ctx) {
+        ctx.enqueueWork(() -> {
             Entity entity = Minecraft.getInstance().level.getEntity(pkt.entityId);
             if (entity != null) {
-                entity.lerpTo(pkt.x, pkt.y, pkt.z, pkt.yRot, pkt.xRot, pkt.lerpSteps, false);
+                entity.lerpTo(pkt.x, pkt.y, pkt.z, pkt.yRot, pkt.xRot, pkt.lerpSteps);
                 entity.lerpMotion(pkt.dx, pkt.dy, pkt.dz);
                 entity.setOnGround(pkt.onGround);
             }
         });
-        ctx.get().setPacketHandled(true);
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

@@ -86,10 +86,6 @@ public class ChainLink {
         this.targetEntityId = targetEntityId;
     }
 
-    /**
-     * Reduces HP by breakForce / totalChainsOnMob.
-     * @return true if the chain broke (HP <= 0)
-     */
     public boolean tickStrain(float breakForce, int totalChainsOnMob) {
         if (totalChainsOnMob <= 0) totalChainsOnMob = 1;
         hp -= breakForce / totalChainsOnMob;
