@@ -10,7 +10,6 @@ base {
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version)
-    withSourcesJar()
 }
 
 repositories {
@@ -57,11 +56,12 @@ repositories {
 
 neoForge {
     version = neoforge_version
+    def modId = project.property('mod_id').toString()
 
     runs {
         configureEach {
             gameDirectory = file('runs')
-            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            systemProperty 'neoforge.enabledGameTestNamespaces', modId
         }
         client {
             client()
@@ -71,14 +71,14 @@ neoForge {
         }
         data {
             data()
-            programArguments.addAll '--mod', mod_id, '--all',
+            programArguments.addAll '--mod', modId, '--all',
                     '--output', file('src/generated/resources/').absolutePath,
                     '--existing', file('src/main/resources/').absolutePath
         }
     }
 
     mods {
-        "${mod_id}" {
+        "${modId}" {
             sourceSet sourceSets.main
         }
     }
@@ -149,10 +149,6 @@ tasks.named('jar', Jar).configure {
                 'MixinConfigs'            : 'create_kaboom.mixins.json'
         ])
     }
-}
-
-tasks.named('sourcesJar', Jar).configure {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.withType(JavaCompile).configureEach {
