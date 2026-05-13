@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.neoforged.neoforge.common.util.FakePlayer;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
 
@@ -129,13 +130,24 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        boolean crouch = context.getPlayer() != null && context.getPlayer().isCrouching();
-
         return this.defaultBlockState()
-                .setValue(FACING, crouch ?
-                        context.getHorizontalDirection().getOpposite() : context.getHorizontalDirection())
+                .setValue(FACING, getPlacementFacing(context))
                 .setValue(FUZED, false)
                 .setValue(POWERED, false);
+    }
+
+    private Direction getPlacementFacing(BlockPlaceContext context) {
+        Player player = context.getPlayer();
+
+        if (player instanceof FakePlayer) {
+            Direction clickedFace = context.getClickedFace();
+            return clickedFace.getAxis() == Direction.Axis.Y
+                    ? defaultBlockState().getValue(FACING)
+                    : clickedFace.getOpposite();
+        }
+
+        Direction facing = context.getHorizontalDirection();
+        return player != null && player.isCrouching() ? facing.getOpposite() : facing;
     }
 
     @Override
