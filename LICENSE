@@ -1,21 +1,193 @@
-MIT License
+Arsenalists-of-Create Source-Available License
 
-Copyright (c) 2024
+Copyright (c) 2026  CeoOfGoogle1 and Arsenalists-of-Create Team
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, including its source code, compiled files, assets, models,
+textures, sounds, documentation, and other associated files, is protected by
+copyright. All rights are reserved except as expressly granted below.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Definitions
+
+"Software" means this mod and all files distributed with it, including source
+code, compiled code, assets, models, textures, sounds, documentation, and other
+associated materials.
+
+"Official Version" means a version of the Software published by the copyright
+holder or by a person or organization explicitly authorized by the copyright
+holder.
+
+"Addon" means a separate mod, plugin, datapack, integration, or other software
+project that adds features, compatibility, content, or behavior for use with the
+Software, without including, redistributing, replacing, or modifying the Software
+itself.
+
+"Hard Dependency" means that the Addon requires the Software to be installed in
+order to load, run, or provide its primary functionality.
+
+"Support Mod" means a separate mod, plugin, datapack, integration, or other
+software project that optionally supports or detects the Software, but does not
+require the Software to be installed"
+
+"Port" means any distributed version, fork, adaptation, update, or modified build
+of the Software itself that targets a different Minecraft version, mod loader,
+modding platform, required dependency version, or substantially different runtime
+environment than an Official Version.
+
+2. Permission to Use
+
+You may download, install, and use official copies of the Software for personal,
+server, and modpack use, subject to the terms of this license.
+
+3. Permission to View, Study, and Privately Modify
+
+You may view, study, and reference the source code and other files of the
+Software for personal education, debugging, review, compatibility research, and
+contribution purposes.
+
+You may make private modifications to the Software for personal use, provided
+that those modified versions are not published, distributed, shared, uploaded, or
+otherwise made available to others except as expressly permitted by this license.
+
+4. Addons Are Allowed
+
+You may create, publish, and distribute Addons for the Software, provided that:
+
+a. the Addon includes the Software as a Hard Dependency;
+b. the Addon does not include, redistribute, replace, or modify the Software or
+   any substantial portion of the Software;
+c. the Addon does not copy protected source code, compiled code, assets, models,
+   textures, sounds, branding, or documentation from the Software, except where
+   separately permitted;
+d. the Addon does not claim to be an official version of the Software unless
+   explicitly authorized;
+e. the Addon does not use confusingly similar names, branding, logos, or project
+   descriptions that could cause users to believe it is official or endorsed
+   when it is not.
+
+For clarity, Addons are expressly allowed under this license. An Addon may depend
+on, interact with, extend, integrate with, or add functionality to the Software,
+as long as it remains a separate project and requires an Official Version of the
+Software to be installed.
+
+For further clarity, Addons may interact with the Software at runtime, including
+through public APIs, events, registries, tags, datapacks, reflection, mixins,
+access transformers, or other compatibility mechanisms, provided that the Addon
+does not include, redistribute, replace, or distribute a modified copy of the
+Software or any substantial portion of it.
+
+5. Optional Support Mods
+
+A Support Mod that merely detects, supports, integrates with, or provides
+optional compatibility for the Software does not need to treat the Software as a
+Hard Dependency, provided that it does not include, redistribute, replace, or
+modify the Software or any substantial portion of the Software.
+
+For clarity, mods that simply support this mod optionally are allowed and are not
+required to include this mod as a hard dependency.
+
+A Support Mod may detect, reference, or interact with the Software at runtime for
+optional compatibility, provided that it remains functional without the Software
+installed and does not include, redistribute, replace, or distribute a modified
+copy of the Software or any substantial portion of it.
+
+6. Unauthorized Ports Are Prohibited
+
+You may not publish, distribute, sublicense, upload, or otherwise make available
+any Port of the Software without prior written permission from the copyright
+holder.
+
+This includes, but is not limited to:
+
+a. ports to different Minecraft versions;
+b. ports to different mod loaders, including but not limited to Forge, NeoForge,
+   Fabric, Quilt, or other loaders;
+c. ports to different required versions of dependency mods or libraries;
+d. forks or modified builds that are distributed as replacements for the
+   Software;
+e. reuploads that change only minor details, names, metadata, packaging, or
+   compatibility information;
+f. unofficial continuation, backport, forward-port, or maintenance versions.
+
+Private modification for personal use remains allowed as described in Section 3.
+
+7. Redistribution and Modpacks
+
+You may not redistribute the Software, modified or unmodified, except as
+expressly permitted by this license or by prior written permission from the
+copyright holder.
+
+You may include official, unmodified copies of the Software in modpacks,
+including public and private modpacks, provided that:
+
+a. the modpack does not modify the Software itself, including its source code,
+   compiled files, assets, models, textures, sounds, or packaged metadata;
+b. the modpack does not represent itself as an official version of the Software;
+c. the modpack does not imply endorsement by the copyright holder unless
+   explicitly authorized;
+d. the modpack credits the Software by name and links to an official distribution
+   source where reasonably practical.
+
+You may not include modified, forked, reuploaded, or unofficial ported versions
+of the Software in modpacks without prior written permission from the copyright
+holder.
+
+For clarity, modpacks may include, generate, or modify external configuration
+files, server configuration files, datapacks, scripts, kubejs/crafttweaker files,
+or other modpack-specific files that configure or interact with the Software,
+provided that they do not modify, replace, or redistribute a modified copy of the
+Software itself.
+
+8. No False Affiliation
+
+You may not represent an Addon, Support Mod, fork, port, reupload, or other
+project as official, endorsed, approved, or maintained by the copyright holder
+unless you have prior written permission.
+
+9. Contributions
+
+By submitting a contribution, you retain your copyright but grant the project maintainers
+permission to use, modify, distribute, and sublicense that contribution as part of the Software.
+
+Unless otherwise agreed in writing, contributions may be included in the
+Software under this license or any future license chosen by the copyright
+holder.
+
+10: Contact
+
+Permission requests, including porting requests, must be made through the official project
+repository, issue tracker, Discord server, or another official contact method designated
+by the project maintainers.
+
+11. Reservation of Rights
+
+All rights not expressly granted by this license are reserved by the copyright
+holder.
+
+12. Termination
+
+If you violate any term of this license, the permissions granted to you under
+this license terminate automatically.
+
+Upon termination, you must stop using, copying, modifying, publishing,
+distributing, sublicensing, or otherwise making available the Software in any
+way not independently permitted by law or separately authorized in writing by
+the copyright holder.
+
+Termination does not affect any rights or remedies available to the copyright
+holder under copyright law, contract law, or other applicable law.
+
+The copyright holder may reinstate permissions under this license by providing
+written permission. Reinstatement is not automatic unless expressly stated in
+writing.
+
+If the violation is curable, the copyright holder may, but is not required to,
+provide notice and an opportunity to cure the violation.
+
+13. No Warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
