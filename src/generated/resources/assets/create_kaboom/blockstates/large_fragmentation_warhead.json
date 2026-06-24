@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "create_kaboom:block/missile/medium_fragmentation_warhead",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "create_kaboom:block/missile/medium_fragmentation_warhead"
+    },
+    "axis=z": {
+      "model": "create_kaboom:block/missile/medium_fragmentation_warhead",
+      "x": 90
+    }
+  }
+}

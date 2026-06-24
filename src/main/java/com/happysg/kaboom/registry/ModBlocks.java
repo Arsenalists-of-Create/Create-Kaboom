@@ -13,10 +13,14 @@ import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
+import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlock;
+import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlock;
-import com.happysg.kaboom.block.missiles.parts.guidance.heatseeker.HeatseekerGuidanceBlock;
+import com.happysg.kaboom.block.missiles.parts.warhead.AbstractMissileWarhead;
+import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlock;
+import com.happysg.radar.compat.Mods;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.builders.BlockBuilder;
@@ -72,13 +76,12 @@ public class ModBlocks {
                 .blockstate((c, p) ->
                         p.getVariantBuilder(c.get())
                                 .forAllStates(state -> {
-                                    String fuze = state.getValue(AerialBombBlock.FUZED) ? "fuzed_" : "";
                                     Direction facing = state.getValue(AerialBombBlock.FACING);
                                     int count = state.getValue(AerialBombBlock.COUNT);
 
                                     return ConfiguredModel.builder()
                                             .modelFile(p.models().getExistingFile(
-                                                    CreateKaboom.asResource("block/" + bombModelPath(c.getName(), fuze, count))
+                                                    CreateKaboom.asResource("block/" + bombModelPath(c.getName(), "", count))
                                             ))
                                             .rotationY(((int) facing.toYRot() + 180) % 360)
                                             .build();
@@ -204,24 +207,126 @@ public class ModBlocks {
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
                     .blockstate((ctx, prov) -> {
-                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_inertial_guidance"));
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/huge_inertial_guidance"));
                         prov.axisBlock(ctx.getEntry(), model, model);
                     })
                     .item()
                     .model((ctx, p) -> p.withExistingParent(ctx.getName(),
-                            CreateKaboom.asResource("block/missile/medium_inertial_guidance")))
+                            CreateKaboom.asResource("block/missile/huge_inertial_guidance")))
                     .build()
                     .register();
-    public static final BlockEntry<HeatseekerGuidanceBlock> HEATSEEKER_SMALL=
-            REGISTRATE.block("heatseeker_small", HeatseekerGuidanceBlock::new)
+
+    public static final BlockEntry<CommandGuidanceBlock> COMMAND_GUIDANCE_SMALL =
+            REGISTRATE.block("command_guidance_small", CommandGuidanceBlock::new)
                     .properties(BlockBehaviour.Properties::noOcclusion)
                     .initialProperties(SharedProperties::softMetal)
-                    .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                            .getExistingFile(CreateKaboom.asResource("block/missile/small_heat_seeker")), 0))
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/small_command_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
                     .item()
                     .model((ctx, p) -> p.withExistingParent(ctx.getName(),
-                            CreateKaboom.asResource("block/missile/small_heat_seeker")))
+                            CreateKaboom.asResource("block/missile/small_command_guidance")))
                     .build()
                     .register();
+    public static final BlockEntry<CommandGuidanceBlock> COMMAND_GUIDANCE_LARGE =
+            REGISTRATE.block("command_guidance_large", CommandGuidanceBlock::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_command_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/medium_command_guidance")))
+                    .build()
+                    .register();
+    public static final BlockEntry<RadarGuidanceBlock> RADAR_GUIDANCE_SMALL =
+            REGISTRATE.block("radar_guidance_small", RadarGuidanceBlock::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<RadarGuidanceBlock> RADAR_GUIDANCE_LARGE =
+            REGISTRATE.block("radar_guidance_large", RadarGuidanceBlock::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<TargetCoordinatorBlock> TARGET_COORDINATOR =
+            REGISTRATE.block("target_coordinator",TargetCoordinatorBlock::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+
+
+
+
+
+    public static final BlockEntry<AbstractMissileWarhead> HUGE_CLUSTER_WARHEAD =
+            REGISTRATE.block("huge_cluster_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> LARGE_CLUSTER_WARHEAD =
+            REGISTRATE.block("large_cluster_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> HUGE_FLUID_WARHEAD =
+            REGISTRATE.block("huge_fluid_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> LARGE_FLUID_WARHEAD =
+            REGISTRATE.block("large_fluid_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> HUGE_HIGH_EXPLOSIVE_WARHEAD =
+            REGISTRATE.block("huge_high_explosive_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> LARGE_HIGH_EXPLOSIVE_WARHEAD =
+            REGISTRATE.block("large_high_explosive_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> HUGE_FRAGMENTATION_WARHEAD =
+            REGISTRATE.block("huge_fragmentation_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> LARGE_FRAGMENTATION_WARHEAD =
+            REGISTRATE.block("large_fragmentation_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> HUGE_ARMOR_PIERCING_WARHEAD =
+            REGISTRATE.block("huge_armor_piercing_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<AbstractMissileWarhead> LARGE_ARMOR_PIERCING_WARHEAD =
+            REGISTRATE.block("large_armor_piercing_warhead", AbstractMissileWarhead::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .simpleItem()
+                    .register();
+
+
+
 
 }

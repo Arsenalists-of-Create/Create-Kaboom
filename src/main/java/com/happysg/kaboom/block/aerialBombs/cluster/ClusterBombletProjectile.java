@@ -306,7 +306,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2,2, Explosion.BlockInteraction.KEEP);
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
@@ -335,7 +335,7 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
                 this,
                 this.indirectArtilleryFire(false),
                 pos.x(), pos.y(), pos.z(),
-                pwr,
+                pwr,pwr,
                 causesFire,
                 CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
         );

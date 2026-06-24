@@ -1,6 +1,6 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
-import com.happysg.kaboom.compat.vs2.VS2Utils;
+import com.happysg.kaboom.compat.sable.SableUtils;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.content.fluids.transfer.GenericItemFilling;
@@ -63,13 +63,13 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    public void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.put("FluidContent", tank.writeToNBT(registries, new CompoundTag()));
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+    public void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         tank.readFromNBT(registries, tag.getCompound("FluidContent"));
 
@@ -179,8 +179,8 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         AerialBombProjectile projectile = createConfiguredProjectile(state);
         if (projectile == null) return;
 
-        projectile.setPos(VS2Utils.getWorldPos(this).below().getCenter());
-        Vector3dc shipVel = VS2Utils.getVelocity(level,this.worldPosition);
+        projectile.setPos(worldPosition.below().getCenter());
+        Vector3dc shipVel = SableUtils.getVelocity(level,this.worldPosition);
         if(shipVel != null) {
             projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
         }
@@ -188,8 +188,12 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         level.addFreshEntity(projectile);
 
         int count = state.getValue(FluidAerialBombBlock.COUNT);
+        consumeLaunchedFuze(state);
         if (count > 1) {
-            level.setBlock(worldPosition, state.setValue(FluidAerialBombBlock.COUNT, count - 1), 3);
+            level.setBlock(worldPosition, state
+                    .setValue(FluidAerialBombBlock.COUNT, count - 1)
+                    .setValue(FluidAerialBombBlock.FUZED, hasAnyFuze()), 3);
+            notifyUpdate();
         } else {
             level.destroyBlock(worldPosition, false);
         }

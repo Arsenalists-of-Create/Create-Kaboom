@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "create_kaboom:block/targeting_computer",
+      "x": 90
+    },
+    "facing=east": {
+      "model": "create_kaboom:block/targeting_computer",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "create_kaboom:block/targeting_computer",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "create_kaboom:block/targeting_computer",
+      "y": 180
+    },
+    "facing=up": {
+      "model": "create_kaboom:block/targeting_computer",
+      "x": 270
+    },
+    "facing=west": {
+      "model": "create_kaboom:block/targeting_computer",
+      "y": 270
+    }
+  }
+}

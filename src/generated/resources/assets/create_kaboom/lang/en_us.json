@@ -3,6 +3,8 @@
   "block.create_kaboom.ap_aerial_bomb": "Ap Aerial Bomb",
   "block.create_kaboom.ap_heavy_aerial_bomb": "Ap Heavy Aerial Bomb",
   "block.create_kaboom.cluster_heavy_aerial_bomb": "Cluster Heavy Aerial Bomb",
+  "block.create_kaboom.command_guidance_large": "Command Guidance Large",
+  "block.create_kaboom.command_guidance_small": "Command Guidance Small",
   "block.create_kaboom.fluid_aerial_bomb": "Fluid Aerial Bomb",
   "block.create_kaboom.fluid_heavy_aerial_bomb": "Fluid Heavy Aerial Bomb",
   "block.create_kaboom.frag_aerial_bomb": "Frag Aerial Bomb",

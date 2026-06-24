@@ -28,6 +28,7 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
     }
     private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
     private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
+    private static final VoxelShape LARGE = Block.box(-6,0,-6,22,16,22);
 
     @Override
     protected MapCodec<? extends DirectionalBlock> codec() {
@@ -36,12 +37,16 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.MISSILE_THRUSTER_SMALL.get() ? SMALL : FULL;
+        if(this == ModBlocks.MISSILE_THRUSTER_SMALL.get()) return SMALL;
+        if(this == ModBlocks.MISSILE_THRUSTER.get()) return FULL;
+        return LARGE;
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) {
-        return this == ModBlocks.MISSILE_THRUSTER_SMALL.get() ? SMALL : FULL;
+        if(this == ModBlocks.MISSILE_THRUSTER_SMALL.get()) return SMALL;
+        if(this == ModBlocks.MISSILE_THRUSTER.get()) return FULL;
+        return LARGE;
     }
 
     public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos fromPos, boolean isMoving) {

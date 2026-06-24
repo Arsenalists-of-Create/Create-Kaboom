@@ -2,8 +2,8 @@
   "format_version": "1.21.11",
   "credit": "Made with Blockbench",
   "textures": {
-    "0": "create_kaboom:block/medium_solid_fuel_tank",
-    "1": "create_kaboom:block/medium_missile_part_top",
+    "0": "create_kaboom:block/medium_radar_seeker",
+    "1": "create_kaboom:block/medium_radar_seeker_top",
     "particle": "create_kaboom:block/medium_solid_fuel_tank"
   },
   "elements": [

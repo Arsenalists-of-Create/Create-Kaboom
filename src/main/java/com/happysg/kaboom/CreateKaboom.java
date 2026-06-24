@@ -4,6 +4,7 @@ import com.happysg.kaboom.client.CreateKaboomClient;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
+import com.happysg.kaboom.events.CommandGuidanceInteractionHandler;
 import com.happysg.kaboom.networking.NetworkHandler;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
@@ -44,6 +45,7 @@ public class CreateKaboom {
         LOGGER.info("Initializing Create Kaboom");
         NeoForge.EVENT_BUS.register(new ChainInteractionHandler());
         NeoForge.EVENT_BUS.register(new ChainTickHandler());
+        NeoForge.EVENT_BUS.register(new CommandGuidanceInteractionHandler());
         REGISTRATE.defaultCreativeTab((ResourceKey<CreativeModeTab>) null);
         REGISTRATE.registerEventListeners(modEventBus);
 

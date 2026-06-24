@@ -15,7 +15,9 @@ public enum Mods {
     VS_CLOCKWORK,
     CREATE_RADAR,
     COMPUTERCRAFT,
-    CREATEBIGCANNONS;
+    CREATEBIGCANNONS,
+    SABLE,
+    SIMULATED;
 
     private final String id;
 

@@ -4,9 +4,13 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlockEntity;
-import com.happysg.kaboom.block.missiles.parts.guidance.heatseeker.HeatseekerGuidanceBlockEntity;
+import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlock;
+import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlockEntity;
+import com.simibubi.create.content.logistics.tableCloth.TableClothBlockEntity;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
 
 import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
@@ -59,11 +63,24 @@ public class ModBlockEntityTypes {
                             ModBlocks.GPS_GUIDANCE_HUGE
                     )
                     .register();
-    public static final BlockEntityEntry<HeatseekerGuidanceBlockEntity> HEATSEEKER_GUIDANCE =
-            REGISTRATE.blockEntity("heat_seeker_be",HeatseekerGuidanceBlockEntity::new)
+
+    public static final BlockEntityEntry<RadarGuidanceBlockEntity>RADAR_GUIDANCE =
+            REGISTRATE.blockEntity("radar_guidance_be",RadarGuidanceBlockEntity::new)
                     .validBlocks(
-                            ModBlocks.HEATSEEKER_SMALL
+                            ModBlocks.RADAR_GUIDANCE_SMALL,
+                            ModBlocks.RADAR_GUIDANCE_LARGE
                     )
+                    .register();
+    public static final BlockEntityEntry<CommandGuidanceBlockEntity>COMMAND_GUIDANCE =
+            REGISTRATE.blockEntity("command_guidance_be",CommandGuidanceBlockEntity::new)
+                    .validBlocks(
+                            ModBlocks.COMMAND_GUIDANCE_SMALL,
+                            ModBlocks.COMMAND_GUIDANCE_LARGE
+                    )
+                    .register();
+    public static final BlockEntityEntry<TargetCoordinatorBlockEntity> TARGET_COORDINATOR_BE =
+            REGISTRATE.blockEntity("target_coordinator_be", TargetCoordinatorBlockEntity::new)
+                    .validBlocks(ModBlocks.TARGET_COORDINATOR)
                     .register();
 
     public static void register() {

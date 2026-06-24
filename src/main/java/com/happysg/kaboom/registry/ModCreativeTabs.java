@@ -1,6 +1,7 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.compat.Mods;
 import com.simibubi.create.AllCreativeModeTabs;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -44,13 +45,36 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.SMALL_FLUID_AERIAL_BOMB);
         pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
 
+        pOutput.accept(ModBlocks.MISSILE_THRUSTER_SMALL);
+        pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
         pOutput.accept(ModBlocks.MISSILE_THRUSTER);
         pOutput.accept(ModBlocks.MISSILE_FUEL);
+        pOutput.accept(ModBlocks.MISSILE_THRUSTER_HUGE);
+        pOutput.accept(ModBlocks.MISSILE_FUEL_HUGE);
+
         pOutput.accept(ModBlocks.GPS_GUIDANCE_LARGE);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_SMALL);
-        pOutput.accept(ModBlocks.MISSILE_THRUSTER_SMALL);
-        pOutput.accept(ModBlocks.HEATSEEKER_SMALL);
-        pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
+
+
+
+        pOutput.accept(ModBlocks.LARGE_CLUSTER_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_HIGH_EXPLOSIVE_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_FRAGMENTATION_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_FLUID_WARHEAD);
+
+        pOutput.accept(ModBlocks.HUGE_CLUSTER_WARHEAD);
+        pOutput.accept(ModBlocks.HUGE_HIGH_EXPLOSIVE_WARHEAD);
+        pOutput.accept(ModBlocks.HUGE_FRAGMENTATION_WARHEAD);
+        pOutput.accept(ModBlocks.HUGE_FLUID_WARHEAD);
+
+
+        if(Mods.CREATE_RADAR.isLoaded()) {
+            pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
+            pOutput.accept(ModBlocks.RADAR_GUIDANCE_SMALL);
+            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
+            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
+            pOutput.accept(ModBlocks.TARGET_COORDINATOR);
+        }
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
     }

@@ -242,7 +242,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2,2, Explosion.BlockInteraction.KEEP);
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
@@ -340,18 +340,18 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         switch (type) {
             case HE -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size,(float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case AP -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size,(float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case FRAG -> {
                 ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        4.0f / size,
+                        4.0f / size,4.0f / size,
                         false,
                         CBCConfigs.server()
                                 .munitions.damageRestriction.get()
@@ -421,7 +421,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
             }
             case INCENDIARY -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size,20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
                 int fireRadius = 40 / size;
 
@@ -485,7 +485,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        2.5f / size, false,
+                        2.5f / size,2.5f / size, false,
                         CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
                 );
                 CreateBigCannons.handleCustomExplosion(this.level(), explosion);
@@ -498,7 +498,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     Vec3 origin = new Vec3(position.x(), position.y(), position.z());
 
                     boolean detonatedOnImpact = this.onImpact;
-                    ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                    ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10,10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                     CreateBigCannons.handleCustomExplosion(this.level(), explosion);
 
                     int total = 20 + random.nextInt(10);

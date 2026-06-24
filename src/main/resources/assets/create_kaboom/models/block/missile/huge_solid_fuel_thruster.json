@@ -6,10 +6,10 @@
     32
   ],
   "textures": {
-    "0": "huge_solid_fuel_tank",
-    "1": "huge_nozzle",
-    "2": "huge_fins",
-    "particle": "huge_solid_fuel_tank"
+    "0": "create_kaboom:block/huge_solid_fuel_tank",
+    "1": "create_kaboom:block/huge_nozzle",
+    "2": "create_kaboom:block/huge_fins",
+    "particle": "create_kaboom:block/huge_solid_fuel_tank"
   },
   "elements": [
     {
@@ -476,9 +476,9 @@
         0
       ],
       "scale": [
-        0.625,
-        0.625,
-        0.625
+        0.3,
+        0.3,
+        0.3
       ]
     },
     "fixed": {
