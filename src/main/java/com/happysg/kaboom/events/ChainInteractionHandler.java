@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -33,6 +34,7 @@ import javax.annotation.Nullable;
 public class ChainInteractionHandler {
 
     private static final String TAG_LINKING_THRUSTER = "ChainLinkingThruster";
+    private static final float PLAYER_CHAIN_SLACK = 2.0f;
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onWrenchRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
@@ -129,7 +131,7 @@ public class ChainInteractionHandler {
         level.playSound(null, clickedPos.getX(), clickedPos.getY(), clickedPos.getZ(),
                 SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
 
-        player.displayClientMessage(Component.literal("[Chain] Chain started! Click a mob to link."), true);
+        player.displayClientMessage(Component.literal("[Chain] Chain started! Click a mob or player to link."), true);
         chainSystem.populateEntityIds((net.minecraft.server.level.ServerLevel) level);
         thrusterBE.notifyUpdate();
     }
@@ -139,7 +141,8 @@ public class ChainInteractionHandler {
         Player player = event.getEntity();
         Level level = player.level();
 
-        if (!(event.getTarget() instanceof Mob mob)) return;
+        if (!(event.getTarget() instanceof Mob || event.getTarget() instanceof Player)) return;
+        if (!(event.getTarget() instanceof LivingEntity target)) return;
 
         ItemStack held = player.getItemInHand(event.getHand());
         if (!held.is(Items.CHAIN)) return;
@@ -171,7 +174,7 @@ public class ChainInteractionHandler {
         float distance = 1f;
         if (anchor != null) {
             Vec3 anchorWorld = anchor.getWorldPos(thrusterPos);
-            distance = (float) anchorWorld.distanceTo(mob.position());
+            distance = (float) anchorWorld.distanceTo(target.position());
         }
 
         int totalChainsNeeded = Math.max(1, (int) Math.ceil(distance));
@@ -187,10 +190,10 @@ public class ChainInteractionHandler {
             consumeChains(player, additionalChainsNeeded);
         }
 
-        danglingLink.setTargetMobId(mob.getUUID());
-        danglingLink.setTargetEntityId(mob.getId());
+        danglingLink.setTargetMobId(target.getUUID());
+        danglingLink.setTargetEntityId(target.getId());
         danglingLink.setState(ChainLink.State.TETHERED);
-        danglingLink.setMaxLength(distance);
+        danglingLink.setMaxLength(target instanceof Player ? distance + PLAYER_CHAIN_SLACK : distance);
 
         chainSystem.clearActiveLinker();
 
@@ -198,11 +201,11 @@ public class ChainInteractionHandler {
         tag.remove(TAG_LINKING_THRUSTER);
         setCustomTag(held, tag);
 
-        level.playSound(null, mob.getX(), mob.getY(), mob.getZ(),
+        level.playSound(null, target.getX(), target.getY(), target.getZ(),
                 SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 1.0f, 0.8f);
 
         player.displayClientMessage(
-                Component.literal("[Chain] Mob linked! Used " + totalChainsNeeded + " chain(s)."), true);
+                Component.literal("[Chain] Target linked! Used " + totalChainsNeeded + " chain(s)."), true);
         chainSystem.populateEntityIds((net.minecraft.server.level.ServerLevel) level);
         thrusterBE.notifyUpdate();
     }

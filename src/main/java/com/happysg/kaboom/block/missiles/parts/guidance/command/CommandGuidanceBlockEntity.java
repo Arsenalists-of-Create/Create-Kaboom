@@ -1,5 +1,8 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.command;
 
+import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
+import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
+import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -13,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
 
-public class CommandGuidanceBlockEntity extends BlockEntity {
+public class CommandGuidanceBlockEntity extends BlockEntity implements IMissileGuidanceProvider {
     public static final String TAG_NETWORK_CONTROLLER_POS = "NetworkControllerPos";
 
     @Nullable
@@ -44,6 +47,11 @@ public class CommandGuidanceBlockEntity extends BlockEntity {
         CompoundTag tag = new CompoundTag();
         tag.put(TAG_NETWORK_CONTROLLER_POS, NbtUtils.writeBlockPos(pos));
         return tag;
+    }
+
+    @Override
+    public MissileGuidanceData exportGuidance() {
+        return MissileGuidanceData.command(networkControllerPos, MissileFlightProfile.defaults());
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.happysg.kaboom.commands;
 
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.explosion.KaboomExplosionEngine;
+import com.happysg.kaboom.explosion.KaboomExplosionProfile;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -13,10 +14,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-import java.util.Locale;
-
 @EventBusSubscriber(modid = CreateKaboom.MODID)
 public final class KaboomTestCommand {
+
+    private static final float BASE_TEST_YIELD = 8.0F;
+    private static final int BASE_MAX_BLOCK_CHANGES = 80_000;
+    private static final int BASE_MAX_DETACHED_FRAGMENT_BLOCKS = 20_000;
+    private static final double DEFAULT_FORWARD_DISTANCE = 8.0D;
 
     private KaboomTestCommand() {
     }
@@ -28,26 +32,12 @@ public final class KaboomTestCommand {
                         .requires(source -> source.hasPermission(2))
 
                         // /kaboom_test
-                        // Detonates 8 blocks in front of the command user.
                         .executes(context -> {
                             CommandSourceStack source = context.getSource();
-                            Vec3 start = source.getPosition();
+                            Vec3 position = source.getPosition()
+                                    .add(getHorizontalLookDirection(source).scale(DEFAULT_FORWARD_DISTANCE));
 
-                            Vec3 forward = source.getEntity() != null
-                                    ? source.getEntity().getLookAngle()
-                                    : new Vec3(0.0D, 0.0D, 1.0D);
-
-                            Vec3 position = start.add(
-                                    forward.x * 8.0D,
-                                    0.0D,
-                                    forward.z * 8.0D
-                            );
-
-                            return explode(
-                                    source,
-                                    position,
-                                    KaboomExplosionEngine.BlastProfile.highExplosiveShell()
-                            );
+                            return explode(source, position, highExplosiveShellProfile(1.0F));
                         })
 
                         // /kaboom_test <x> <y> <z>
@@ -55,7 +45,7 @@ public final class KaboomTestCommand {
                                 .executes(context -> explode(
                                         context.getSource(),
                                         Vec3Argument.getVec3(context, "position"),
-                                        KaboomExplosionEngine.BlastProfile.highExplosiveShell()
+                                        highExplosiveShellProfile(1.0F)
                                 ))
 
                                 // /kaboom_test <x> <y> <z> <scale>
@@ -65,11 +55,8 @@ public final class KaboomTestCommand {
                                 ).executes(context -> explode(
                                         context.getSource(),
                                         Vec3Argument.getVec3(context, "position"),
-                                        scaledProfile(
-                                                FloatArgumentType.getFloat(
-                                                        context,
-                                                        "scale"
-                                                )
+                                        highExplosiveShellProfile(
+                                                FloatArgumentType.getFloat(context, "scale")
                                         )
                                 )))
                         )
@@ -79,112 +66,103 @@ public final class KaboomTestCommand {
     private static int explode(
             CommandSourceStack source,
             Vec3 position,
-            KaboomExplosionEngine.BlastProfile profile
+            KaboomExplosionProfile profile
     ) {
         ServerLevel level = source.getLevel();
 
-        KaboomExplosionEngine.BlastResult result =
-                KaboomExplosionEngine.detonate(
-                        level,
-                        position,
-                        profile,
-                        source.getEntity(),
-                        level.damageSources().generic(),
-                        completion -> source.sendSuccess(
-                                () -> Component.literal(
-                                        String.format(
-                                                Locale.ROOT,
-                                                "Kaboom finished: changed=%d/%d, total=%.3f ms, "
-                                                        + "terrain work=%.3f ms, ticks=%d",
-                                                completion.actualChanges(),
-                                                completion.plannedChanges(),
-                                                completion.totalWallNanos()
-                                                        / 1_000_000.0D,
-                                                completion.terrainWorkNanos()
-                                                        / 1_000_000.0D,
-                                                completion.ticks()
-                                        )
-                                ),
-                                true
-                        )
-                );
-
-        if (!result.queued()) {
-            source.sendFailure(
-                    Component.literal(
-                            String.format(
-                                    Locale.ROOT,
-                                    "Kaboom probe was cancelled or was not captured; "
-                                            + "no terrain queued (probe=%.3f ms)",
-                                    result.probeAndPlanNanos() / 1_000_000.0D
-                            )
-                    )
-            );
-
-            return 0;
-        }
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        String.format(
-                                Locale.ROOT,
-                                "Kaboom queued: planned=%d, probe+plan=%.3f ms",
-                                result.plannedChanges(),
-                                result.probeAndPlanNanos() / 1_000_000.0D
-                        )
-                ),
-                true
+        KaboomExplosionEngine.Submission submission = KaboomExplosionEngine.explode(
+                level,
+                position,
+                profile,
+                source.getEntity()
         );
 
-        return result.plannedChanges();
+        return switch (submission.status()) {
+            case QUEUED -> {
+                source.sendSuccess(
+                        () -> Component.literal(
+                                "Kaboom queued: yield="
+                                        + String.format("%.3f", profile.yield())
+                                        + ", terrain capture radius="
+                                        + submission.captureHalfExtent()
+                                        + " blocks"
+                        ),
+                        true
+                );
+                yield 1;
+            }
+
+            case EFFECTS_ONLY -> {
+                source.sendSuccess(
+                        () -> Component.literal(
+                                "Kaboom detonated with terrain damage disabled."
+                        ),
+                        true
+                );
+                yield 1;
+            }
+
+            case REJECTED_BUSY -> {
+                source.sendFailure(Component.literal(
+                        "Kaboom detonated, but terrain work was skipped because all explosion workers are busy."
+                ));
+                yield 0;
+            }
+
+            case REJECTED_NO_LOADED_CHUNKS -> {
+                source.sendFailure(Component.literal(
+                        "Kaboom detonated, but terrain work was skipped because the blast area includes unloaded chunks."
+                ));
+                yield 0;
+            }
+
+            case REJECTED_SNAPSHOT_FAILURE -> {
+                source.sendFailure(Component.literal(
+                        "Kaboom detonated, but terrain snapshot capture failed. Check the server log."
+                ));
+                yield 0;
+            }
+        };
     }
 
-    private static KaboomExplosionEngine.BlastProfile scaledProfile(
-            float scale
-    ) {
-        KaboomExplosionEngine.BlastProfile base =
-                KaboomExplosionEngine.BlastProfile.highExplosiveShell();
+    private static KaboomExplosionProfile highExplosiveShellProfile(float scale) {
+        // Explosion radius is proportional to cubeRoot(yield), so yield must scale cubically
+        // for "scale" to retain its old visual meaning.
+        float scaleCubed = scale * scale * scale;
 
-        return new KaboomExplosionEngine.BlastProfile(
-                base.surfaceRadius() * scale,
-                base.buriedRadius() * scale,
+        return KaboomExplosionProfile.builder(BASE_TEST_YIELD * scaleCubed)
+                .terrainDamage(true)
+                .entityDamage(true)
+                .shockwave(true)
+                .debris(true)
+                .scorchSurface(true)
+                .pruneDetachedFragments(true)
 
-                Math.max(1, Math.round(base.surfaceMaxDepth() * scale)),
-                Math.max(1, Math.round(base.buriedMaxDepth() * scale)),
-                Math.max(1, Math.round(base.surfaceUpwardRange() * scale)),
+                // The rewritten engine's intended smaller crater / wider destruction profile.
+                .craterRadiusScale(0.66F)
+                .craterDepthScale(0.42F)
+                .shockwaveRadiusScale(3.25F)
 
-                base.edgeRoughnessBlocks() * scale,
-                base.depthRoughnessBlocks() * scale,
-
-                base.foliageRadius() * scale,
-                Math.max(1, Math.round(base.foliageVerticalRange() * scale)),
-                base.foliageStripThreshold(),
-
-                base.maxBlockResistance() * scale,
-                base.grassDestroyThreshold(),
-                base.grassDirtChanceInner(),
-                base.grassDirtChanceOuter(),
-
-                base.masonryCrackThreshold(),
-                base.masonryDestroyThreshold(),
-
-                base.woodIgniteThreshold(),
-                base.woodIgniteChance(),
-                base.allowFire(),
-
-                base.entityRadius() * scale,
-                base.entityDamage() * scale,
-                base.entityKnockback() * scale,
-                base.coveredDamageMultiplier(),
-
-                base.buriedModeThreshold(),
-                base.burialProbeHeight(),
-                base.blocksForFullBurial(),
-
-                Math.max(
-                        200,
-                        Math.round(base.maxBlockChanges() * scale * scale)
+                .maxCaptureRadius(64)
+                .maxBlockChanges(Math.round(BASE_MAX_BLOCK_CHANGES * scaleCubed))
+                .maxDetachedFragmentBlocks(
+                        Math.round(BASE_MAX_DETACHED_FRAGMENT_BLOCKS * scaleCubed)
                 )
-        );
+                .build();
+    }
+
+    private static Vec3 getHorizontalLookDirection(CommandSourceStack source) {
+        if (source.getEntity() == null) {
+            return new Vec3(0.0D, 0.0D, 1.0D);
+        }
+
+        Vec3 look = source.getEntity().getLookAngle();
+        Vec3 horizontalLook = new Vec3(look.x, 0.0D, look.z);
+
+        if (horizontalLook.lengthSqr() < 1.0E-8D) {
+            return new Vec3(0.0D, 0.0D, 1.0D);
+        }
+
+        return horizontalLook.normalize();
     }
 }

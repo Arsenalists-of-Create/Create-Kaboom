@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.nav.MissileNavigation;
+import com.happysg.kaboom.block.missiles.nav.MovingTargetInterceptorNavigation;
 import com.happysg.kaboom.block.missiles.util.*;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
@@ -110,6 +111,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
     private Vec3 pendingVelocity = null;
     private boolean forceCustomColliders = true;
     private final MissileNavigation navigation = new MissileNavigation();
+    private final MovingTargetInterceptorNavigation interceptorNavigation = new MovingTargetInterceptorNavigation();
+    @Nullable
+    private MissileGuidanceData guidanceData = null;
     private List<AABB> customColliders = List.of();
     private Direction.Axis forwardAxis = Direction.Axis.Y;
     private int forwardSign = +1;
@@ -213,7 +217,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
         Vec3 launchDirection = SableUtils.getWorldVecDirectionTransform(new Vec3(0, 1, 0), SableUtils.getShipManagingPos(level(), controllerPos));
         navigation.initialize(launchDirection, position(), this);
-        syncHeading(navigation.launchDirection());
+        interceptorNavigation.initialize(launchDirection, position(), this);
+        syncHeading(launchDirection);
 
         Vector3dc vector3dc = SableUtils.getVelocity(level(),controllerPos);
         if(vector3dc == null){
@@ -226,8 +231,12 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
         }
 
         if (contraption instanceof MissileContraption mc && mc.guidanceTag != null && !mc.guidanceTag.isEmpty()) {
-            MissileGuidanceData data = MissileGuidanceData.fromTag(mc.guidanceTag);
-            navigation.configureStationaryTarget(data, position());
+            guidanceData = MissileGuidanceData.fromTag(mc.guidanceTag);
+            if (guidanceData.guidanceType() == MissileGuidanceType.GPS) {
+                navigation.configureStationaryTarget(guidanceData, position());
+            } else if (guidanceData.guidanceType().isInterceptor()) {
+                interceptorNavigation.configure(guidanceData);
+            }
         } else {
             return;
         }
@@ -247,6 +256,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
         if (mc.chainSystemTag != null) {
             chainSystem.load(mc.chainSystemTag);
+            chainSystem.setLaunched();
         }
     }
 
@@ -333,7 +343,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
         final Vec3 pos0 = position();
         final Vec3 vel0 = getDeltaMovement();
 
-        MissileNavigation.Command guidance = navigation.tick(this, pos0, vel0);
+        MissileNavigation.Command guidance = tickGuidance(pos0, vel0);
 
         Vec3 aBase = getForcesWithParam(vel0);
         Vec3 aCtrl = guidance.appliedDeltaV();
@@ -468,7 +478,11 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
         tag.putInt("kaboom:FuelMb", fuelMb);
         tag.putInt("kaboom:FuelCapacityMb", fuelCapacityMb);
         tag.putBoolean("kaboom:LatchedInGround", latchedInGround);
+        if (guidanceData != null) {
+            tag.put("kaboom:MissileGuidanceData", guidanceData.toTag());
+        }
         navigation.write(tag);
+        interceptorNavigation.write(tag);
     }
 
     @Override
@@ -483,8 +497,23 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
         entityData.set(FUEL_MB, fuelMb);
         entityData.set(FUEL_CAP_MB, fuelCapacityMb);
         latchedInGround = tag.getBoolean("kaboom:LatchedInGround");
+        if (tag.contains("kaboom:MissileGuidanceData")) {
+            guidanceData = MissileGuidanceData.fromTag(tag.getCompound("kaboom:MissileGuidanceData"));
+        }
 
-        navigation.read(tag, this, position());
+        if (guidanceData != null && guidanceData.guidanceType().isInterceptor()) {
+            interceptorNavigation.configure(guidanceData);
+            interceptorNavigation.read(tag, this, position());
+        } else {
+            navigation.read(tag, this, position());
+        }
+    }
+
+    private MissileNavigation.Command tickGuidance(Vec3 pos, Vec3 vel) {
+        if (guidanceData != null && guidanceData.guidanceType().isInterceptor()) {
+            return interceptorNavigation.tick(this, pos, vel);
+        }
+        return navigation.tick(this, pos, vel);
     }
 
     private void tickChunkLoading() {

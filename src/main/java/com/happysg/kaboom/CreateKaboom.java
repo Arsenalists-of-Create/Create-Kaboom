@@ -1,6 +1,7 @@
 package com.happysg.kaboom;
 
 import com.happysg.kaboom.client.CreateKaboomClient;
+import com.happysg.kaboom.commands.SelfChainCommand;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
@@ -46,6 +47,7 @@ public class CreateKaboom {
         NeoForge.EVENT_BUS.register(new ChainInteractionHandler());
         NeoForge.EVENT_BUS.register(new ChainTickHandler());
         NeoForge.EVENT_BUS.register(new CommandGuidanceInteractionHandler());
+        NeoForge.EVENT_BUS.addListener(SelfChainCommand::register);
         REGISTRATE.defaultCreativeTab((ResourceKey<CreativeModeTab>) null);
         REGISTRATE.registerEventListeners(modEventBus);
 

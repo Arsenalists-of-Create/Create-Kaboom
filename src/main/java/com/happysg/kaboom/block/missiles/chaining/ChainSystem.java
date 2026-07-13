@@ -12,6 +12,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
@@ -101,6 +102,13 @@ public class ChainSystem {
     }
 
     @Nullable
+    private Entity findEntity(ServerLevel level, UUID entityId) {
+        Entity entity = level.getEntity(entityId);
+        if (entity != null) return entity;
+        return level.getServer().getPlayerList().getPlayer(entityId);
+    }
+
+    @Nullable
     public AnchorPoint findNearestAnchorWithoutChain(BlockPos clickedOffset, double maxDist) {
         AnchorPoint nearest = null;
         double nearestDist = maxDist;
@@ -163,7 +171,7 @@ public class ChainSystem {
             }
         }
         for (UUID mobId : securedMobs) {
-            Entity entity = level.getEntity(mobId);
+            Entity entity = findEntity(level, mobId);
             if (entity instanceof Mob mob) {
                 AABB bb = mob.getBoundingBox();
                 double volume = bb.getXsize() * bb.getYsize() * bb.getZsize();
@@ -212,7 +220,7 @@ public class ChainSystem {
         }
 
         for (UUID mobId : tetheredMobs) {
-            Entity entity = level.getEntity(mobId);
+            Entity entity = findEntity(level, mobId);
             if (!(entity instanceof Mob mob)) continue;
 
             int timer = breakAttemptTimers.getOrDefault(mobId, 0);
@@ -268,7 +276,7 @@ public class ChainSystem {
             return;
         }
 
-        Entity entity = level.getEntity(winchTargetMob);
+        Entity entity = findEntity(level, winchTargetMob);
         if (!(entity instanceof Mob mob)) {
             cancelWinch();
             return;
@@ -342,13 +350,14 @@ public class ChainSystem {
             if (link.getState() != ChainLink.State.TETHERED) continue;
             if (link.getTargetMobId() == null) continue;
 
-            Entity entity = level.getEntity(link.getTargetMobId());
-            if (!(entity instanceof Mob mob)) {
-                continue;
+            Entity entity = findEntity(level, link.getTargetMobId());
+            if (entity instanceof Mob mob) {
+                Vec3 anchorWorld = anchor.getWorldPos(thrusterPos);
+                constrainMobToAnchor(anchorWorld, link, mob, level);
+            } else if (entity instanceof Player player) {
+                Vec3 anchorWorld = anchor.getWorldPos(thrusterPos);
+                breakPlayerFreeIfTooFar(anchorWorld, anchor, link, player, level);
             }
-
-            Vec3 anchorWorld = anchor.getWorldPos(thrusterPos);
-            constrainMobToAnchor(anchorWorld, link, mob, level);
         }
     }
 
@@ -359,11 +368,14 @@ public class ChainSystem {
             if (link.getState() != ChainLink.State.TETHERED) continue;
             if (link.getTargetMobId() == null) continue;
 
-            Entity entity = level.getEntity(link.getTargetMobId());
-            if (!(entity instanceof Mob mob)) continue;
-
+            Entity entity = findEntity(level, link.getTargetMobId());
             Vec3 anchorWorld = anchor.getWorldPos(entityPos);
-            constrainMobToAnchor(anchorWorld, link, mob, level);
+
+            if (entity instanceof Mob mob) {
+                constrainMobToAnchor(anchorWorld, link, mob, level);
+            } else if (entity instanceof Player player) {
+                constrainPlayerToAnchor(anchorWorld, link, player, level);
+            }
         }
     }
 
@@ -403,13 +415,53 @@ public class ChainSystem {
         }
     }
 
+    private void breakPlayerFreeIfTooFar(Vec3 anchorWorld, AnchorPoint anchor, ChainLink link, Player player, ServerLevel level) {
+        double maxLength = link.getMaxLength();
+        if (maxLength <= 0 || anchorWorld.distanceTo(player.position()) <= maxLength) return;
+
+        anchor.setLink(null);
+        spawnChainBreakEffects(level, player.position());
+        recalculateState();
+    }
+
+    private void constrainPlayerToAnchor(Vec3 anchorWorld, ChainLink link, Player player, ServerLevel level) {
+        Vec3 playerPos = player.position();
+        double distance = anchorWorld.distanceTo(playerPos);
+        double maxLength = link.getMaxLength();
+
+        if (maxLength <= 0 || distance <= maxLength) return;
+
+        Vec3 direction = playerPos.subtract(anchorWorld).normalize();
+        Vec3 correctedPos = anchorWorld.add(direction.scale(maxLength));
+        player.teleportTo(correctedPos.x, correctedPos.y, correctedPos.z);
+        player.hurtMarked = true;
+
+        Vec3 toAnchor = anchorWorld.subtract(correctedPos).normalize();
+        Vec3 vel = player.getDeltaMovement();
+        double dot = vel.dot(toAnchor);
+
+        if (dot < 0) {
+            Vec3 awayComponent = toAnchor.scale(dot);
+            player.setDeltaMovement(vel.subtract(awayComponent).add(toAnchor.scale(0.15)));
+        } else {
+            player.setDeltaMovement(vel.add(toAnchor.scale(0.15)));
+        }
+
+        if (distance - maxLength > 0.25) {
+            level.playSound(null, player.blockPosition(),
+                    SoundEvents.CHAIN_STEP, SoundSource.BLOCKS,
+                    0.8f,
+                    0.8f + level.random.nextFloat() * 0.4f);
+        }
+    }
+
     private void cleanupDeadLinks(BlockPos thrusterPos, ServerLevel level) {
         boolean changed = false;
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
             if (link == null || link.getTargetMobId() == null) continue;
 
-            Entity entity = level.getEntity(link.getTargetMobId());
+            Entity entity = findEntity(level, link.getTargetMobId());
             if (entity == null || !entity.isAlive()) {
                 if (link.getState() == ChainLink.State.SECURED && entity instanceof Mob mob) {
                     mob.setNoAi(false);
@@ -428,7 +480,7 @@ public class ChainSystem {
             ChainLink link = anchor.getLink();
             if (link == null || link.getTargetMobId() == null) continue;
 
-            Entity entity = level.getEntity(link.getTargetMobId());
+            Entity entity = findEntity(level, link.getTargetMobId());
             if (entity == null || !entity.isAlive()) {
                 if (link.getState() == ChainLink.State.SECURED && entity instanceof Mob mob) {
                     mob.setNoAi(false);
@@ -453,7 +505,7 @@ public class ChainSystem {
             if (link == null || link.getState() != ChainLink.State.TETHERED || link.getTargetMobId() == null) continue;
             if (!seen.add(link.getTargetMobId())) continue;
 
-            Entity entity = level.getEntity(link.getTargetMobId());
+            Entity entity = findEntity(level, link.getTargetMobId());
             if (entity == null) continue;
 
             double dist = entity.position().distanceTo(basePos);
@@ -497,11 +549,26 @@ public class ChainSystem {
         return ids;
     }
 
+    public Set<UUID> getAttachedPlayerIds(ServerLevel level) {
+        Set<UUID> ids = new HashSet<>();
+        for (AnchorPoint anchor : anchors) {
+            ChainLink link = anchor.getLink();
+            if (link == null || link.getTargetMobId() == null) continue;
+            if (link.getState() != ChainLink.State.TETHERED && link.getState() != ChainLink.State.SECURED) continue;
+
+            Entity entity = findEntity(level, link.getTargetMobId());
+            if (entity instanceof Player) {
+                ids.add(link.getTargetMobId());
+            }
+        }
+        return ids;
+    }
+
     public void releaseAll(ServerLevel level) {
         for (AnchorPoint anchor : anchors) {
             ChainLink link = anchor.getLink();
             if (link != null && link.getTargetMobId() != null && link.getState() == ChainLink.State.SECURED) {
-                Entity entity = level.getEntity(link.getTargetMobId());
+            Entity entity = findEntity(level, link.getTargetMobId());
                 if (entity instanceof Mob mob) {
                     mob.setNoAi(false);
                     mob.stopRiding();
@@ -521,7 +588,7 @@ public class ChainSystem {
             if (link.getState() == ChainLink.State.SECURED) continue;
 
             if (link.getTargetMobId() != null) {
-                Entity entity = level.getEntity(link.getTargetMobId());
+            Entity entity = findEntity(level, link.getTargetMobId());
                 if (entity != null) {
                     spawnChainBreakEffects(level, entity.position());
                 }
@@ -595,7 +662,7 @@ public class ChainSystem {
             ChainLink link = anchor.getLink();
             if (link == null) continue;
             if (link.getTargetMobId() != null) {
-                Entity entity = level.getEntity(link.getTargetMobId());
+                Entity entity = findEntity(level, link.getTargetMobId());
                 link.setTargetEntityId(entity != null ? entity.getId() : -1);
             } else {
                 link.setTargetEntityId(-1);

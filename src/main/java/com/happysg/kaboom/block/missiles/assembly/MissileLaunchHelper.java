@@ -4,6 +4,7 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.MissileContraption;
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
+import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
@@ -13,6 +14,7 @@ import com.happysg.kaboom.registry.ModEntities;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -45,7 +47,7 @@ public class MissileLaunchHelper {
             return false;
         }
 
-        if (!isGpsTargetFarEnoughToLaunch(controllerPos, guidance)) {
+        if (!isGuidanceValidForLaunch(level, controllerPos, guidance)) {
             return false;
         }
 
@@ -80,9 +82,51 @@ public class MissileLaunchHelper {
                     m.startRiding(entity, true);
                 }
             }
+
+            for (UUID playerId : chainSystem.getAttachedPlayerIds(level)) {
+                ServerPlayer player = level.getServer().getPlayerList().getPlayer(playerId);
+                if (player != null && !player.isCreative()) {
+                    player.getInventory().dropAll();
+                }
+            }
         }
 
         return added;
+    }
+
+    private static boolean isGuidanceValidForLaunch(ServerLevel level, BlockPos controllerPos, MissileGuidanceData guidance) {
+        if (guidance.guidanceType().isInterceptor()) {
+            boolean hasResolverMetadata = switch (guidance.guidanceType()) {
+                case COMMAND -> guidance.networkControllerPos() != null;
+                case RADAR -> guidance.radarGuidancePos() != null;
+                default -> false;
+            };
+            if (!hasResolverMetadata) return false;
+
+            MovingTargetResolver.TargetData target = MovingTargetResolver.resolve(level, guidance, controllerPos.getCenter());
+            if (target == null) {
+                CreateKaboom.getLogger().info(
+                        "Rejected {} missile launch at {}: no selected target",
+                        guidance.guidanceType(),
+                        controllerPos
+                );
+                return false;
+            }
+
+            if (!target.live() && target.ageTicks(level) > configuredTargetDataTimeoutTicks()) {
+                CreateKaboom.getLogger().info(
+                        "Rejected {} missile launch at {}: selected target data is stale ageTicks={} timeoutTicks={}",
+                        guidance.guidanceType(),
+                        controllerPos,
+                        target.ageTicks(level),
+                        configuredTargetDataTimeoutTicks()
+                );
+                return false;
+            }
+
+            return true;
+        }
+        return isGpsTargetFarEnoughToLaunch(controllerPos, guidance);
     }
 
     private static boolean isGpsTargetFarEnoughToLaunch(BlockPos controllerPos, MissileGuidanceData guidance) {
@@ -114,6 +158,10 @@ public class MissileLaunchHelper {
 
     private static double configuredMinimumGpsLaunchHorizontalDistance() {
         return Math.max(0.0, KaboomConfig.server().minimumGpsLaunchHorizontalDistance.getF());
+    }
+
+    private static int configuredTargetDataTimeoutTicks() {
+        return Math.max(0, KaboomConfig.server().targetDataTimeoutTicks.get());
     }
 
     private static boolean isFinite(Vec3 v) {

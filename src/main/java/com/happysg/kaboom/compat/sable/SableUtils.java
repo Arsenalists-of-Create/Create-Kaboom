@@ -8,6 +8,7 @@ import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.BoundingBox3dc;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
@@ -83,6 +84,31 @@ public class SableUtils {
             return List.of();
         BoundingBox3dc boundingBox = new BoundingBox3d(aabb.minX, aabb.minY, aabb.minZ, aabb.maxX, aabb.maxY, aabb.maxZ);
         return Objects.requireNonNull(SubLevelContainer.getContainer(level)).queryIntersecting(boundingBox);
+    }
+
+    public static SubLevelAccess getLoadedSubLevel(ServerLevel level, UUID subLevelId, Vec3 lastKnownPosition) {
+        if (!Mods.SABLE.isLoaded() || subLevelId == null) {
+            return null;
+        }
+
+        SubLevelContainer container = SubLevelContainer.getContainer(level);
+        if (container == null) {
+            return null;
+        }
+
+        SubLevel direct = container.getSubLevel(subLevelId);
+        if (direct != null && !direct.isRemoved()) {
+            return direct;
+        }
+
+        AABB search = new AABB(lastKnownPosition, lastKnownPosition).inflate(256.0);
+        for (SubLevel subLevel : getLoadedShips(level, search)) {
+            if (!subLevel.isRemoved() && subLevelId.equals(subLevel.getUniqueId())) {
+                return subLevel;
+            }
+        }
+
+        return null;
     }
 
 
