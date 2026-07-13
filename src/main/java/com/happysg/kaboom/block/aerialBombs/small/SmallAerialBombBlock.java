@@ -42,6 +42,7 @@ public class SmallAerialBombBlock extends AerialBombBlock {
 
         if (!level.isClientSide) {
             level.setBlock(pos, state.setValue(COUNT, count + 1), 3);
+            tryPlaceFuzeFromItem(level, pos, state.setValue(COUNT, count + 1), held, count + 1);
 
             if (!player.getAbilities().instabuild) {
                 held.shrink(1);

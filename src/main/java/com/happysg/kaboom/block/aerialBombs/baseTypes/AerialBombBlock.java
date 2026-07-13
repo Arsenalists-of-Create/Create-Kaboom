@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
@@ -152,7 +154,35 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
 
     @Override
     public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
-        return new ItemStack(this);
+        ItemStack stack = new ItemStack(this);
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof AerialBombBlockEntity aerialBomb) {
+            boolean hasAnyFuze = false;
+            for (int i = 0; i < 9; i++) {
+                if (!aerialBomb.getFuze(i).isEmpty()) {
+                    hasAnyFuze = true;
+                    break;
+                }
+            }
+            if (hasAnyFuze) {
+                net.minecraft.nbt.CompoundTag blockEntityData = new net.minecraft.nbt.CompoundTag();
+                blockEntityData.putString("id", net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(be.getType()).toString());
+                net.minecraft.nbt.ListTag fuzesList = new net.minecraft.nbt.ListTag();
+                for (int i = 0; i < 9; i++) {
+                    ItemStack fuze = aerialBomb.getFuze(i);
+                    if (!fuze.isEmpty()) {
+                        net.minecraft.nbt.CompoundTag fuzeTag = new net.minecraft.nbt.CompoundTag();
+                        fuzeTag.putInt("Index", i);
+                        fuzeTag.put("Fuze", fuze.save(level.registryAccess()));
+                        fuzesList.add(fuzeTag);
+                    }
+                }
+                blockEntityData.put("KaboomFuzes", fuzesList);
+                stack.set(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA,
+                        net.minecraft.world.item.component.CustomData.of(blockEntityData));
+            }
+        }
+        return stack;
     }
 
     @Override
@@ -163,21 +193,143 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
             return;
         }
 
+        BlockEntity be = level.getBlockEntity(pos);
+        boolean fuzed = false;
+        if (be instanceof AerialBombBlockEntity aerialBomb) {
+            for (int i = 0; i < 9; i++) {
+                if (!aerialBomb.getFuze(i).isEmpty()) {
+                    fuzed = true;
+                    break;
+                }
+            }
+        }
+
         BlockState cleanState = state
-                .setValue(FUZED, false)
+                .setValue(FUZED, fuzed)
                 .setValue(POWERED, false)
-                .setValue(COUNT, defaultBlockState().getValue(COUNT));
+                .setValue(COUNT, state.hasProperty(COUNT) ? state.getValue(COUNT) : 1);
 
         if (!cleanState.equals(state)) {
             level.setBlock(pos, cleanState, 3);
         }
+    }
 
-        BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof AerialBombBlockEntity aerialBomb) {
-            aerialBomb.setFuze(ItemStack.EMPTY);
-            aerialBomb.notifyUpdate();
+    private java.util.List<ItemStack> getCustomDrops(BlockState state, Level level, BlockPos pos, BlockEntity be) {
+        java.util.List<ItemStack> drops = new java.util.ArrayList<>();
+        if (be instanceof AerialBombBlockEntity aerialBomb) {
+            int count = state.hasProperty(COUNT) ? state.getValue(COUNT) : 1;
+            boolean isTiny = this instanceof com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
+
+            java.util.Set<Integer> mappedIndices = new java.util.HashSet<>();
+            for (int i = 0; i < count; i++) {
+                int globalIndex = getGlobalIndex(isTiny, count, i);
+                mappedIndices.add(globalIndex);
+                ItemStack fuze = aerialBomb.getFuze(globalIndex);
+                ItemStack bombStack = new ItemStack(this.asItem());
+                if (!fuze.isEmpty()) {
+                    net.minecraft.nbt.CompoundTag blockEntityData = new net.minecraft.nbt.CompoundTag();
+                    blockEntityData.putString("id", net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(be.getType()).toString());
+                    net.minecraft.nbt.ListTag fuzesList = new net.minecraft.nbt.ListTag();
+                    int singleBombIndex = isTiny ? 7 : 0;
+                    net.minecraft.nbt.CompoundTag fuzeTag = new net.minecraft.nbt.CompoundTag();
+                    fuzeTag.putInt("Index", singleBombIndex);
+                    fuzeTag.put("Fuze", fuze.save(level.registryAccess()));
+                    fuzesList.add(fuzeTag);
+                    blockEntityData.put("KaboomFuzes", fuzesList);
+                    bombStack.set(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA,
+                            net.minecraft.world.item.component.CustomData.of(blockEntityData));
+                }
+                drops.add(bombStack);
+            }
+
+            for (int j = 0; j < 9; j++) {
+                if (!mappedIndices.contains(j)) {
+                    ItemStack fuze = aerialBomb.getFuze(j);
+                    if (!fuze.isEmpty()) {
+                        drops.add(fuze.copy());
+                    }
+                }
+            }
+        } else {
+            int count = state.hasProperty(COUNT) ? state.getValue(COUNT) : 1;
+            drops.add(new ItemStack(this.asItem(), count));
+        }
+        return drops;
+    }
+
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof AerialBombBlockEntity aerialBomb) {
+                if (player.isCreative()) {
+                    aerialBomb.creativeBroken = true;
+                }
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    @Override
+    public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state, BlockEntity blockEntity, ItemStack tool) {
+        player.awardStat(net.minecraft.stats.Stats.BLOCK_MINED.get(this));
+        player.causeFoodExhaustion(0.005F);
+    }
+
+    public static void tryPlaceFuzeFromItem(Level level, BlockPos pos, BlockState state, ItemStack bombStack, int newCount) {
+        if (level.isClientSide) return;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof AerialBombBlockEntity aerialBomb) {
+            net.minecraft.world.item.component.CustomData customData = bombStack.get(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA);
+            if (customData != null) {
+                net.minecraft.nbt.CompoundTag tag = customData.copyTag();
+                if (tag.contains("KaboomFuzes")) {
+                    net.minecraft.nbt.ListTag list = tag.getList("KaboomFuzes", 10);
+                    if (!list.isEmpty()) {
+                        net.minecraft.nbt.CompoundTag fuzeTag = list.getCompound(0);
+                        ItemStack fuze = ItemStack.parseOptional(level.registryAccess(), fuzeTag.getCompound("Fuze"));
+                        if (!fuze.isEmpty()) {
+                            boolean isTiny = state.getBlock() instanceof com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
+                            int globalIndex = getGlobalIndex(isTiny, newCount, newCount - 1);
+                            aerialBomb.setFuze(globalIndex, fuze);
+                            level.setBlockAndUpdate(pos, state.setValue(FUZED, true));
+                            aerialBomb.notifyUpdate();
+                            if (!level.getBlockTicks().willTickThisTick(pos, state.getBlock())) {
+                                level.scheduleTick(pos, state.getBlock(), 0);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+
+    @Override
+    public void wasExploded(Level level, BlockPos pos, Explosion explosion) {
+        if (!level.isClientSide) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof AerialBombBlockEntity aerialBomb) {
+                aerialBomb.detonateOnSpot(Direction.UP);
+            }
+        }
+        super.wasExploded(level, pos, explosion);
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof AerialBombBlockEntity aerialBomb) {
+                if (!aerialBomb.creativeBroken && !aerialBomb.activated && !isMoving && !level.isClientSide) {
+                    for (ItemStack drop : getCustomDrops(state, level, pos, be)) {
+                        popResource(level, pos, drop);
+                    }
+                }
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
+    }
+
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
@@ -200,29 +352,117 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
         };
     }
 
+    public static double[][] getActiveCenters(boolean isTiny, int count) {
+        if (isTiny) {
+            double[][] allTiny = {
+                {13.5, 13.5}, {8.0, 13.5}, {2.5, 13.5},
+                {13.5, 8.0},  {8.0, 8.0},  {2.5, 8.0},
+                {13.5, 2.5},  {8.0, 2.5},  {2.5, 2.5}
+            };
+            if (count == 1) {
+                return new double[][]{allTiny[7]};
+            } else {
+                double[][] active = new double[count][2];
+                for (int i = 0; i < count; i++) {
+                    active[i] = allTiny[i];
+                }
+                return active;
+            }
+        } else {
+            if (count == 1) {
+                return new double[][]{{8.0, 12.0}};
+            } else if (count == 2) {
+                return new double[][]{{12.0, 12.0}, {4.0, 12.0}};
+            } else if (count == 3) {
+                return new double[][]{{12.0, 12.0}, {4.0, 12.0}, {12.0, 4.0}};
+            } else {
+                return new double[][]{{12.0, 12.0}, {4.0, 12.0}, {12.0, 4.0}, {4.0, 4.0}};
+            }
+        }
+    }
+
+    public static int getGlobalIndex(boolean isTiny, int count, int activeIndex) {
+        if (isTiny) {
+            if (count == 1) {
+                return 7;
+            } else {
+                return activeIndex;
+            }
+        } else {
+            return activeIndex;
+        }
+    }
+
     protected InteractionResult useLegacy(BlockState state, Level level, BlockPos pos, Player player,
                                           InteractionHand hand, BlockHitResult result) {
         if (hand == InteractionHand.OFF_HAND) {
             return InteractionResult.PASS;
         } else {
             FuzedBlockEntity fuzedBlock = this.getBlockEntity(level, pos);
-            if (fuzedBlock == null) {
+            if (!(fuzedBlock instanceof AerialBombBlockEntity aerialBomb)) {
                 return InteractionResult.PASS;
             } else {
                 ItemStack stack = player.getItemInHand(hand);
                 Direction fuzeFace = state.getValue(FACING);
-                byte slot;
+                if (result.getDirection() != fuzeFace) {
+                    return InteractionResult.PASS;
+                }
+
+                int count = state.hasProperty(COUNT) ? state.getValue(COUNT) : 1;
+                boolean isTiny = this instanceof com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
+                boolean isSmall = this instanceof com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock || this instanceof com.happysg.kaboom.block.aerialBombs.small.FluidSmallAerialBombBlock;
+                int globalIndex = 0;
+
+                if (isTiny || isSmall) {
+                    Vec3 hitVec = result.getLocation();
+                    double localX = hitVec.x - pos.getX();
+                    double localY = hitVec.y - pos.getY();
+                    double localZ = hitVec.z - pos.getZ();
+
+                    double u = localX;
+                    double v = localY;
+
+                    switch (fuzeFace) {
+                        case NORTH:
+                            u = localX;
+                            break;
+                        case SOUTH:
+                            u = 1.0 - localX;
+                            break;
+                        case EAST:
+                            u = localZ;
+                            break;
+                        case WEST:
+                            u = 1.0 - localZ;
+                            break;
+                    }
+
+                    double[][] activeCenters = getActiveCenters(isTiny, count);
+                    double minDistanceSq = Double.MAX_VALUE;
+                    int activeIndex = 0;
+                    for (int i = 0; i < activeCenters.length; i++) {
+                        double cx = activeCenters[i][0];
+                        double cy = activeCenters[i][1];
+                        double dx = u * 16.0 - cx;
+                        double dy = v * 16.0 - cy;
+                        double distSq = dx * dx + dy * dy;
+                        if (distSq < minDistanceSq) {
+                            minDistanceSq = distSq;
+                            activeIndex = i;
+                        }
+                    }
+                    globalIndex = getGlobalIndex(isTiny, count, activeIndex);
+                }
+
+                ItemStack fuzeStack = aerialBomb.getFuze(globalIndex);
                 ItemStack copy;
                 if (stack.isEmpty()) {
-
-                    if (result.getDirection() != fuzeFace || fuzedBlock.getItem(1).isEmpty()) {
+                    if (fuzeStack.isEmpty()) {
                         return InteractionResult.PASS;
                     }
 
-                    slot = 1;
-
                     if (!level.isClientSide) {
-                        copy = fuzedBlock.removeItem(slot, 1);
+                        copy = aerialBomb.removeFuze(globalIndex);
                         if (!player.addItem(copy) && !player.isCreative()) {
                             ItemEntity item = player.drop(copy, false);
                             if (item != null) {
@@ -231,30 +471,39 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
                             }
                         }
 
-                        fuzedBlock.notifyUpdate();
+                        aerialBomb.notifyUpdate();
                         if (!level.getBlockTicks().willTickThisTick(pos, this)) {
                             level.scheduleTick(pos, this, 0);
                         }
                     }
 
                     level.playSound(player, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.NEUTRAL, 1.0F, 1.0F);
-                    level.setBlockAndUpdate(pos, state.setValue(FUZED, false));
+
+                    if (!level.isClientSide) {
+                        boolean anyFuzed = false;
+                        for (int i = 0; i < 9; i++) {
+                            if (!aerialBomb.getFuze(i).isEmpty()) {
+                                anyFuzed = true;
+                                break;
+                            }
+                        }
+                        level.setBlockAndUpdate(pos, state.setValue(FUZED, anyFuzed));
+                    }
                     return InteractionResult.sidedSuccess(level.isClientSide);
                 } else {
-                    if (!(stack.getItem() instanceof FuzeItem) || result.getDirection() != fuzeFace) {
+                    if (!(stack.getItem() instanceof FuzeItem)) {
                         return InteractionResult.PASS;
                     }
 
-                    slot = 1;
-                    if (!fuzedBlock.getItem(slot).isEmpty()) {
+                    if (!fuzeStack.isEmpty()) {
                         return InteractionResult.PASS;
                     } else {
                         if (!level.isClientSide) {
                             copy = player.getAbilities().instabuild ? stack.copy() : stack.split(1);
                             copy.setCount(1);
-                            fuzedBlock.setItem(slot, copy);
+                            aerialBomb.setFuze(globalIndex, copy);
                             level.setBlockAndUpdate(pos, state.setValue(FUZED, true));
-                            fuzedBlock.notifyUpdate();
+                            aerialBomb.notifyUpdate();
                             if (!level.getBlockTicks().willTickThisTick(pos, this)) {
                                 level.scheduleTick(pos, this, 0);
                             }
@@ -266,7 +515,6 @@ public class AerialBombBlock extends HorizontalDirectionalBlock implements IBE<A
                 }
             }
         }
-
     }
 
     @Override
