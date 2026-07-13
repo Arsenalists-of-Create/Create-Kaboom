@@ -64,17 +64,21 @@ public class ModBlocks {
         CreateKaboom.getLogger().info("Registering blocks!");
     }
 
-    public static <T extends AerialBombBlock> BlockBuilder<T, CreateRegistrate> bomb(String name, NonNullFunction<BlockBehaviour.Properties, T> factory) {
+    public static <T extends AerialBombBlock> BlockBuilder<T, CreateRegistrate> bomb(String name, NonNullFunction<net.minecraft.world.level.block.state.BlockBehaviour.Properties, T> factory) {
         return REGISTRATE.block(name, factory)
-                .initialProperties(SharedProperties::softMetal)
-                .properties(BlockBehaviour.Properties::noOcclusion)
+                .properties(p -> net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                        .mapColor(net.minecraft.world.level.material.MapColor.METAL)
+                        .instrument(net.minecraft.world.level.block.state.properties.NoteBlockInstrument.IRON_XYLOPHONE)
+                        .strength(0.2F, 3.0F)
+                        .sound(net.minecraft.world.level.block.SoundType.METAL)
+                        .noOcclusion())
                 .properties(p -> p.isRedstoneConductor((s, l, pos) -> false))
                 .blockstate((c, p) ->
                         p.getVariantBuilder(c.get())
                                 .forAllStates(state -> {
-                                    String fuze = state.getValue(AerialBombBlock.FUZED) ? "fuzed_" : "";
-                                    Direction facing = state.getValue(AerialBombBlock.FACING);
                                     int count = state.getValue(AerialBombBlock.COUNT);
+                                    String fuze = (state.getValue(AerialBombBlock.FUZED) && count == 1) ? "fuzed_" : "";
+                                    Direction facing = state.getValue(AerialBombBlock.FACING);
 
                                     return ConfiguredModel.builder()
                                             .modelFile(p.models().getExistingFile(
@@ -84,7 +88,7 @@ public class ModBlocks {
                                             .build();
                                 })
                 )
-                .item()
+                .item(com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockItem::new)
                 .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                         CreateKaboom.asResource("block/" + bombModelPath(name, "", 1))))
                 .build();
