@@ -18,8 +18,10 @@ import net.minecraft.world.phys.Vec3;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 
 public class AerialBombBlockEntity extends FuzedBlockEntity {
-    private static final String FUZES_TAG = "IndividualFuzes";
-    private static final int MAX_FUZE_SLOTS = 9;
+    public static final String FUZES_TAG = "IndividualFuzes";
+    public static final String FUZE_SLOT_TAG = "Slot";
+    public static final String FUZE_STACK_TAG = "Stack";
+    public static final int MAX_FUZE_SLOTS = 9;
 
     private final ItemStack[] fuzes = new ItemStack[MAX_FUZE_SLOTS];
 
@@ -53,9 +55,9 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         int count = state.getValue(AerialBombBlock.COUNT);
         consumeLaunchedFuze(state);
         if (count > 1) {
-            level.setBlock(worldPosition, state
-                    .setValue(AerialBombBlock.COUNT, count - 1)
-                    .setValue(AerialBombBlock.FUZED, hasAnyFuze()), 3);
+            BlockState remainingState = state.setValue(AerialBombBlock.COUNT, count - 1);
+            level.setBlock(worldPosition, remainingState
+                    .setValue(AerialBombBlock.FUZED, hasActiveFuze(remainingState)), 3);
             notifyUpdate();
         } else {
             level.destroyBlock(worldPosition, false);
@@ -125,53 +127,25 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
     }
 
     public int getVisibleFuzeSlots(BlockState state) {
-        int count = state.hasProperty(AerialBombBlock.COUNT) ? state.getValue(AerialBombBlock.COUNT) : 1;
-        if (state.getBlock() instanceof AerialBombBlock bomb) {
-            return switch (bomb.getBombSize()) {
-                case 1 -> 1;
-                case 2 -> Math.min(count, 4);
-                default -> Math.min(count, 9);
-            };
-        }
-        return Math.min(count, MAX_FUZE_SLOTS);
+        return AerialBombFuzeLayout.activeSlotCount(state);
     }
 
     public boolean hasAnyFuze() {
-        for (ItemStack fuze : fuzes) {
-            if (!fuze.isEmpty()) {
-                return true;
-            }
-        }
-        return false;
+        return hasActiveFuze(getBlockState());
     }
 
     public boolean hasVisibleFuze() {
-        int slots = getVisibleFuzeSlots();
+        return hasActiveFuze(getBlockState());
+    }
+
+    public boolean hasActiveFuze(BlockState state) {
+        int slots = getVisibleFuzeSlots(state);
         for (int i = 0; i < slots; i++) {
             if (!fuzes[i].isEmpty()) {
                 return true;
             }
         }
         return false;
-    }
-
-    public int firstEmptyVisibleFuzeSlot() {
-        int slots = getVisibleFuzeSlots();
-        for (int i = 0; i < slots; i++) {
-            if (fuzes[i].isEmpty()) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    public int lastFilledVisibleFuzeSlot() {
-        for (int i = getVisibleFuzeSlots() - 1; i >= 0; i--) {
-            if (!fuzes[i].isEmpty()) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     public void setFuze(int index, ItemStack stack) {
@@ -205,13 +179,11 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
     }
 
     protected ItemStack getFuzeForLaunch(BlockState state) {
-        int launchSlot = Math.max(0, getVisibleFuzeSlots(state) - 1);
-        return getFuze(launchSlot);
+        return getFuze(AerialBombFuzeLayout.launchSlot(state));
     }
 
     protected void consumeLaunchedFuze(BlockState state) {
-        int launchSlot = Math.max(0, getVisibleFuzeSlots(state) - 1);
-        removeFuze(launchSlot);
+        removeFuze(AerialBombFuzeLayout.launchSlot(state));
     }
 
     protected void syncCoarseFuze() {
@@ -235,8 +207,8 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
             }
 
             CompoundTag fuzeTag = new CompoundTag();
-            fuzeTag.putByte("Slot", (byte) i);
-            fuzeTag.put("Stack", fuzes[i].saveOptional(registries));
+            fuzeTag.putByte(FUZE_SLOT_TAG, (byte) i);
+            fuzeTag.put(FUZE_STACK_TAG, fuzes[i].saveOptional(registries));
             list.add(fuzeTag);
         }
         tag.put(FUZES_TAG, list);
@@ -251,9 +223,9 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
             ListTag list = tag.getList(FUZES_TAG, Tag.TAG_COMPOUND);
             for (int i = 0; i < list.size(); i++) {
                 CompoundTag fuzeTag = list.getCompound(i);
-                int slot = fuzeTag.getByte("Slot") & 255;
+                int slot = fuzeTag.getByte(FUZE_SLOT_TAG) & 255;
                 if (slot < MAX_FUZE_SLOTS) {
-                    fuzes[slot] = ItemStack.parseOptional(registries, fuzeTag.getCompound("Stack"));
+                    fuzes[slot] = ItemStack.parseOptional(registries, fuzeTag.getCompound(FUZE_STACK_TAG));
                 }
             }
         } else {
@@ -264,6 +236,39 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         }
 
         syncCoarseFuze();
+    }
+
+    public static CompoundTag singleFuzeTag(ItemStack fuze, HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        if (fuze == null || fuze.isEmpty()) {
+            return tag;
+        }
+
+        CompoundTag fuzeTag = new CompoundTag();
+        fuzeTag.putByte(FUZE_SLOT_TAG, (byte) 0);
+        fuzeTag.put(FUZE_STACK_TAG, fuze.copyWithCount(1).saveOptional(registries));
+        ListTag list = new ListTag();
+        list.add(fuzeTag);
+        tag.put(FUZES_TAG, list);
+        return tag;
+    }
+
+    public static ItemStack readFuze(CompoundTag tag, int requestedSlot, HolderLookup.Provider registries) {
+        if (tag.contains(FUZES_TAG, Tag.TAG_LIST)) {
+            ListTag list = tag.getList(FUZES_TAG, Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag fuzeTag = list.getCompound(i);
+                int slot = fuzeTag.getByte(FUZE_SLOT_TAG) & 255;
+                if (slot == requestedSlot) {
+                    return ItemStack.parseOptional(registries, fuzeTag.getCompound(FUZE_STACK_TAG));
+                }
+            }
+        }
+
+        if (requestedSlot == 0 && tag.contains("Fuze", Tag.TAG_COMPOUND)) {
+            return ItemStack.parseOptional(registries, tag.getCompound("Fuze"));
+        }
+        return ItemStack.EMPTY;
     }
 
     @Override

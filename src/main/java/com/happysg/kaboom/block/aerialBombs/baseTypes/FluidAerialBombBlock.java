@@ -17,8 +17,11 @@ import net.minecraft.world.phys.BlockHitResult;
 
 public class FluidAerialBombBlock extends AerialBombBlock {
     public FluidAerialBombBlock(Properties properties) {
-        super(properties, AerialBombProjectile.BombType.FLUID,1);
-        registerDefaultState(super.defaultBlockState().setValue(COUNT,1));
+        this(properties, 1);
+    }
+
+    protected FluidAerialBombBlock(Properties properties, int bombSize) {
+        super(properties, AerialBombProjectile.BombType.FLUID, bombSize);
     }
 
     @Override

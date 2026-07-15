@@ -18,25 +18,6 @@ public class AerialBombFuzeRenderer implements BlockEntityRenderer<AerialBombBlo
     private static final ResourceLocation FUZE_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "textures/block/fuze.png");
 
-    private static final float[][] HEAVY_POSITIONS = {{0.5F, 0.5F}};
-    private static final float[][] STANDARD_POSITIONS = {
-            {0.75F, 0.25F},
-            {0.75F, 0.75F},
-            {0.25F, 0.25F},
-            {0.25F, 0.75F}
-    };
-    private static final float[][] TINY_POSITIONS = {
-            {0.84375F, 0.15625F},
-            {0.84375F, 0.5F},
-            {0.84375F, 0.84375F},
-            {0.5F, 0.15625F},
-            {0.5F, 0.5F},
-            {0.5F, 0.84375F},
-            {0.15625F, 0.15625F},
-            {0.15625F, 0.5F},
-            {0.15625F, 0.84375F}
-    };
-
     public AerialBombFuzeRenderer(BlockEntityRendererProvider.Context context) {
     }
 
@@ -49,26 +30,18 @@ public class AerialBombFuzeRenderer implements BlockEntityRenderer<AerialBombBlo
         }
 
         Direction facing = state.getValue(AerialBombBlock.FACING);
-        float[][] positions = positionsFor(bomb.getBombSize());
-        int slots = Math.min(blockEntity.getVisibleFuzeSlots(state), positions.length);
+        AerialBombFuzeLayout.SlotCenter[] centers = AerialBombFuzeLayout.activeCenters(state);
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutout(FUZE_TEXTURE));
 
-        for (int i = 0; i < slots; i++) {
+        for (int i = 0; i < centers.length; i++) {
             if (blockEntity.getFuze(i).isEmpty()) {
                 continue;
             }
 
             float scale = bomb.getBombSize() >= 4 ? 0.09F : 0.125F;
-            drawFuze(consumer, poseStack, facing, positions[i][0], positions[i][1], scale, scale, 0.0625F, packedLight);
+            drawFuze(consumer, poseStack, facing, centers[i].horizontal(), centers[i].vertical(),
+                    scale, scale, 0.0625F, packedLight);
         }
-    }
-
-    private static float[][] positionsFor(int bombSize) {
-        return switch (bombSize) {
-            case 1 -> HEAVY_POSITIONS;
-            case 2 -> STANDARD_POSITIONS;
-            default -> TINY_POSITIONS;
-        };
     }
 
     private static void drawFuze(VertexConsumer consumer, PoseStack poseStack, Direction facing,

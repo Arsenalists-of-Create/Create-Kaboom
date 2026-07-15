@@ -2,6 +2,7 @@ package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlock;
+import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockItem;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlock;
 
@@ -11,6 +12,7 @@ import com.happysg.kaboom.block.aerialBombs.heavy.FragHeavyAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.heavy.HeavyAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.ApSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.FragSmallAerialBombBlock;
+import com.happysg.kaboom.block.aerialBombs.small.FluidSmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
@@ -52,8 +54,8 @@ public class ModBlocks {
 
     public static final BlockEntry<FluidAerialBombBlock> FLUID_AERIAL_BOMB =
             bomb("fluid_heavy_aerial_bomb", FluidAerialBombBlock::new).register();
-    public static final BlockEntry<FluidAerialBombBlock> SMALL_FLUID_AERIAL_BOMB =
-            bomb("fluid_aerial_bomb", FluidAerialBombBlock::new).register();
+    public static final BlockEntry<FluidSmallAerialBombBlock> SMALL_FLUID_AERIAL_BOMB =
+            bomb("fluid_aerial_bomb", FluidSmallAerialBombBlock::new).register();
 
     public static final BlockEntry<SmallAerialBombBlock> SMALL_AERIAL_BOMB =
             bomb("aerial_bomb", SmallAerialBombBlock::new).register();
@@ -90,7 +92,7 @@ public class ModBlocks {
                                             .build();
                                 })
                 )
-                .item()
+                .item(AerialBombBlockItem::new)
                 .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                         CreateKaboom.asResource("block/" + bombModelPath(name, "", 1))))
                 .build();
