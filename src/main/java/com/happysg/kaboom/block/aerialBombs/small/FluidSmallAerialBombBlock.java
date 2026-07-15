@@ -34,6 +34,7 @@ public class FluidSmallAerialBombBlock extends FluidAerialBombBlock {
 
         if (!level.isClientSide) {
             level.setBlock(pos, state.setValue(COUNT, size + 1), 3);
+            tryPlaceFuzeFromItem(level, pos, state.setValue(COUNT, size + 1), held, size + 1);
 
             if (!player.getAbilities().instabuild) {
                 held.shrink(1);
