@@ -16,6 +16,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
@@ -55,7 +56,7 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
 
                 if (MissileFuelTankBlockEntity.this.level != null && !MissileFuelTankBlockEntity.this.level.isClientSide) {
                     List<MissileFuelTankBlockEntity> stack =
-                            collectVerticalStack(MissileFuelTankBlockEntity.this.level, MissileFuelTankBlockEntity.this.worldPosition);
+                            collectAxialStack(MissileFuelTankBlockEntity.this.level, MissileFuelTankBlockEntity.this.worldPosition);
 
                     updateStackCache(stack);
 
@@ -114,13 +115,13 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
         be.needsBalance = false;
         be.lastBalanceGameTime = t;
 
-        be.balanceVerticalStack();
+        be.balanceAxialStack();
     }
 
-    private void balanceVerticalStack() {
+    private void balanceAxialStack() {
         if (level == null) return;
 
-        List<MissileFuelTankBlockEntity> stack = collectVerticalStack(this.level, this.worldPosition);
+        List<MissileFuelTankBlockEntity> stack = collectAxialStack(this.level, this.worldPosition);
         if (stack.size() <= 1) return;
 
         FluidStack fluidType = FluidStack.EMPTY;
@@ -198,15 +199,24 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
         updateStackCache(stack);
 
     }
-    private static List<MissileFuelTankBlockEntity> collectVerticalStack(Level level, BlockPos start) {
+    private static List<MissileFuelTankBlockEntity> collectAxialStack(Level level, BlockPos start) {
         List<MissileFuelTankBlockEntity> result = new ArrayList<>();
         BlockState required = level.getBlockState(start);
+        if (!required.hasProperty(BlockStateProperties.AXIS)) return result;
+
+        Direction.Axis axis = required.getValue(BlockStateProperties.AXIS);
+        Direction positive = switch (axis) {
+            case X -> Direction.EAST;
+            case Y -> Direction.UP;
+            case Z -> Direction.SOUTH;
+        };
+        Direction negative = positive.getOpposite();
 
         BlockPos cursor = start;
         while (true) {
-            BlockPos below = cursor.below();
-            if (!isFuelTank(level, below, required)) break;
-            cursor = below;
+            BlockPos previous = cursor.relative(negative);
+            if (!isFuelTank(level, previous, required, axis)) break;
+            cursor = previous;
         }
 
         while (true) {
@@ -214,17 +224,20 @@ public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGogg
             if (be instanceof MissileFuelTankBlockEntity ft) result.add(ft);
             else break;
 
-            BlockPos above = cursor.above();
-            if (!isFuelTank(level, above, required)) break;
-            cursor = above;
+            BlockPos next = cursor.relative(positive);
+            if (!isFuelTank(level, next, required, axis)) break;
+            cursor = next;
         }
 
         return result;
     }
-    private static boolean isFuelTank(Level level, BlockPos pos, BlockState requiredState) {
+
+    private static boolean isFuelTank(Level level, BlockPos pos, BlockState requiredState, Direction.Axis axis) {
         BlockState st = level.getBlockState(pos);
         if (st.getBlock() != requiredState.getBlock()) return false;
-        return level.getBlockEntity(pos) instanceof MissileFuelTankBlockEntity;
+        return st.hasProperty(BlockStateProperties.AXIS)
+                && st.getValue(BlockStateProperties.AXIS) == axis
+                && level.getBlockEntity(pos) instanceof MissileFuelTankBlockEntity;
     }
 
     private void markForSync() {

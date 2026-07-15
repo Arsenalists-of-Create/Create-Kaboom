@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.fuel;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
@@ -11,7 +12,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -32,25 +32,21 @@ public class MissileFuelTankBlock extends RotatedPillarBlock implements IMissile
         this.capacity = capacity;
     }
 
-    private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
-    private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
-    private static final VoxelShape LARGE = Block.box(-6,0,-6,22,16,22);
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        if(this == ModBlocks.MISSILE_FUEL_SMALL.get()) return SMALL;
-        if(this == ModBlocks.MISSILE_FUEL.get()) return FULL;
-        return LARGE;
+        Direction.Axis axis = state.getValue(AXIS);
+        if (this == ModBlocks.MISSILE_FUEL_SMALL.get()) return MissilePartShapes.small(axis);
+        if (this == ModBlocks.MISSILE_FUEL.get()) return MissilePartShapes.FULL;
+        return MissilePartShapes.large(axis);
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) {
-        if(this == ModBlocks.MISSILE_FUEL_SMALL.get()) return SMALL;
-        if(this == ModBlocks.MISSILE_FUEL.get()) return FULL;
-        return LARGE;
+        return getShape(s, l, p, c);
     }
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(AXIS, context.getClickedFace().getAxis());
+        return defaultBlockState().setValue(AXIS, context.getNearestLookingDirection().getAxis());
     }
     public int getCapacity() {
         return capacity;

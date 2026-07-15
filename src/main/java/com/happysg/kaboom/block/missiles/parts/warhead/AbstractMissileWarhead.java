@@ -19,6 +19,6 @@ public class AbstractMissileWarhead extends RotatedPillarBlock {
     }
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(AXIS, context.getClickedFace().getAxis());
+        return defaultBlockState().setValue(AXIS, context.getNearestLookingDirection().getAxis());
     }
 }

@@ -108,7 +108,7 @@ public class ModBlocks {
     public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_liquid_thruster_large", ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(CreateKaboom.asResource("block/missile/medium_solid_fuel_thruster")), 0))
+                    .getExistingFile(CreateKaboom.asResource("block/missile/medium_solid_fuel_thruster")), 180))
             .item()
             .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                     CreateKaboom.asResource("block/missile/medium_solid_fuel_thruster")))
@@ -118,7 +118,7 @@ public class ModBlocks {
             .initialProperties(SharedProperties::softMetal)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(CreateKaboom.asResource("block/missile/small_liquid_fuel_thruster")), 0))
+                    .getExistingFile(CreateKaboom.asResource("block/missile/small_liquid_fuel_thruster")), 180))
             .item()
             .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                     CreateKaboom.asResource("block/missile/small_liquid_fuel_thruster")))
@@ -128,7 +128,7 @@ public class ModBlocks {
             .initialProperties(SharedProperties::softMetal)
             .properties(BlockBehaviour.Properties::noOcclusion)
             .blockstate((ctx, prov) -> prov.directionalBlock(ctx.getEntry(), prov.models()
-                    .getExistingFile(CreateKaboom.asResource("block/missile/huge_solid_fuel_thruster")), 0))
+                    .getExistingFile(CreateKaboom.asResource("block/missile/huge_solid_fuel_thruster")), 180))
             .item()
             .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                     CreateKaboom.asResource("block/missile/huge_solid_fuel_thruster")))

@@ -1,78 +1,175 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.radar;
 
+import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
+import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
+import com.happysg.kaboom.compat.radars.RadarIntegration;
+import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
-import com.happysg.radar.block.radar.behavior.IRadar;
-import com.happysg.radar.block.radar.track.RadarTrack;
+import java.util.UUID;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup.Provider;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
-import javax.annotation.Nullable;
-
 public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGuidanceProvider {
-    private static final int RADAR_SEARCH_RADIUS_BLOCKS = 512;
+   private static final int LOCK_GRACE_TICKS = 5;
+   private static final String TAG_CANDIDATE = "RadarCandidate";
+   private static final String TAG_LOCK_TICKS = "RadarCandidateTicks";
+   private static final String TAG_LOCKED_TARGET = "RadarLockedTarget";
+   private static final String TAG_LAST_ACQUISITION_TICK = "RadarLastAcquisitionTick";
+   private static final String TAG_RWR_EMITTER_ID = "RadarRwrEmitterId";
+   @Nullable
+   private UUID candidateTargetId;
+   private int candidateLockTicks;
+   private int candidateMissTicks;
+   @Nullable
+   private UUID lockedTargetId;
+   private long lastAcquisitionTick = -1L;
+   private UUID rwrEmitterId = UUID.randomUUID();
 
-    public RadarGuidanceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
-        super(type, pos, blockState);
-    }
+   public RadarGuidanceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
+      super(type, pos, blockState);
+   }
 
-    @Override
-    public MissileGuidanceData exportGuidance() {
-        return MissileGuidanceData.radar(worldPosition, MissileFlightProfile.defaults());
-    }
+   @Override
+   public MissileGuidanceData exportGuidance() {
+      return MissileGuidanceData.radar(this.worldPosition, this.lockedTargetId, MissileFlightProfile.defaults(), this.rwrEmitterId);
+   }
 
-    @Nullable
-    public RadarTrack acquireGuidanceTrack() {
-        if (!(level instanceof ServerLevel serverLevel)) return null;
-        return acquireGuidanceTrack(serverLevel, worldPosition, worldPosition.getCenter());
-    }
+   public boolean tickAcquisition(ServerLevel level, MissileAssemblyResult result) {
+      long gameTime = level.getGameTime();
+      this.spawnLockParticles(level);
+      long acquisitionGap = this.lastAcquisitionTick < 0L ? 1L : gameTime - this.lastAcquisitionTick;
+      if (acquisitionGap > 6L) {
+         this.candidateTargetId = null;
+         this.candidateLockTicks = 0;
+         this.candidateMissTicks = 0;
+         this.lockedTargetId = null;
+      }
 
-    @Nullable
-    public static RadarTrack acquireGuidanceTrack(ServerLevel level, @Nullable BlockPos radarGuidancePos, Vec3 missilePosition) {
-        Vec3 origin = radarGuidancePos == null ? missilePosition : radarGuidancePos.getCenter();
-        int radius = RADAR_SEARCH_RADIUS_BLOCKS;
-        int minChunkX = ((int) Math.floor(origin.x - radius)) >> 4;
-        int maxChunkX = ((int) Math.floor(origin.x + radius)) >> 4;
-        int minChunkZ = ((int) Math.floor(origin.z - radius)) >> 4;
-        int maxChunkZ = ((int) Math.floor(origin.z + radius)) >> 4;
+      this.lastAcquisitionTick = gameTime;
+      RadarTargeting.SensorFrame frame = RadarTargeting.sensorFrame(level, result);
+      RadarCompatRegistry.get()
+         .updateRadarEmitter(
+            level,
+            this.rwrEmitterId,
+            frame.origin(),
+            frame.forward(),
+            configuredRange(),
+            configuredHalfAngleDegrees(),
+            null,
+            RadarIntegration.ThreatStage.LOCKED
+         );
+      RadarTargeting.Candidate candidate = RadarTargeting.acquire(level, frame, configuredRange(), configuredHalfAngleDegrees(), this.candidateTargetId);
+      if (candidate == null || this.candidateTargetId != null && !candidate.id().equals(this.candidateTargetId)) {
+         if (this.candidateTargetId != null && ++this.candidateMissTicks <= 5) {
+            return false;
+         }
 
-        RadarTrack best = null;
-        double bestScore = Double.MAX_VALUE;
-        long now = level.getGameTime();
-        int timeout = Math.max(0, KaboomConfig.server().targetDataTimeoutTicks.get());
+         this.candidateTargetId = null;
+         this.candidateLockTicks = 0;
+         this.candidateMissTicks = 0;
+         this.lockedTargetId = null;
+         this.setChanged();
+         if (candidate == null) {
+            return false;
+         }
+      }
 
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (!level.hasChunk(chunkX, chunkZ)) continue;
-                LevelChunk chunk = level.getChunk(chunkX, chunkZ);
-                for (BlockEntity be : chunk.getBlockEntities().values()) {
-                    if (!(be instanceof IRadar radar) || !radar.isRunning()) continue;
-                    for (RadarTrack track : radar.getTracks()) {
-                        if (track == null || track.getPosition() == null) continue;
-                        int age = (int) Math.max(0L, now - track.getScannedTime());
-                        if (age > timeout) continue;
+      this.candidateMissTicks = 0;
+      if (!candidate.id().equals(this.candidateTargetId)) {
+         this.candidateTargetId = candidate.id();
+         this.candidateLockTicks = 1;
+         this.lockedTargetId = null;
+      } else {
+         this.candidateLockTicks++;
+      }
 
-                        double radarDistance = track.getPosition().distanceTo(origin);
-                        if (radarDistance > radius) continue;
+      if (this.candidateLockTicks >= configuredLockTicks()) {
+         this.lockedTargetId = candidate.id();
+      }
 
-                        double missileDistance = track.getPosition().distanceToSqr(missilePosition);
-                        double score = age * 1000000.0 + missileDistance;
-                        if (score < bestScore) {
-                            bestScore = score;
-                            best = track;
-                        }
-                    }
-                }
-            }
-        }
+      this.setChanged();
+      return this.lockedTargetId != null;
+   }
 
-        return best;
-    }
+   private void spawnLockParticles(ServerLevel level) {
+      Vec3 center = SableUtils.getWorldVec(level, this.worldPosition.getCenter());
+      level.sendParticles(DustParticleOptions.REDSTONE, center.x, center.y, center.z, 2, 0.3, 0.3, 0.3, 0.0);
+   }
+
+   public void resetAcquisition() {
+      this.removeRwrEmitter();
+      if (this.candidateTargetId != null || this.candidateLockTicks != 0 || this.lockedTargetId != null || this.lastAcquisitionTick != -1L) {
+         this.candidateTargetId = null;
+         this.candidateLockTicks = 0;
+         this.candidateMissTicks = 0;
+         this.lockedTargetId = null;
+         this.lastAcquisitionTick = -1L;
+         this.setChanged();
+      }
+   }
+
+   @Nullable
+   public UUID getLockedTargetId() {
+      return this.lockedTargetId;
+   }
+
+   public void setRemoved() {
+      this.removeRwrEmitter();
+      super.setRemoved();
+   }
+
+   protected void saveAdditional(CompoundTag tag, Provider registries) {
+      super.saveAdditional(tag, registries);
+      if (this.candidateTargetId != null) {
+         tag.putUUID("RadarCandidate", this.candidateTargetId);
+      }
+
+      tag.putInt("RadarCandidateTicks", this.candidateLockTicks);
+      if (this.lockedTargetId != null) {
+         tag.putUUID("RadarLockedTarget", this.lockedTargetId);
+      }
+
+      tag.putLong("RadarLastAcquisitionTick", this.lastAcquisitionTick);
+      tag.putUUID("RadarRwrEmitterId", this.rwrEmitterId);
+   }
+
+   protected void loadAdditional(CompoundTag tag, Provider registries) {
+      super.loadAdditional(tag, registries);
+      this.candidateTargetId = tag.hasUUID("RadarCandidate") ? tag.getUUID("RadarCandidate") : null;
+      this.candidateLockTicks = Math.max(0, tag.getInt("RadarCandidateTicks"));
+      this.lockedTargetId = tag.hasUUID("RadarLockedTarget") ? tag.getUUID("RadarLockedTarget") : null;
+      this.lastAcquisitionTick = tag.contains("RadarLastAcquisitionTick") ? tag.getLong("RadarLastAcquisitionTick") : -1L;
+      if (tag.hasUUID("RadarRwrEmitterId")) {
+         this.rwrEmitterId = tag.getUUID("RadarRwrEmitterId");
+      }
+   }
+
+   private static double configuredRange() {
+      return Math.max(1.0, (double)KaboomConfig.server().radarAcquisitionRangeBlocks.getF());
+   }
+
+   private static double configuredHalfAngleDegrees() {
+      return Math.max(0.0, Math.min(180.0, (double)KaboomConfig.server().radarAcquisitionHalfAngleDegrees.getF()));
+   }
+
+   private static int configuredLockTicks() {
+      return Math.max(1, (Integer)KaboomConfig.server().radarLockTicks.get());
+   }
+
+   private void removeRwrEmitter() {
+      if (this.level instanceof ServerLevel serverLevel) {
+         RadarCompatRegistry.get().removeRadarEmitter(serverLevel, this.rwrEmitterId);
+      }
+   }
 }

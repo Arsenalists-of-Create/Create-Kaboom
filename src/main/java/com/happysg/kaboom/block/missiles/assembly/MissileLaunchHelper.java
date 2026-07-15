@@ -8,11 +8,15 @@ import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
+import com.happysg.kaboom.block.missiles.util.MissileGuidanceType;
 import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
+import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.registry.ModEntities;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -21,12 +25,16 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Locale;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.UUID;
 
 public class MissileLaunchHelper {
+    private static final int MINIMUM_LAUNCH_FUEL_MB = 250;
+
     public static boolean assembleAndSpawn(ServerLevel level, BlockPos anyThrusterPos) throws AssemblyException {
         MissileAssemblyResult result = MissileAssembler.scan(level, anyThrusterPos);
-        if (!result.isValid()) return false;
+        if (!result.isValid()) return rejectLaunch(level, result, anyThrusterPos);
 
         BlockPos controllerPos = result.getControllerPos();
 
@@ -44,14 +52,24 @@ public class MissileLaunchHelper {
         }
 
         if (guidance == null) {
-            return false;
+            return rejectLaunch(level, result, anyThrusterPos);
         }
 
         if (!isGuidanceValidForLaunch(level, controllerPos, guidance)) {
-            return false;
+            return rejectLaunch(level, result, anyThrusterPos);
         }
 
         MissileContraption mc = MissileContraptionBuilder.build(level, result, warheadWorldPos);
+
+        if (mc.fuelAmountMb < MINIMUM_LAUNCH_FUEL_MB) {
+            CreateKaboom.getLogger().info(
+                    "Rejected missile launch at {}: fuelAmountMb={} minimumFuelMb={}",
+                    controllerPos,
+                    mc.fuelAmountMb,
+                    MINIMUM_LAUNCH_FUEL_MB
+            );
+            return rejectLaunch(level, result, anyThrusterPos);
+        }
 
         mc.guidanceTag = guidance.toTag();
 
@@ -69,11 +87,15 @@ public class MissileLaunchHelper {
         }
 
         MissileEntity entity = ModEntities.MISSILE.get().create(level);
-        if (entity == null) return false;
+        if (entity == null) return rejectLaunch(level, result, anyThrusterPos);
 
         entity.initFromAssembly(mc, controllerPos, warheadLocalPos);
 
         boolean added = level.addFreshEntity(entity);
+
+        if (added) {
+            entity.onRadarMissileLaunched();
+        }
 
         if (added && chainSystem != null) {
             for (UUID mobId : chainSystem.getSecuredMobIds()) {
@@ -91,11 +113,50 @@ public class MissileLaunchHelper {
             }
         }
 
-        return added;
+        return added || rejectLaunch(level, result, anyThrusterPos);
+    }
+
+    private static boolean rejectLaunch(ServerLevel level, MissileAssemblyResult result, BlockPos fallbackPos) {
+        if (result.isValid() && !result.getBlocks().isEmpty()) {
+            Set<BlockPos> missileParts = Set.copyOf(result.getBlocks());
+            for (BlockPos partPos : result.getBlocks()) {
+                spawnRejectedLaunchSmoke(level, partPos, missileParts);
+            }
+        } else {
+            spawnRejectedLaunchSmoke(level, fallbackPos, Set.of(fallbackPos));
+        }
+        return false;
+    }
+
+    private static void spawnRejectedLaunchSmoke(ServerLevel level, BlockPos pos, Set<BlockPos> missileParts) {
+        Direction[] exposedFaces = Arrays.stream(Direction.values())
+                .filter(direction -> {
+                    BlockPos adjacent = pos.relative(direction);
+                    return !missileParts.contains(adjacent) && level.getBlockState(adjacent).isAir();
+                })
+                .toArray(Direction[]::new);
+        Direction face = exposedFaces.length == 0
+                ? Direction.UP
+                : exposedFaces[Math.floorMod(pos.hashCode() ^ (int) level.getGameTime(), exposedFaces.length)];
+        Vec3 center = pos.getCenter().add(
+                face.getStepX() * 0.55,
+                face.getStepY() * 0.55,
+                face.getStepZ() * 0.55
+        );
+        level.sendParticles(ParticleTypes.SMOKE, center.x, center.y, center.z,
+                3, 0.08, 0.08, 0.08, 0.015);
     }
 
     private static boolean isGuidanceValidForLaunch(ServerLevel level, BlockPos controllerPos, MissileGuidanceData guidance) {
         if (guidance.guidanceType().isInterceptor()) {
+            if (guidance.guidanceType() == MissileGuidanceType.COMMAND && !RadarCompatRegistry.isAvailable()) {
+                CreateKaboom.getLogger().info(
+                        "Rejected command-guided missile launch at {}: Create Radar compatibility is unavailable",
+                        controllerPos
+                );
+                return false;
+            }
+
             boolean hasResolverMetadata = switch (guidance.guidanceType()) {
                 case COMMAND -> guidance.networkControllerPos() != null;
                 case RADAR -> guidance.radarGuidancePos() != null;

@@ -1,11 +1,13 @@
 package com.happysg.kaboom.block.missiles.parts.thrust;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -26,10 +28,6 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
                 .setValue(FACING, Direction.UP));
 
     }
-    private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
-    private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
-    private static final VoxelShape LARGE = Block.box(-6,0,-6,22,16,22);
-
     @Override
     protected MapCodec<? extends DirectionalBlock> codec() {
         return simpleCodec(ThrusterBlock::new);
@@ -37,28 +35,20 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        if(this == ModBlocks.MISSILE_THRUSTER_SMALL.get()) return SMALL;
-        if(this == ModBlocks.MISSILE_THRUSTER.get()) return FULL;
-        return LARGE;
+        Direction.Axis axis = state.getValue(FACING).getAxis();
+        if (this == ModBlocks.MISSILE_THRUSTER_SMALL.get()) return MissilePartShapes.small(axis);
+        if (this == ModBlocks.MISSILE_THRUSTER.get()) return MissilePartShapes.FULL;
+        return MissilePartShapes.large(axis);
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) {
-        if(this == ModBlocks.MISSILE_THRUSTER_SMALL.get()) return SMALL;
-        if(this == ModBlocks.MISSILE_THRUSTER.get()) return FULL;
-        return LARGE;
+        return getShape(s, l, p, c);
     }
 
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos fromPos, boolean isMoving) {
-        super.neighborChanged(state, level, pos, neighborBlock, fromPos, isMoving);
-
-        if (level.isClientSide) return;
-
-        BlockEntity be = level.getBlockEntity(pos);
-
-        if (be instanceof ThrusterBlockEntity thrusterBE) {
-            thrusterBE.onRedstoneUpdated();
-        }
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getNearestLookingDirection().getOpposite());
     }
 
     @Override

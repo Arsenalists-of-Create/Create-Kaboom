@@ -7,6 +7,9 @@ import dev.ryanhcode.sable.companion.SubLevelAccess;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.BoundingBox3dc;
 import dev.ryanhcode.sable.sublevel.SubLevel;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -15,178 +18,203 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import org.joml.Vector3fc;
 
 public class SableUtils {
-
-
-    public static BlockPos getWorldPos(Level level, BlockPos pos) {
-        if (!Mods.SABLE.isLoaded() || !isBlockInShipyard(level, pos))
+   public static BlockPos getWorldPos(Level level, BlockPos pos) {
+      if (Mods.SABLE.isLoaded() && isBlockInShipyard(level, pos)) {
+         SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, pos);
+         if (subLevel != null) {
+            Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d((double)pos.getX(), (double)pos.getY(), (double)pos.getZ()));
+            return new BlockPos((int)vec.x(), (int)vec.y(), (int)vec.z());
+         } else {
             return pos;
-        SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, pos);
-        if (subLevel != null) {
-            final Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d(pos.getX(), pos.getY(), pos.getZ()));
-            return new BlockPos((int) vec.x(), (int) vec.y(), (int) vec.z());
-        }
-        return pos;
-    }
+         }
+      } else {
+         return pos;
+      }
+   }
 
-    public static Vec3 getShipVec(Vec3 vec3, BlockEntity be) {
-        if (!Mods.SABLE.isLoaded())
-            return vec3;
-        return getShipVec(vec3, getShipManagingPos(be));
-    }
+   public static Vec3 getShipVec(Vec3 vec3, BlockEntity be) {
+      return !Mods.SABLE.isLoaded() ? vec3 : getShipVec(vec3, getShipManagingPos(be));
+   }
 
-    public static Vec3 getShipVec(Vec3 vec3, SubLevelAccess subLevel){
-        if (!Mods.SABLE.isLoaded())
-            return vec3;
-        if (subLevel != null) {
-            final Vector3d vec = subLevel.logicalPose().transformPositionInverse(new Vector3d(vec3.x, vec3.y, vec3.z));
-            return new Vec3(vec.x(), vec.y(), vec.z());
-        }
-        return vec3;
-    }
+   public static Vec3 getShipVec(Vec3 vec3, SubLevelAccess subLevel) {
+      if (!Mods.SABLE.isLoaded()) {
+         return vec3;
+      } else if (subLevel != null) {
+         Vector3d vec = subLevel.logicalPose().transformPositionInverse(new Vector3d(vec3.x, vec3.y, vec3.z));
+         return new Vec3(vec.x(), vec.y(), vec.z());
+      } else {
+         return vec3;
+      }
+   }
 
-    public static Vec3 getWorldVecDirectionTransform(Vec3 vec3, BlockEntity be) {
-        if (!Mods.SABLE.isLoaded())
-            return vec3;
-        return getWorldVecDirectionTransform(vec3, getShipManagingPos(be));
-    }
+   public static Vec3 getWorldVecDirectionTransform(Vec3 vec3, BlockEntity be) {
+      return !Mods.SABLE.isLoaded() ? vec3 : getWorldVecDirectionTransform(vec3, getShipManagingPos(be));
+   }
 
-    public static Vec3 getWorldVecDirectionTransform(Vec3 vec3, SubLevelAccess subLevel) {
-        if (!Mods.SABLE.isLoaded())
-            return vec3;
-        if (subLevel != null) {
-            final Vector3d vec = subLevel.logicalPose().transformNormal(new Vector3d(vec3.x, vec3.y, vec3.z));
-            return new Vec3(vec.x(), vec.y(), vec.z());
-        }
-        return vec3;
-    }
+   public static Vec3 getWorldVecDirectionTransform(Vec3 vec3, SubLevelAccess subLevel) {
+      if (!Mods.SABLE.isLoaded()) {
+         return vec3;
+      } else if (subLevel != null) {
+         Vector3d vec = subLevel.logicalPose().transformNormal(new Vector3d(vec3.x, vec3.y, vec3.z));
+         return new Vec3(vec.x(), vec.y(), vec.z());
+      } else {
+         return vec3;
+      }
+   }
 
-    public static Vec3 getShipVecDirectionTransform(Vec3 vec3, SubLevelAccess subLevel) {
-        if (!Mods.SABLE.isLoaded())
-            return vec3;
-        if (subLevel != null) {
-            final Vector3d vec = subLevel.logicalPose().transformNormalInverse(new Vector3d(vec3.x, vec3.y, vec3.z));
-            return new Vec3(vec.x(), vec.y(), vec.z());
-        }
-        return vec3;
-    }
+   public static Vec3 getShipVecDirectionTransform(Vec3 vec3, SubLevelAccess subLevel) {
+      if (!Mods.SABLE.isLoaded()) {
+         return vec3;
+      } else if (subLevel != null) {
+         Vector3d vec = subLevel.logicalPose().transformNormalInverse(new Vector3d(vec3.x, vec3.y, vec3.z));
+         return new Vec3(vec.x(), vec.y(), vec.z());
+      } else {
+         return vec3;
+      }
+   }
 
-    public static BlockPos getWorldPos(BlockEntity blockEntity) {
-        return getWorldPos(blockEntity.getLevel(), blockEntity.getBlockPos());
-    }
+   public static BlockPos getWorldPos(BlockEntity blockEntity) {
+      return getWorldPos(blockEntity.getLevel(), blockEntity.getBlockPos());
+   }
 
-    public static Iterable<SubLevel> getLoadedShips(Level level, AABB aabb) {
-        if (!Mods.SABLE.isLoaded())
-            return List.of();
-        BoundingBox3dc boundingBox = new BoundingBox3d(aabb.minX, aabb.minY, aabb.minZ, aabb.maxX, aabb.maxY, aabb.maxZ);
-        return Objects.requireNonNull(SubLevelContainer.getContainer(level)).queryIntersecting(boundingBox);
-    }
+   public static Iterable<SubLevel> getLoadedShips(Level level, AABB aabb) {
+      if (!Mods.SABLE.isLoaded()) {
+         return List.of();
+      } else {
+         BoundingBox3dc boundingBox = new BoundingBox3d(aabb.minX, aabb.minY, aabb.minZ, aabb.maxX, aabb.maxY, aabb.maxZ);
+         return Objects.requireNonNull(SubLevelContainer.getContainer(level)).queryIntersecting(boundingBox);
+      }
+   }
 
-    public static SubLevelAccess getLoadedSubLevel(ServerLevel level, UUID subLevelId, Vec3 lastKnownPosition) {
-        if (!Mods.SABLE.isLoaded() || subLevelId == null) {
+   public static SubLevelAccess getLoadedSubLevel(ServerLevel level, UUID subLevelId, Vec3 lastKnownPosition) {
+      if (Mods.SABLE.isLoaded() && subLevelId != null) {
+         SubLevelContainer container = SubLevelContainer.getContainer(level);
+         if (container == null) {
             return null;
-        }
+         } else {
+            SubLevel direct = container.getSubLevel(subLevelId);
+            if (direct != null && !direct.isRemoved()) {
+               return direct;
+            } else {
+               AABB search = new AABB(lastKnownPosition, lastKnownPosition).inflate(256.0);
 
-        SubLevelContainer container = SubLevelContainer.getContainer(level);
-        if (container == null) {
-            return null;
-        }
+               for (SubLevel subLevel : getLoadedShips(level, search)) {
+                  if (!subLevel.isRemoved() && subLevelId.equals(subLevel.getUniqueId())) {
+                     return subLevel;
+                  }
+               }
 
-        SubLevel direct = container.getSubLevel(subLevelId);
-        if (direct != null && !direct.isRemoved()) {
-            return direct;
-        }
-
-        AABB search = new AABB(lastKnownPosition, lastKnownPosition).inflate(256.0);
-        for (SubLevel subLevel : getLoadedShips(level, search)) {
-            if (!subLevel.isRemoved() && subLevelId.equals(subLevel.getUniqueId())) {
-                return subLevel;
+               return null;
             }
-        }
+         }
+      } else {
+         return null;
+      }
+   }
 
-        return null;
-    }
+   public static Vec3 getSubLevelPosition(SubLevelAccess subLevel) {
+      if (Mods.SABLE.isLoaded() && subLevel != null && subLevel.boundingBox() != null) {
+         Vector3d center = subLevel.boundingBox().center(new Vector3d());
+         return new Vec3(center.x, center.y, center.z);
+      } else {
+         return Vec3.ZERO;
+      }
+   }
 
+   public static Vec3 getSubLevelVelocity(Level level, SubLevelAccess subLevel) {
+      if (Mods.SABLE.isLoaded() && subLevel != null && subLevel.boundingBox() != null) {
+         Object velocity = SableCompanion.INSTANCE.getVelocity(level, subLevel.boundingBox().center());
+         if (velocity instanceof Vector3dc vector) {
+            return new Vec3(vector.x(), vector.y(), vector.z());
+         } else {
+            return velocity instanceof Vector3fc vector ? new Vec3((double)vector.x(), (double)vector.y(), (double)vector.z()) : Vec3.ZERO;
+         }
+      } else {
+         return Vec3.ZERO;
+      }
+   }
 
-    public static SubLevelAccess getShipManagingPos(Level level, BlockPos pos) {
-        if (!Mods.SABLE.isLoaded())
-            return null;
-        return SableCompanion.INSTANCE.getContaining(level, pos);
-    }
+   public static SubLevelAccess getShipManagingPos(Level level, BlockPos pos) {
+      return !Mods.SABLE.isLoaded() ? null : SableCompanion.INSTANCE.getContaining(level, pos);
+   }
 
-    public static SubLevelAccess getShipManagingPos(BlockEntity blockEntity) {
-        return getShipManagingPos(blockEntity.getLevel(), blockEntity.getBlockPos());
-    }
+   public static SubLevelAccess getShipManagingPos(BlockEntity blockEntity) {
+      return getShipManagingPos(blockEntity.getLevel(), blockEntity.getBlockPos());
+   }
 
-    public static Vec3 getWorldVec(Level level, BlockPos pos) {
-        if (!Mods.SABLE.isLoaded())
-            return new Vec3(pos.getX(), pos.getY(), pos.getZ());
-        SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, pos);
-        if (subLevel != null) {
+   public static Vec3 getWorldVec(Level level, BlockPos pos) {
+      if (!Mods.SABLE.isLoaded()) {
+         return new Vec3((double)pos.getX(), (double)pos.getY(), (double)pos.getZ());
+      } else {
+         SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, pos);
+         if (subLevel != null) {
             Vec3 center = pos.getCenter();
-            final Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d(center.x, center.y, center.z));
+            Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d(center.x, center.y, center.z));
             return new Vec3(vec.x(), vec.y(), vec.z());
-        }
-        return new Vec3(pos.getX(), pos.getY(), pos.getZ());
-    }
+         } else {
+            return new Vec3((double)pos.getX(), (double)pos.getY(), (double)pos.getZ());
+         }
+      }
+   }
 
-    public static Vec3 getWorldVec(Level level, Vec3 vec3){
-        if (!Mods.SABLE.isLoaded())
+   public static Vec3 getWorldVec(Level level, Vec3 vec3) {
+      if (!Mods.SABLE.isLoaded()) {
+         return vec3;
+      } else {
+         SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, vec3);
+         if (subLevel != null) {
+            Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d(vec3.x, vec3.y, vec3.z));
+            return new Vec3(vec.x(), vec.y(), vec.z());
+         } else {
             return vec3;
-        SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, vec3);
-        if (subLevel != null) {
-            final Vector3d vec = subLevel.logicalPose().transformPosition(new Vector3d(vec3.x, vec3.y, vec3.z));
-            return new Vec3(vec.x(), vec.y(), vec.z());
-        }
-        return vec3;
-    }
+         }
+      }
+   }
 
-    public static Vec3 getWorldVec(BlockEntity blockEntity) {
-        if (!Mods.SABLE.isLoaded())
-            return blockEntity.getBlockPos().getCenter();
-        return getWorldVec(blockEntity.getLevel(), blockEntity.getBlockPos());
-    }
+   public static Vec3 getWorldVec(Vec3 vec3, SubLevelAccess subLevel) {
+      if (Mods.SABLE.isLoaded() && subLevel != null) {
+         Vector3d transformed = subLevel.logicalPose().transformPosition(new Vector3d(vec3.x, vec3.y, vec3.z));
+         return new Vec3(transformed.x(), transformed.y(), transformed.z());
+      } else {
+         return vec3;
+      }
+   }
 
-    public static Vec3 getVec3FromVector(Vector3d vector) {
-        return new Vec3(vector.x, vector.y, vector.z);
-    }
+   public static SubLevelAccess getShipManagingPos(Level level, Vec3 pos) {
+      return !Mods.SABLE.isLoaded() ? null : SableCompanion.INSTANCE.getContaining(level, pos);
+   }
 
-    public static BlockPos getBlockPosFromVec3(Vec3 vec3) {
-        return new BlockPos((int) vec3.x, (int) vec3.y, (int) vec3.z);
-    }
-    public static Vector3d getVector3dFromVec3(Vec3 vec) {
-        return new Vector3d(vec.x, vec.y, vec.z);
-    }
+   public static Vec3 getWorldVec(BlockEntity blockEntity) {
+      return !Mods.SABLE.isLoaded() ? blockEntity.getBlockPos().getCenter() : getWorldVec(blockEntity.getLevel(), blockEntity.getBlockPos());
+   }
 
-    public static boolean isBlockInShipyard(Level level, BlockPos blockPos) {
-        if (!Mods.SABLE.isLoaded())
-            return false;
-        return SableCompanion.INSTANCE.getContaining(level, blockPos) != null;
-    }
-    public static Vector3dc getVelocity(Level level, BlockPos pos) {
-        if(!isBlockInShipyard(level, pos)){
-            return null;
-        }
-        Vector3d velocityMetersPerSecond = new Vector3d();
+   public static Vec3 getVec3FromVector(Vector3d vector) {
+      return new Vec3(vector.x, vector.y, vector.z);
+   }
 
-        SableCompanion.INSTANCE.getVelocity(
-                level,
-                new Vector3d(
-                        pos.getX() + 0.5,
-                        pos.getY() + 0.5,
-                        pos.getZ() + 0.5
-                ),
-                velocityMetersPerSecond
-        );
+   public static BlockPos getBlockPosFromVec3(Vec3 vec3) {
+      return new BlockPos((int)vec3.x, (int)vec3.y, (int)vec3.z);
+   }
 
-        return new Vector3d(
-                velocityMetersPerSecond.x / 20,
-                velocityMetersPerSecond.y / 20,
-                velocityMetersPerSecond.z / 20
-        );
-    }
+   public static Vector3d getVector3dFromVec3(Vec3 vec) {
+      return new Vector3d(vec.x, vec.y, vec.z);
+   }
+
+   public static boolean isBlockInShipyard(Level level, BlockPos blockPos) {
+      return !Mods.SABLE.isLoaded() ? false : SableCompanion.INSTANCE.getContaining(level, blockPos) != null;
+   }
+
+   public static Vector3dc getVelocity(Level level, BlockPos pos) {
+      if (!isBlockInShipyard(level, pos)) {
+         return null;
+      } else {
+         Vector3d velocityMetersPerSecond = new Vector3d();
+         SableCompanion.INSTANCE
+            .getVelocity(level, new Vector3d((double)pos.getX() + 0.5, (double)pos.getY() + 0.5, (double)pos.getZ() + 0.5), velocityMetersPerSecond);
+         return new Vector3d(velocityMetersPerSecond.x / 20.0, velocityMetersPerSecond.y / 20.0, velocityMetersPerSecond.z / 20.0);
+      }
+   }
 }

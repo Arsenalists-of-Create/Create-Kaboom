@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.radar;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
@@ -18,9 +19,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class RadarGuidanceBlock extends RotatedPillarBlock implements IBE<RadarGuidanceBlockEntity>, IGuidanceBlock, IMissileComponent {
-    private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
-    private static final VoxelShape FULL = Block.box(0, 0, 0, 16, 16, 16);
-
     public RadarGuidanceBlock(Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
@@ -28,12 +26,14 @@ public class RadarGuidanceBlock extends RotatedPillarBlock implements IBE<RadarG
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.RADAR_GUIDANCE_SMALL.get() ? SMALL : FULL;
+        return this == ModBlocks.RADAR_GUIDANCE_SMALL.get()
+                ? MissilePartShapes.small(state.getValue(AXIS))
+                : MissilePartShapes.FULL;
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.RADAR_GUIDANCE_SMALL.get() ? SMALL : FULL;
+        return getShape(state, level, pos, ctx);
     }
 
     @Override
@@ -43,7 +43,7 @@ public class RadarGuidanceBlock extends RotatedPillarBlock implements IBE<RadarG
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(AXIS, context.getClickedFace().getAxis());
+        return defaultBlockState().setValue(AXIS, context.getNearestLookingDirection().getAxis());
     }
 
     @Override

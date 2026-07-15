@@ -1,57 +1,76 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
-import net.minecraft.core.BlockPos;
-
 import java.util.List;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
 public class MissileAssemblyResult {
-    private final boolean valid;
-    private final List<BlockPos> blocks;
-    private final BlockPos controllerPos;
-    private final BlockPos warhead;
-    private final int warheadIndex;
-    private final BlockPos guidance;
+   private final boolean valid;
+   private final List<BlockPos> blocks;
+   private final BlockPos controllerPos;
+   private final BlockPos warhead;
+   private final int warheadIndex;
+   private final BlockPos guidance;
+   private final Direction assemblyDirection;
 
-    private MissileAssemblyResult(boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex,BlockPos guidance) {
-        this.valid = valid;
-        this.blocks = blocks;
-        this.controllerPos = controllerPos;
-        this.warhead = warhead;
-        this.warheadIndex = warheadIndex;
-        this.guidance= guidance;
-    }
+   private MissileAssemblyResult(
+      boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex, BlockPos guidance, Direction assemblyDirection
+   ) {
+      this.valid = valid;
+      this.blocks = blocks;
+      this.controllerPos = controllerPos;
+      this.warhead = warhead;
+      this.warheadIndex = warheadIndex;
+      this.guidance = guidance;
+      this.assemblyDirection = assemblyDirection;
+   }
 
-    public static MissileAssemblyResult invalid() {
-        return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1,BlockPos.ZERO);
-    }
+   public static MissileAssemblyResult invalid() {
+      return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1, BlockPos.ZERO, Direction.UP);
+   }
 
-    public static MissileAssemblyResult valid(List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead,BlockPos guidance) {
-        List<BlockPos> copy = List.copyOf(blocks);
-        if (!copy.contains(warhead))
-            throw new IllegalArgumentException("warhead must be contained in blocks");
-        return new MissileAssemblyResult(true, copy, controllerPos, warhead, copy.size() - 1,guidance);
-    }
+   public static MissileAssemblyResult valid(List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, BlockPos guidance, Direction assemblyDirection) {
+      List<BlockPos> copy = List.copyOf(blocks);
+      if (!copy.contains(warhead)) {
+         throw new IllegalArgumentException("warhead must be contained in blocks");
+      } else {
+         return new MissileAssemblyResult(true, copy, controllerPos, warhead, copy.size() - 1, guidance, assemblyDirection);
+      }
+   }
 
-    public int getWarheadIndex() { return warheadIndex; }
-    public boolean isValid() {
-        return valid;
-    }
+   public int getWarheadIndex() {
+      return this.warheadIndex;
+   }
 
-    public List<BlockPos> getBlocks() {
-        return blocks;
-    }
+   public boolean isValid() {
+      return this.valid;
+   }
 
-    public BlockPos getControllerPos() {
-        return controllerPos;
-    }
-    public BlockPos getWarhead(){return warhead;}
-    public BlockPos toLocal(BlockPos worldPos) {
-        return worldPos.subtract(controllerPos);
-    }
+   public List<BlockPos> getBlocks() {
+      return this.blocks;
+   }
 
-    public BlockPos getWarheadLocal() {
-        return toLocal(warhead);
-    }
-    public BlockPos guidance() { return guidance; }
+   public BlockPos getControllerPos() {
+      return this.controllerPos;
+   }
 
+   public BlockPos getWarhead() {
+      return this.warhead;
+   }
+
+   public BlockPos toLocal(BlockPos worldPos) {
+      return worldPos.subtract(this.controllerPos);
+   }
+
+   public BlockPos getWarheadLocal() {
+      return this.toLocal(this.warhead);
+   }
+
+   public BlockPos guidance() {
+      return this.guidance;
+   }
+
+   public Direction getAssemblyDirection() {
+      return this.assemblyDirection;
+   }
 }

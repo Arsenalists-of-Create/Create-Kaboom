@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.gps;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
 
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
@@ -32,17 +33,16 @@ public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuida
         registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
     }
 
-    private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
-    private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
-
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.GPS_GUIDANCE_SMALL.get() ? SMALL : FULL;
+        return this == ModBlocks.GPS_GUIDANCE_SMALL.get()
+                ? MissilePartShapes.small(state.getValue(AXIS))
+                : MissilePartShapes.FULL;
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) {
-        return this == ModBlocks.GPS_GUIDANCE_SMALL.get() ? SMALL : FULL;
+        return getShape(s, l, p, c);
     }
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
@@ -51,7 +51,7 @@ public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuida
     }
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return defaultBlockState().setValue(AXIS, context.getClickedFace().getAxis());
+        return defaultBlockState().setValue(AXIS, context.getNearestLookingDirection().getAxis());
     }
 
     @Override

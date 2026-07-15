@@ -1,4 +1,4 @@
-package com.happysg.kaboom.events;
+package com.happysg.kaboom.compat.radars;
 
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlockEntity;
@@ -14,11 +14,12 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
-public class CommandGuidanceInteractionHandler {
+final class CommandGuidanceInteractionHandler {
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         ItemStack held = event.getItemStack();
-        if (!(held.getItem() instanceof BlockItem blockItem) || !(blockItem.getBlock() instanceof CommandGuidanceBlock)) {
+        if (!(held.getItem() instanceof BlockItem blockItem)
+                || !(blockItem.getBlock() instanceof CommandGuidanceBlock)) {
             return;
         }
 
@@ -30,7 +31,6 @@ public class CommandGuidanceInteractionHandler {
 
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.sidedSuccess(level.isClientSide));
-
         if (level.isClientSide) {
             return;
         }
@@ -40,9 +40,9 @@ public class CommandGuidanceInteractionHandler {
                 ModBlockEntityTypes.COMMAND_GUIDANCE.get(),
                 CommandGuidanceBlockEntity.tagForNetworkController(networkController.getBlockPos())
         );
-
         event.getEntity().displayClientMessage(
-                Component.literal("Paired command guidance to network controller at " + networkController.getBlockPos().toShortString()),
+                Component.literal("Paired command guidance to network controller at "
+                        + networkController.getBlockPos().toShortString()),
                 true
         );
     }

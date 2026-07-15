@@ -1,6 +1,5 @@
 package com.happysg.kaboom.events;
 
-import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssembler;
 import com.happysg.kaboom.block.missiles.chaining.AnchorPoint;
 import com.happysg.kaboom.block.missiles.chaining.ChainLink;
@@ -27,7 +26,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
-import rbasamoyai.createbigcannons.munitions.big_cannon.SimpleShellBlock;
 
 import javax.annotation.Nullable;
 
@@ -248,32 +246,16 @@ public class ChainInteractionHandler {
     }
 
     public static boolean isMissileBlock(Level level, BlockPos pos) {
-        var block = level.getBlockState(pos).getBlock();
-        return block instanceof IMissileComponent || block instanceof SimpleShellBlock<?>;
+        return MissileAssembler.isMissileStructureBlock(level.getBlockState(pos));
     }
 
     @Nullable
     public static ThrusterBlockEntity findThrusterBE(Level level, BlockPos anyMissileBlock) {
-        BlockPos cursor = anyMissileBlock;
-        for (int i = 0; i < MissileAssembler.MAX_VERTICAL_SCAN; i++) {
-            BlockPos below = cursor.below();
-            var block = level.getBlockState(below).getBlock();
-            if (block instanceof IMissileComponent || block instanceof SimpleShellBlock<?>) {
-                cursor = below;
-            } else {
-                break;
-            }
-        }
-
-        BlockPos controller = MissileAssembler.findControllerThruster(level, cursor);
+        BlockPos controller = MissileAssembler.findControllerFromComponent(level, anyMissileBlock);
         if (controller != null) {
             BlockEntity be = level.getBlockEntity(controller);
             if (be instanceof ThrusterBlockEntity thrusterBE) return thrusterBE;
         }
-
-        BlockEntity be = level.getBlockEntity(cursor);
-        if (be instanceof ThrusterBlockEntity thrusterBE) return thrusterBE;
-
         return null;
     }
 }

@@ -1,12 +1,28 @@
 package com.happysg.kaboom.compat.radars;
 
-import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlock;
-import com.simibubi.create.foundation.data.SharedProperties;
-import com.tterrag.registrate.util.entry.BlockEntry;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import com.happysg.kaboom.compat.Mods;
+import net.neoforged.bus.api.IEventBus;
 
-import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
+public final class RadarCompatRegistry {
+    private static RadarIntegration integration = new NoRadarIntegration();
 
-public class RadarCompatRegistry {
+    private RadarCompatRegistry() {
+    }
 
+    public static void register(IEventBus modEventBus) {
+        Mods.CREATE_RADAR.executeIfInstalled(() -> () -> install(modEventBus));
+    }
+
+    private static void install(IEventBus modEventBus) {
+        integration = new CreateRadarIntegration();
+        integration.register(modEventBus);
+    }
+
+    public static RadarIntegration get() {
+        return integration;
+    }
+
+    public static boolean isAvailable() {
+        return integration.isAvailable();
+    }
 }

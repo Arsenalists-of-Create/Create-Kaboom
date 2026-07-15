@@ -46,3 +46,10 @@ type = "required"
 versionRange = "[2.1.2,)"
 ordering = "AFTER"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "create_radar"
+type = "optional"
+versionRange = "[${create_radar_version},)"
+ordering = "AFTER"
+side = "BOTH"

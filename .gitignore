@@ -25,3 +25,7 @@ run
 forge*changelog.txt
 /run-data/
 /runs/
+/logs/debug.log
+/.gradle-local/wrapper/dists/gradle-8.8-bin/dl7vupf4psengwqhwktix4v1/gradle-8.8-bin.zip.lck
+/.gradle-local/wrapper/dists/gradle-8.8-bin/dl7vupf4psengwqhwktix4v1/gradle-8.8-bin.zip.part
+/logs/latest.log
