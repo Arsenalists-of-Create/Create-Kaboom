@@ -1,6 +1,5 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
-import com.happysg.kaboom.compat.sable.SableUtils;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.content.fluids.transfer.GenericItemFilling;
@@ -19,12 +18,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import org.joml.Vector3dc;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -168,35 +165,6 @@ public class FluidAerialBombBlockEntity extends AerialBombBlockEntity implements
         }
 
         return added || true;
-    }
-
-    @Override
-    public void activate() {
-        if (level == null || level.isClientSide) return;
-
-        BlockState state = getBlockState();
-
-        AerialBombProjectile projectile = createConfiguredProjectile(state);
-        if (projectile == null) return;
-
-        projectile.setPos(worldPosition.below().getCenter());
-        Vector3dc shipVel = SableUtils.getVelocity(level,this.worldPosition);
-        if(shipVel != null) {
-            projectile.addDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
-        }
-
-        level.addFreshEntity(projectile);
-
-        int count = state.getValue(FluidAerialBombBlock.COUNT);
-        consumeLaunchedFuze(state);
-        if (count > 1) {
-            level.setBlock(worldPosition, state
-                    .setValue(FluidAerialBombBlock.COUNT, count - 1)
-                    .setValue(FluidAerialBombBlock.FUZED, hasAnyFuze()), 3);
-            notifyUpdate();
-        } else {
-            level.destroyBlock(worldPosition, false);
-        }
     }
 
     @Override

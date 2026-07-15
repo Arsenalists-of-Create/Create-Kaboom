@@ -1,14 +1,17 @@
 package com.happysg.kaboom.block.missiles;
 
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.nav.MissileNavigation;
 import com.happysg.kaboom.block.missiles.nav.MovingTargetInterceptorNavigation;
+import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadProjectile;
 import com.happysg.kaboom.block.missiles.util.MissileAttachedParticleOptions;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceType;
 import com.happysg.kaboom.block.missiles.util.MissileProjectileContext;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.ChainSystemSyncPacket;
@@ -77,7 +80,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Quaternionf;
-import org.joml.Vector3dc;
 import org.joml.Vector3f;
 import rbasamoyai.createbigcannons.CreateBigCannons;
 import rbasamoyai.createbigcannons.block_armor_properties.BlockArmorPropertiesHandler;
@@ -123,6 +125,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private boolean spawnedThrusterParticle = false;
    private int fuelMb;
    private int fuelCapacityMb;
+   private MissileSize missileSize = MissileSize.SMALL;
+   private int fuelTankCount = 1;
    private Vec3 lastVelForSmoke = Vec3.ZERO;
    @OnlyIn(Dist.CLIENT)
    private MissileEngineSound engineSound;
@@ -133,6 +137,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private final MovingTargetInterceptorNavigation interceptorNavigation = new MovingTargetInterceptorNavigation();
    @Nullable
    private MissileGuidanceData guidanceData = null;
+   @Nullable
+   private UUID sourceSubLevelId = null;
    private List<AABB> customColliders = List.of();
    private Direction assemblyDirection = Direction.UP;
    private Axis forwardAxis = Axis.Y;
@@ -198,6 +204,11 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    @Override
+   public double guidanceAccelerationMultiplier() {
+      return this.missileSize.accelerationMultiplier(this.fuelTankCount);
+   }
+
+   @Override
    public void guidanceSetFuelMb(int mb) {
       this.fuelMb = Math.max(0, mb);
       this.entityData.set(FUEL_MB, this.fuelMb);
@@ -227,8 +238,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.interceptorNavigation.onRadarMissileLaunched(this, this.position(), this.getOrientation());
    }
 
-   public void initFromAssembly(Contraption contraption, BlockPos controllerPos, BlockPos warheadLocalPos) {
-      Vec3 launchPos = SableUtils.getWorldVec(this.level(), controllerPos.getCenter());
+   public void initFromAssembly(Contraption contraption, BlockPos warheadLocalPos, SableUtils.LaunchKinematics launch) {
+      Vec3 launchPos = launch.position();
       this.setPos(launchPos.x, launchPos.y, launchPos.z);
       this.setContraption(contraption);
       this.setNoGravity(false);
@@ -239,6 +250,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          this.assemblyDirection = mc.assemblyDirection == null ? Direction.UP : mc.assemblyDirection;
          this.fuelMb = mc.fuelAmountMb;
          this.fuelCapacityMb = mc.fuelCapacityMb;
+         this.missileSize = mc.missileSize;
+         this.fuelTankCount = Math.max(1, mc.fuelTankCount);
       }
 
       this.entityData.set(FUEL_MB, this.fuelMb);
@@ -246,20 +259,15 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.recomputeForwardAxisAndNose();
       this.rebuildCustomColliders(0.4);
       this.enforceCustomColliders();
-      Vec3 localLaunchDirection = directionVector(this.assemblyDirection);
-      Vec3 launchDirection = SableUtils.getWorldVecDirectionTransform(localLaunchDirection, SableUtils.getShipManagingPos(this.level(), controllerPos));
+      Vec3 launchDirection = launch.direction();
       this.navigation.initialize(launchDirection, this.position(), this);
       this.interceptorNavigation.initialize(launchDirection, this.position(), this);
       this.syncHeading(launchDirection);
-      Vector3dc vector3dc = SableUtils.getVelocity(this.level(), controllerPos);
-      if (vector3dc == null) {
-         this.setContraptionMotion(Vec3.ZERO);
-         super.setDeltaMovement(Vec3.ZERO);
-      } else {
-         Vec3 velocity = new Vec3(vector3dc.x(), vector3dc.y(), vector3dc.z());
-         this.setContraptionMotion(velocity);
-         super.setDeltaMovement(velocity);
-      }
+      this.sourceSubLevelId = launch.sourceSubLevelId();
+      double ejectionVelocity = Math.max(0.0, (double)KaboomConfig.server().missileEjectionVelocity.getF());
+      Vec3 initialVelocity = launch.carrierVelocity().add(launchDirection.scale(ejectionVelocity));
+      this.setContraptionMotion(initialVelocity);
+      super.setDeltaMovement(initialVelocity);
 
       if (contraption instanceof MissileContraption mc && mc.guidanceTag != null && !mc.guidanceTag.isEmpty()) {
          this.guidanceData = MissileGuidanceData.fromTag(mc.guidanceTag);
@@ -508,6 +516,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       super.writeAdditional(tag, registries, spawnPacket);
       tag.putInt("kaboom:FuelMb", this.fuelMb);
       tag.putInt("kaboom:FuelCapacityMb", this.fuelCapacityMb);
+      tag.putString("kaboom:MissileSize", this.missileSize.name());
+      tag.putInt("kaboom:FuelTankCount", this.fuelTankCount);
       tag.putBoolean("kaboom:LatchedInGround", this.latchedInGround);
       Vec3 heading = this.getOrientation();
       tag.putDouble("kaboom:HeadingX", heading.x);
@@ -515,6 +525,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       tag.putDouble("kaboom:HeadingZ", heading.z);
       if (this.guidanceData != null) {
          tag.put("kaboom:MissileGuidanceData", this.guidanceData.toTag());
+      }
+      if (this.sourceSubLevelId != null) {
+         tag.putUUID("kaboom:SourceSubLevel", this.sourceSubLevelId);
       }
 
       this.navigation.write(tag);
@@ -531,6 +544,20 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          this.fuelMb = Math.min(this.fuelMb, this.fuelCapacityMb);
       }
 
+      if (this.contraption instanceof MissileContraption mc) {
+         this.missileSize = mc.missileSize;
+         this.fuelTankCount = Math.max(1, mc.fuelTankCount);
+      }
+      if (tag.contains("kaboom:MissileSize")) {
+         try {
+            this.missileSize = MissileSize.valueOf(tag.getString("kaboom:MissileSize"));
+         } catch (IllegalArgumentException ignored) {
+         }
+      }
+      if (tag.contains("kaboom:FuelTankCount")) {
+         this.fuelTankCount = Math.max(1, tag.getInt("kaboom:FuelTankCount"));
+      }
+
       this.entityData.set(FUEL_MB, this.fuelMb);
       this.entityData.set(FUEL_CAP_MB, this.fuelCapacityMb);
       this.latchedInGround = tag.getBoolean("kaboom:LatchedInGround");
@@ -541,6 +568,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       if (tag.contains("kaboom:MissileGuidanceData")) {
          this.guidanceData = MissileGuidanceData.fromTag(tag.getCompound("kaboom:MissileGuidanceData"));
       }
+      this.sourceSubLevelId = tag.hasUUID("kaboom:SourceSubLevel") ? tag.getUUID("kaboom:SourceSubLevel") : null;
 
       if (this.contraption instanceof MissileContraption mc) {
          this.assemblyDirection = mc.assemblyDirection == null ? Direction.UP : mc.assemblyDirection;
@@ -949,7 +977,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
                   double bestDist = Double.POSITIVE_INFINITY;
 
                   for (Vec3 off : offsets) {
-                     BlockHitResult hit = this.level().clip(new ClipContext(segStart.add(off), segEnd.add(off), Block.COLLIDER, Fluid.NONE, this));
+                     BlockHitResult hit = this.level().clip(this.collisionClipContext(
+                        segStart.add(off), segEnd.add(off), Block.COLLIDER, Fluid.NONE
+                     ));
                      if (hit.getType() != Type.MISS) {
                         double d = segStart.distanceTo(hit.getLocation());
                         if (d < bestDist) {
@@ -990,7 +1020,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
                   }
 
                   if (i == 0) {
-                     BlockHitResult fluidHit = this.level().clip(new ClipContext(start, hitEnd, Block.OUTLINE, Fluid.ANY, this));
+                     BlockHitResult fluidHit = this.level().clip(this.collisionClipContext(start, hitEnd, Block.OUTLINE, Fluid.ANY));
                      if (fluidHit.getType() != Type.MISS) {
                         BlockPos fp = fluidHit.getBlockPos();
                         BlockState fs = this.level().getBlockState(fp);
@@ -1115,6 +1145,14 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
             }
          }
       }
+   }
+
+   private ClipContext collisionClipContext(Vec3 start, Vec3 end, Block blockMode, Fluid fluidMode) {
+      ClipContext context = new ClipContext(start, end, blockMode, fluidMode, this);
+      if (this.isBoosting()) {
+         SableUtils.ignoreSubLevel(context, this.sourceSubLevelId);
+      }
+      return context;
    }
 
    protected boolean onClip(MissileProjectileContext ctx, Vec3 start, Vec3 end) {
@@ -1448,6 +1486,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          FuzeMixin acc = (FuzeMixin)fuzed;
          boolean baseFuze = acc.invokeGetFuzeProperties().baseFuze();
          if (acc.invokeCanDetonate(fz -> fz.onProjectileImpact(acc.getFuze(), fuzed, hitResult, impactResult, baseFuze))) {
+            if (fuzed instanceof MissileWarheadProjectile missileWarhead) {
+               missileWarhead.markNextDetonationAsImpact();
+            }
             this.detonate(this.warheadpos, fuzed);
             fuzed.discard();
             this.warhead = null;

@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
+import com.happysg.kaboom.block.missiles.parts.warhead.AbstractMissileWarhead;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -26,19 +27,23 @@ public class MissileAssembler {
    private static final EnumProperty<Axis> HORIZONTAL_AXIS = BlockStateProperties.HORIZONTAL_AXIS;
 
    public static BlockPos findControllerThruster(Level level, BlockPos startPos) {
-      if (!(level.getBlockState(startPos).getBlock() instanceof ThrusterBlock)) {
+      BlockState startState = level.getBlockState(startPos);
+      if (!(startState.getBlock() instanceof ThrusterBlock startThruster)) {
          return null;
       } else {
-         Direction facing = getDirectionalFacing(level.getBlockState(startPos));
+         Direction facing = getDirectionalFacing(startState);
          if (facing == null) {
             return null;
          } else {
+            MissileSize missileSize = startThruster.getMissileSize();
             BlockPos cursor = startPos;
 
             for (int i = 0; i < 256; i++) {
                BlockPos behind = cursor.relative(facing.getOpposite());
                BlockState behindState = level.getBlockState(behind);
-               if (!(behindState.getBlock() instanceof ThrusterBlock) || getDirectionalFacing(behindState) != facing) {
+               if (!(behindState.getBlock() instanceof ThrusterBlock behindThruster)
+                  || behindThruster.getMissileSize() != missileSize
+                  || getDirectionalFacing(behindState) != facing) {
                   break;
                }
 
@@ -64,9 +69,11 @@ public class MissileAssembler {
             }
 
             Axis controllerAxis = controllerFacing.getAxis();
+            MissileSize missileSize = controllerPart.getMissileSize();
             List<BlockPos> collected = new ArrayList<>();
             collected.add(controllerPos);
             boolean foundFuel = false;
+            int fuelTankCount = 0;
             boolean foundGuidance = false;
             boolean foundFuzedProjectile = false;
             BlockPos warhead = null;
@@ -76,12 +83,16 @@ public class MissileAssembler {
                BlockState state = level.getBlockState(cursor);
                Block block = state.getBlock();
                if (!(block instanceof IMissileComponent part)) {
-                  if (block instanceof FuzedProjectileBlock) {
+                  if (isValidWarhead(block, missileSize)) {
                      foundFuzedProjectile = true;
                      collected.add(cursor);
                      warhead = cursor;
                   }
                   break;
+               }
+
+               if (part.getMissileSize() != missileSize) {
+                  return MissileAssemblyResult.invalid();
                }
 
                if (!matchesOrientation(state, part, controllerFacing, controllerAxis)) {
@@ -90,6 +101,7 @@ public class MissileAssembler {
 
                if (part.isFuelTank()) {
                   foundFuel = true;
+                  fuelTankCount++;
                   collected.add(cursor);
                   cursor = cursor.relative(controllerFacing);
                } else {
@@ -108,7 +120,8 @@ public class MissileAssembler {
             }
 
             if (foundFuel && foundGuidance && foundFuzedProjectile) {
-               return MissileAssemblyResult.valid(collected, controllerPos, warhead, guidance, controllerFacing);
+               return MissileAssemblyResult.valid(collected, controllerPos, warhead, guidance, controllerFacing,
+                  missileSize, fuelTankCount);
             }
 
             return MissileAssemblyResult.invalid();
@@ -147,6 +160,14 @@ public class MissileAssembler {
    public static boolean isMissileStructureBlock(BlockState state) {
       Block block = state.getBlock();
       return block instanceof IMissileComponent || block instanceof FuzedProjectileBlock;
+   }
+
+   private static boolean isValidWarhead(Block block, MissileSize missileSize) {
+      if (missileSize == MissileSize.SMALL) {
+         return block instanceof FuzedProjectileBlock && !(block instanceof AbstractMissileWarhead);
+      }
+
+      return block instanceof AbstractMissileWarhead warhead && warhead.getMissileSize() == missileSize;
    }
 
    private static boolean matchesOrientation(BlockState state, IMissileComponent part, Direction controllerFacing, Axis controllerAxis) {

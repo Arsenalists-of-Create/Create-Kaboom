@@ -59,11 +59,13 @@ public class ModCreativeTabs {
 
         pOutput.accept(ModBlocks.LARGE_CLUSTER_WARHEAD);
         pOutput.accept(ModBlocks.LARGE_HIGH_EXPLOSIVE_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_ARMOR_PIERCING_WARHEAD);
         pOutput.accept(ModBlocks.LARGE_FRAGMENTATION_WARHEAD);
         pOutput.accept(ModBlocks.LARGE_FLUID_WARHEAD);
 
         pOutput.accept(ModBlocks.HUGE_CLUSTER_WARHEAD);
         pOutput.accept(ModBlocks.HUGE_HIGH_EXPLOSIVE_WARHEAD);
+        pOutput.accept(ModBlocks.HUGE_ARMOR_PIERCING_WARHEAD);
         pOutput.accept(ModBlocks.HUGE_FRAGMENTATION_WARHEAD);
         pOutput.accept(ModBlocks.HUGE_FLUID_WARHEAD);
 

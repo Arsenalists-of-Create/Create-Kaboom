@@ -11,6 +11,7 @@ import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceType;
 import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
+import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.registry.ModEntities;
 import com.simibubi.create.content.contraptions.AssemblyException;
@@ -37,6 +38,18 @@ public class MissileLaunchHelper {
         if (!result.isValid()) return rejectLaunch(level, result, anyThrusterPos);
 
         BlockPos controllerPos = result.getControllerPos();
+        MissileSize missileSize = result.getMissileSize();
+        int fuelTankCount = result.getFuelTankCount();
+        if (missileSize == null || missileSize.isOverweight(fuelTankCount)) {
+            CreateKaboom.getLogger().info(
+                    "Rejected missile launch at {}: missileSize={} fuelTankCount={} rejectionThreshold={}",
+                    controllerPos,
+                    missileSize,
+                    fuelTankCount,
+                    missileSize == null ? 0 : missileSize.fuelTankLaunchRejectionThreshold()
+            );
+            return rejectLaunch(level, result, anyThrusterPos);
+        }
 
         BlockPos warheadWorldPos = result.getWarhead();
         BlockPos warheadLocalPos = warheadWorldPos.subtract(controllerPos);
@@ -73,6 +86,11 @@ public class MissileLaunchHelper {
 
         mc.guidanceTag = guidance.toTag();
 
+        Vec3 localLaunchDirection = Vec3.atLowerCornerOf(result.getAssemblyDirection().getNormal());
+        SableUtils.LaunchKinematics launch = SableUtils.getLaunchKinematics(
+                level, controllerPos, controllerPos.getCenter(), localLaunchDirection
+        );
+
         BlockEntity controllerBE = level.getBlockEntity(controllerPos);
         ChainSystem chainSystem = null;
         if (controllerBE instanceof ThrusterBlockEntity thrusterBE) {
@@ -89,7 +107,7 @@ public class MissileLaunchHelper {
         MissileEntity entity = ModEntities.MISSILE.get().create(level);
         if (entity == null) return rejectLaunch(level, result, anyThrusterPos);
 
-        entity.initFromAssembly(mc, controllerPos, warheadLocalPos);
+        entity.initFromAssembly(mc, warheadLocalPos, launch);
 
         boolean added = level.addFreshEntity(entity);
 

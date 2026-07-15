@@ -5,11 +5,13 @@ import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FallingAerialBombRenderer;
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterRenderer;
+import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadProjectile;
 import com.tterrag.registrate.util.entry.EntityEntry;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import rbasamoyai.createbigcannons.munitions.big_cannon.BigCannonProjectileRenderer;
 import rbasamoyai.ritchiesprojectilelib.RPLTags;
 
 public class ModProjectiles {
@@ -25,6 +27,12 @@ public class ModProjectiles {
             .properties(bombProperties())
             .tag(RPLTags.PRECISE_MOTION)
             .renderer(() -> ClusterRenderer::new)
+            .register();
+    public static final EntityEntry<MissileWarheadProjectile> MISSILE_WARHEAD_PROJECTILE = CreateKaboom.REGISTRATE
+            .entity("missile_warhead_projectile", MissileWarheadProjectile::new, MobCategory.MISC)
+            .properties(bombProperties())
+            .tag(RPLTags.PRECISE_MOTION)
+            .renderer(() -> BigCannonProjectileRenderer::new)
             .register();
 
     private static <T extends Entity> NonNullConsumer<EntityType.Builder<T>> bombProperties() {

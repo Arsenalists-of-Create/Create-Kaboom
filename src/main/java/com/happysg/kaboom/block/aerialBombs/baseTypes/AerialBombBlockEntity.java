@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.registry.ModProjectiles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,7 +15,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3dc;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockEntity;
 
 public class AerialBombBlockEntity extends FuzedBlockEntity {
@@ -36,11 +36,17 @@ public class AerialBombBlockEntity extends FuzedBlockEntity {
         AerialBombProjectile projectile = createConfiguredProjectile(state);
         if (projectile == null) return;
 
-        projectile.setPos(worldPosition.below().getCenter());
-        Vector3dc shipVel = SableUtils.getVelocity(level,this.worldPosition);
-        if(shipVel != null) {
-            projectile.setDeltaMovement(new Vec3(shipVel.x(), shipVel.y(), shipVel.z()));
-        }
+        Vec3 localReleaseDirection = Vec3.atLowerCornerOf(Direction.DOWN.getNormal());
+        SableUtils.LaunchKinematics launch = SableUtils.getLaunchKinematics(
+                level, worldPosition, worldPosition.below().getCenter(), localReleaseDirection
+        );
+        double ejectionVelocity = Math.max(0.0, KaboomConfig.server().bombEjectionVelocity.getF());
+        projectile.setPos(launch.position());
+        projectile.setDeltaMovement(launch.carrierVelocity().add(launch.direction().scale(ejectionVelocity)));
+        projectile.initializeCarrierCollisionGrace(
+                launch.sourceSubLevelId(),
+                Math.max(0, KaboomConfig.server().bombCarrierCollisionGraceTicks.get())
+        );
 
         level.addFreshEntity(projectile);
 

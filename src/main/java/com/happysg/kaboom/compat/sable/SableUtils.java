@@ -6,13 +6,17 @@ import dev.ryanhcode.sable.companion.SableCompanion;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
 import dev.ryanhcode.sable.companion.math.BoundingBox3dc;
+import dev.ryanhcode.sable.mixinterface.clip_overwrite.ClipContextExtension;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -21,6 +25,40 @@ import org.joml.Vector3dc;
 import org.joml.Vector3fc;
 
 public class SableUtils {
+   public record LaunchKinematics(Vec3 position, Vec3 direction, Vec3 carrierVelocity, @Nullable UUID sourceSubLevelId) {
+   }
+
+   public static LaunchKinematics getLaunchKinematics(Level level, BlockPos sourcePos, Vec3 localPosition, Vec3 localDirection) {
+      Vec3 fallbackDirection = localDirection.lengthSqr() < 1.0E-10
+         ? new Vec3(0.0, 1.0, 0.0)
+         : localDirection.normalize();
+      SubLevelAccess subLevel = getShipManagingPos(level, sourcePos);
+      if (subLevel == null) {
+         return new LaunchKinematics(localPosition, fallbackDirection, Vec3.ZERO, null);
+      }
+
+      Vec3 position = getWorldVec(localPosition, subLevel);
+      Vec3 transformedDirection = getWorldVecDirectionTransform(fallbackDirection, subLevel);
+      Vec3 direction = transformedDirection.lengthSqr() < 1.0E-10
+         ? fallbackDirection
+         : transformedDirection.normalize();
+      Vector3dc velocity = getVelocity(level, sourcePos);
+      Vec3 carrierVelocity = velocity == null
+         ? Vec3.ZERO
+         : new Vec3(velocity.x(), velocity.y(), velocity.z());
+      return new LaunchKinematics(position, direction, carrierVelocity, subLevel.getUniqueId());
+   }
+
+   public static void ignoreSubLevel(ClipContext context, @Nullable UUID subLevelId) {
+      if (!Mods.SABLE.isLoaded() || subLevelId == null || !(context instanceof ClipContextExtension extension)) {
+         return;
+      }
+
+      Predicate<SubLevel> existing = extension.sable$getSubLevelIgnoring();
+      extension.sable$setSubLevelIgnoring(subLevel -> subLevelId.equals(subLevel.getUniqueId())
+         || existing != null && existing.test(subLevel));
+   }
+
    public static BlockPos getWorldPos(Level level, BlockPos pos) {
       if (Mods.SABLE.isLoaded() && isBlockInShipyard(level, pos)) {
          SubLevelAccess subLevel = SableCompanion.INSTANCE.getContaining(level, pos);

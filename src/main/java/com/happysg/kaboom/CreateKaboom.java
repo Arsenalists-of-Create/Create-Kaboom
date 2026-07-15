@@ -85,5 +85,8 @@ public class CreateKaboom {
       event.registerBlockEntity(
          FluidHandler.BLOCK, ModBlockEntityTypes.FUEL_TANK_SMALL.get(), (blockEntity, side) -> blockEntity.getFluidHandler(side)
       );
+      event.registerBlockEntity(
+         FluidHandler.BLOCK, ModBlockEntityTypes.MISSILE_WARHEAD.get(), (blockEntity, side) -> blockEntity.getFluidHandler(side)
+      );
    }
 }

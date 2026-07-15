@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.gps;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
 
@@ -28,8 +29,11 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuidanceBlockEntity>, IGuidanceBlock, IMissileComponent {
-    public GPSGuidanceBlock(Properties properties) {
+    private final MissileSize missileSize;
+
+    public GPSGuidanceBlock(Properties properties, MissileSize missileSize) {
         super(properties);
+        this.missileSize = missileSize;
         registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
     }
 
@@ -76,6 +80,11 @@ public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuida
     @Override
     public MissilePartType getPartType() {
         return MissilePartType.GUIDANCE;
+    }
+
+    @Override
+    public MissileSize getMissileSize() {
+        return missileSize;
     }
 
     @Override

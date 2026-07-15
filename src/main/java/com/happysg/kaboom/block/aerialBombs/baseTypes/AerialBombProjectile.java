@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
+import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.happysg.kaboom.registry.ModTags;
@@ -10,6 +11,7 @@ import net.minecraft.core.Position;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -22,6 +24,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -58,6 +61,7 @@ import rbasamoyai.createbigcannons.utils.CBCUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 public class AerialBombProjectile extends AbstractCannonProjectile {
@@ -76,6 +80,10 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private int count;
     boolean onImpact = false;
     private int apRemaining = 0;
+    @Nullable
+    private UUID sourceSubLevelId = null;
+    private int carrierCollisionGraceTicks = 0;
+    private Vec3 previousRenderVelocity = Vec3.ZERO;
 
     public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
@@ -130,6 +138,18 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         this.size = size;
     }
 
+    public void initializeCarrierCollisionGrace(@Nullable UUID sourceSubLevelId, int graceTicks) {
+        this.sourceSubLevelId = sourceSubLevelId;
+        this.carrierCollisionGraceTicks = sourceSubLevelId == null ? 0 : Math.max(0, graceTicks);
+    }
+
+    public ClipContext configureLaunchCollisionContext(ClipContext context) {
+        if (carrierCollisionGraceTicks > 0) {
+            SableUtils.ignoreSubLevel(context, sourceSubLevelId);
+        }
+        return context;
+    }
+
     public enum BombType {
         HE,
         AP,
@@ -147,7 +167,12 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     }
 
     public void tick() {
+        this.previousRenderVelocity = this.getDeltaMovement();
         super.tick();
+
+        if (this.carrierCollisionGraceTicks > 0) {
+            --this.carrierCollisionGraceTicks;
+        }
 
         if (!this.level().isClientSide && this.explosionCountdown > 0) {
             --this.explosionCountdown;
@@ -303,6 +328,12 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         if (this.explosionCountdown >= 0) {
             tag.putInt("ExplosionCountdown", this.explosionCountdown);
         }
+        if (this.sourceSubLevelId != null) {
+            tag.putUUID("SourceSubLevel", this.sourceSubLevelId);
+        }
+        if (this.carrierCollisionGraceTicks > 0) {
+            tag.putInt("CarrierCollisionGraceTicks", this.carrierCollisionGraceTicks);
+        }
 
     }
 
@@ -310,9 +341,33 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         super.readAdditionalSaveData(tag);
         this.fuze = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("Fuze"));
         this.explosionCountdown = tag.contains("ExplosionCountdown", 3) ? tag.getInt("ExplosionCountdown") : -1;
+        this.sourceSubLevelId = tag.hasUUID("SourceSubLevel") ? tag.getUUID("SourceSubLevel") : null;
+        this.carrierCollisionGraceTicks = this.sourceSubLevelId == null
+                ? 0
+                : Math.max(0, tag.getInt("CarrierCollisionGraceTicks"));
         if (tag.contains("PayloadFluid", Tag.TAG_COMPOUND))
             this.entityData.set(PAYLOAD_FLUID, tag.getCompound("PayloadFluid"));
 
+    }
+
+    @Override
+    public void writeSpawnData(RegistryFriendlyByteBuf buffer) {
+        super.writeSpawnData(buffer);
+        buffer.writeBoolean(this.sourceSubLevelId != null);
+        if (this.sourceSubLevelId != null) {
+            buffer.writeUUID(this.sourceSubLevelId);
+        }
+        buffer.writeVarInt(this.carrierCollisionGraceTicks);
+    }
+
+    @Override
+    public void readSpawnData(RegistryFriendlyByteBuf buffer) {
+        super.readSpawnData(buffer);
+        this.sourceSubLevelId = buffer.readBoolean() ? buffer.readUUID() : null;
+        int graceTicks = buffer.readVarInt();
+        this.carrierCollisionGraceTicks = this.sourceSubLevelId == null
+                ? 0
+                : Math.max(0, graceTicks);
     }
 
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
@@ -660,6 +715,17 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     public Direction getFacing() {
         return this.getState().getValue(BlockStateProperties.HORIZONTAL_FACING);
     }
+
+    public Vec3 getInterpolatedRenderVelocity(float partialTicks) {
+        Vec3 currentVelocity = this.getDeltaMovement();
+        if (this.previousRenderVelocity.lengthSqr() < Mth.EPSILON) {
+            return currentVelocity;
+        }
+
+        Vec3 interpolatedVelocity = this.previousRenderVelocity.lerp(currentVelocity, Mth.clamp(partialTicks, 0.0F, 1.0F));
+        return interpolatedVelocity.lengthSqr() < Mth.EPSILON ? currentVelocity : interpolatedVelocity;
+    }
+
     private static final EntityDataAccessor<CompoundTag> PAYLOAD_FLUID =
             SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.COMPOUND_TAG);
 
@@ -746,6 +812,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 }
             }
         }
+    }
+
+    public void detonateAsWarhead(Position position, boolean detonatedOnImpact) {
+        this.onImpact = detonatedOnImpact;
+        this.detonate(position);
     }
 
     @Nullable

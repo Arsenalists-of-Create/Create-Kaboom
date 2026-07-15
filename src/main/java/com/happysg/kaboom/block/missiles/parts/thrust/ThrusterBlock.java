@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.thrust;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
@@ -22,15 +23,18 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class ThrusterBlock extends DirectionalBlock implements IMissileComponent, EntityBlock {
-    public ThrusterBlock(Properties pProperties) {
+    private final MissileSize missileSize;
+
+    public ThrusterBlock(Properties pProperties, MissileSize missileSize) {
         super(pProperties);
+        this.missileSize = missileSize;
         registerDefaultState(super.defaultBlockState()
                 .setValue(FACING, Direction.UP));
 
     }
     @Override
     protected MapCodec<? extends DirectionalBlock> codec() {
-        return simpleCodec(ThrusterBlock::new);
+        return simpleCodec(properties -> new ThrusterBlock(properties, missileSize));
     }
 
     @Override
@@ -60,6 +64,11 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
     @Override
     public MissilePartType getPartType() {
         return MissilePartType.THRUSTER;
+    }
+
+    @Override
+    public MissileSize getMissileSize() {
+        return missileSize;
     }
 
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

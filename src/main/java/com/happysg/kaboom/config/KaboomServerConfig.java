@@ -19,6 +19,15 @@ public class KaboomServerConfig extends ConfigBase {
    );
    public final ConfigFloat maxSpeed = this.f(10.0F, 0.0F, "maxSpeed", new String[]{"Maximum missile speed in blocks per tick"});
    public final ConfigFloat thrustAccelerationPerTick = this.f(0.5F, 0.0F, "thrustAccelerationPerTick", new String[]{"Powered missile acceleration per tick"});
+   public final ConfigFloat missileEjectionVelocity = this.f(
+      0.5F, 0.0F, "missileEjectionVelocity", new String[]{"One-time forward velocity added when a missile launches, in blocks per tick"}
+   );
+   public final ConfigFloat bombEjectionVelocity = this.f(
+      0.25F, 0.0F, "bombEjectionVelocity", new String[]{"One-time local-down velocity added when an aerial bomb releases, in blocks per tick"}
+   );
+   public final ConfigInt bombCarrierCollisionGraceTicks = this.i(
+      20, 0, "bombCarrierCollisionGraceTicks", new String[]{"Ticks that a released aerial bomb ignores only its launching Sable sublevel"}
+   );
    public final ConfigInt cruiseAltitudeY = this.i(350, 0, "cruiseAltitudeY", new String[]{"World Y altitude used for missile cruise"});
    public final ConfigFloat cruiseAltitudeDeadband = this.f(12.0F, 0.0F, "cruiseAltitudeDeadband", new String[]{"Altitude error ignored during missile cruise"});
    public final ConfigFloat cruiseActivationDistance = this.f(

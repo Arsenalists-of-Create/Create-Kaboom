@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.simibubi.create.content.contraptions.mounted.MountedContraption;
 import javax.annotation.Nullable;
@@ -26,6 +27,8 @@ public class MissileContraption extends MountedContraption {
    public Direction assemblyDirection = Direction.UP;
    public int fuelAmountMb = 0;
    public int fuelCapacityMb = 0;
+   public MissileSize missileSize = MissileSize.SMALL;
+   public int fuelTankCount = 1;
    public CompoundTag fuelFluidTag = null;
    public BlockPos warheadLocalPos = null;
    public BlockPos capLocalPos = BlockPos.ZERO;
@@ -39,6 +42,8 @@ public class MissileContraption extends MountedContraption {
    public void captureFromScan(Level level, MissileAssemblyResult result) {
       this.controllerWorldPos = result.getControllerPos();
       this.assemblyDirection = result.getAssemblyDirection();
+      this.missileSize = result.getMissileSize() == null ? MissileSize.SMALL : result.getMissileSize();
+      this.fuelTankCount = Math.max(1, result.getFuelTankCount());
       this.warheadLocalPos = result.getWarheadLocal();
       this.capLocalPos = this.warheadLocalPos;
 
@@ -120,6 +125,8 @@ public class MissileContraption extends MountedContraption {
       CompoundTag tag = super.writeNBT(registries, clientData);
       tag.putInt("kaboom:FuelAmountMb", this.fuelAmountMb);
       tag.putInt("kaboom:FuelCapacityMb", this.fuelCapacityMb);
+      tag.putString("kaboom:MissileSize", this.missileSize.name());
+      tag.putInt("kaboom:FuelTankCount", this.fuelTankCount);
       tag.putInt("kaboom:AssemblyDirection", this.assemblyDirection.get3DDataValue());
       if (this.fuelFluidTag != null) {
          tag.put("kaboom:FuelFluid", this.fuelFluidTag);
@@ -150,6 +157,7 @@ public class MissileContraption extends MountedContraption {
 
    public void readNBT(Level level, CompoundTag tag, boolean clientData) {
       super.readNBT(level, tag, clientData);
+      this.restoreWeightMetadata(tag);
       this.fuelAmountMb = tag.getInt("kaboom:FuelAmountMb");
       this.fuelCapacityMb = tag.getInt("kaboom:FuelCapacityMb");
       this.assemblyDirection = tag.contains("kaboom:AssemblyDirection") ? Direction.from3DDataValue(tag.getInt("kaboom:AssemblyDirection")) : Direction.UP;
@@ -183,5 +191,32 @@ public class MissileContraption extends MountedContraption {
 
       this.guidanceTag = tag.contains("Guidance") ? tag.getCompound("Guidance") : null;
       this.chainSystemTag = tag.contains("kaboom:ChainSystem") ? tag.getCompound("kaboom:ChainSystem") : null;
+   }
+
+   private void restoreWeightMetadata(CompoundTag tag) {
+      MissileSize derivedSize = null;
+      int derivedFuelTankCount = 0;
+      for (StructureBlockInfo info : this.getBlocks().values()) {
+         if (info.state().getBlock() instanceof IMissileComponent part) {
+            if (derivedSize == null && part.isThruster()) {
+               derivedSize = part.getMissileSize();
+            }
+            if (part.isFuelTank()) {
+               derivedFuelTankCount++;
+            }
+         }
+      }
+
+      this.missileSize = derivedSize == null ? MissileSize.SMALL : derivedSize;
+      if (tag.contains("kaboom:MissileSize")) {
+         try {
+            this.missileSize = MissileSize.valueOf(tag.getString("kaboom:MissileSize"));
+         } catch (IllegalArgumentException ignored) {
+         }
+      }
+
+      this.fuelTankCount = tag.contains("kaboom:FuelTankCount")
+         ? Math.max(1, tag.getInt("kaboom:FuelTankCount"))
+         : Math.max(1, derivedFuelTankCount);
    }
 }

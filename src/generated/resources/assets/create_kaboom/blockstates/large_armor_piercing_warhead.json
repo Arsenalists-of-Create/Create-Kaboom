@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead"
+    },
+    "facing=down": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead",
+      "x": 180
+    },
+    "facing=south": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead",
+      "x": 90
+    },
+    "facing=west": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead",
+      "x": 90,
+      "y": 180
+    },
+    "facing=east": {
+      "model": "create_kaboom:block/missile/medium_armor_piercing_warhead",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

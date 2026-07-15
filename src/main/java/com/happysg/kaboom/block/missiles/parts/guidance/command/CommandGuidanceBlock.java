@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.command;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
@@ -31,8 +32,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.List;
 
 public class CommandGuidanceBlock extends RotatedPillarBlock implements IBE<CommandGuidanceBlockEntity>, IGuidanceBlock, IMissileComponent {
-    public CommandGuidanceBlock(Properties properties) {
+    private final MissileSize missileSize;
+
+    public CommandGuidanceBlock(Properties properties, MissileSize missileSize) {
         super(properties);
+        this.missileSize = missileSize;
         registerDefaultState(defaultBlockState().setValue(AXIS, Direction.Axis.Y));
     }
 
@@ -105,5 +109,10 @@ public class CommandGuidanceBlock extends RotatedPillarBlock implements IBE<Comm
     @Override
     public MissilePartType getPartType() {
         return MissilePartType.GUIDANCE;
+    }
+
+    @Override
+    public MissileSize getMissileSize() {
+        return missileSize;
     }
 }

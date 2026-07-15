@@ -39,5 +39,16 @@
   "block.create_kaboom.gps_guidance_large": "Large Inertial Guidance Unit",
   "block.create_kaboom.gps_guidance_huge": "Huge Inertial Guidance Unit",
   "block.create_kaboom.heatseeker_small": "Small Heatseeker Unit",
-  "entity.create_kaboom.cluster_bomblet": "Cluster Bomblet"
+  "entity.create_kaboom.cluster_bomblet": "Cluster Bomblet",
+  "entity.create_kaboom.missile_warhead_projectile": "Missile Warhead Projectile",
+  "block.create_kaboom.large_high_explosive_warhead": "Large High Explosive Warhead",
+  "block.create_kaboom.huge_high_explosive_warhead": "Huge High Explosive Warhead",
+  "block.create_kaboom.large_armor_piercing_warhead": "Large Armor Piercing Warhead",
+  "block.create_kaboom.huge_armor_piercing_warhead": "Huge Armor Piercing Warhead",
+  "block.create_kaboom.large_fragmentation_warhead": "Large Fragmentation Warhead",
+  "block.create_kaboom.huge_fragmentation_warhead": "Huge Fragmentation Warhead",
+  "block.create_kaboom.large_cluster_warhead": "Large Cluster Warhead",
+  "block.create_kaboom.huge_cluster_warhead": "Huge Cluster Warhead",
+  "block.create_kaboom.large_fluid_warhead": "Large Fluid Warhead",
+  "block.create_kaboom.huge_fluid_warhead": "Huge Fluid Warhead"
 }

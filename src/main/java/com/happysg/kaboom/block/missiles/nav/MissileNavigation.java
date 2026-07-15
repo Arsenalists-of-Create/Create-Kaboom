@@ -96,7 +96,7 @@ public final class MissileNavigation {
             Vec3 requestedDelta;
             if (this.state == MissileNavigation.State.BOOST) {
                desiredDir = this.launchDirection;
-               appliedDelta = this.poweredDeltaAlong(access, desiredDir, configuredThrustAccelerationPerTick());
+               appliedDelta = this.poweredDeltaAlong(access, desiredDir, effectiveThrustAccelerationPerTick(access));
                requestedDelta = appliedDelta;
             } else {
                MissileNavigation.Command steered = this.steerToward(access, vel, desiredDir);
@@ -240,7 +240,7 @@ public final class MissileNavigation {
       Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, configuredMaxTurnDegreesPerTick());
       double actualTurnDeg = angleDegrees(currentDir, rotatedDir);
       double currentSpeed = vel.length();
-      double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + configuredThrustAccelerationPerTick());
+      double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + effectiveThrustAccelerationPerTick(access));
       Vec3 requestedVelocity = rotatedDir.scale(requestedSpeed);
       Vec3 requestedDelta = requestedVelocity.subtract(vel);
       Vec3 appliedDelta = clampMagnitude(requestedDelta, configuredMaxAccelerationPerTick());
@@ -249,12 +249,13 @@ public final class MissileNavigation {
    }
 
    private Vec3 poweredDeltaAlong(MissileNavigation.FlightAccess access, Vec3 directionOrDelta, double magnitude) {
-      if (access.guidanceFuelMb() > 0 && !(magnitude <= 0.0) && !(directionOrDelta.lengthSqr() < 1.0E-10)) {
+      double thrustAcceleration = effectiveThrustAccelerationPerTick(access);
+      if (access.guidanceFuelMb() > 0 && thrustAcceleration > 1.0E-9 && !(magnitude <= 0.0) && !(directionOrDelta.lengthSqr() < 1.0E-10)) {
          double max = Math.min(magnitude, configuredMaxAccelerationPerTick());
          Vec3 dir = safeNormalize(directionOrDelta, this.launchDirection);
-         double throttle = configuredThrustAccelerationPerTick() <= 1.0E-9 ? 0.0 : Mth.clamp(max / configuredThrustAccelerationPerTick(), 0.0, 1.0);
+         double throttle = Mth.clamp(max / thrustAcceleration, 0.0, 1.0);
          double availableThrottle = this.burnFuelForThrottle(access, throttle);
-         return dir.scale(configuredThrustAccelerationPerTick() * availableThrottle);
+         return dir.scale(thrustAcceleration * availableThrottle);
       } else {
          return Vec3.ZERO;
       }
@@ -470,6 +471,11 @@ public final class MissileNavigation {
       return Math.max(0.0, configured);
    }
 
+   private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {
+      double multiplier = Mth.clamp(access.guidanceAccelerationMultiplier(), 0.0, 1.0);
+      return configuredThrustAccelerationPerTick() * multiplier;
+   }
+
    private static double configuredCruiseAltitudeY(Level level) {
       int minY = level.getMinBuildHeight() + 2;
       int maxY = level.getMaxBuildHeight() - 2;
@@ -521,6 +527,8 @@ public final class MissileNavigation {
       int guidanceFuelMb();
 
       int guidanceFuelCapacityMb();
+
+      double guidanceAccelerationMultiplier();
 
       void guidanceSetFuelMb(int var1);
 

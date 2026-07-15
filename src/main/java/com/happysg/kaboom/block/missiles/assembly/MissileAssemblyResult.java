@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
 import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
@@ -12,9 +13,13 @@ public class MissileAssemblyResult {
    private final int warheadIndex;
    private final BlockPos guidance;
    private final Direction assemblyDirection;
+   @Nullable
+   private final MissileSize missileSize;
+   private final int fuelTankCount;
 
    private MissileAssemblyResult(
-      boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex, BlockPos guidance, Direction assemblyDirection
+      boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex, BlockPos guidance,
+      Direction assemblyDirection, @Nullable MissileSize missileSize, int fuelTankCount
    ) {
       this.valid = valid;
       this.blocks = blocks;
@@ -23,18 +28,22 @@ public class MissileAssemblyResult {
       this.warheadIndex = warheadIndex;
       this.guidance = guidance;
       this.assemblyDirection = assemblyDirection;
+      this.missileSize = missileSize;
+      this.fuelTankCount = Math.max(0, fuelTankCount);
    }
 
    public static MissileAssemblyResult invalid() {
-      return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1, BlockPos.ZERO, Direction.UP);
+      return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1, BlockPos.ZERO, Direction.UP, null, 0);
    }
 
-   public static MissileAssemblyResult valid(List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, BlockPos guidance, Direction assemblyDirection) {
+   public static MissileAssemblyResult valid(List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, BlockPos guidance,
+                                             Direction assemblyDirection, MissileSize missileSize, int fuelTankCount) {
       List<BlockPos> copy = List.copyOf(blocks);
       if (!copy.contains(warhead)) {
          throw new IllegalArgumentException("warhead must be contained in blocks");
       } else {
-         return new MissileAssemblyResult(true, copy, controllerPos, warhead, copy.size() - 1, guidance, assemblyDirection);
+         return new MissileAssemblyResult(true, copy, controllerPos, warhead, copy.size() - 1, guidance,
+            assemblyDirection, missileSize, fuelTankCount);
       }
    }
 
@@ -72,5 +81,14 @@ public class MissileAssemblyResult {
 
    public Direction getAssemblyDirection() {
       return this.assemblyDirection;
+   }
+
+   @Nullable
+   public MissileSize getMissileSize() {
+      return this.missileSize;
+   }
+
+   public int getFuelTankCount() {
+      return this.fuelTankCount;
    }
 }

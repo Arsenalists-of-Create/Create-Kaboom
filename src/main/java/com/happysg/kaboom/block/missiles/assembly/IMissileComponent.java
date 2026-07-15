@@ -16,6 +16,8 @@ public interface IMissileComponent {
 
     MissilePartType getPartType();
 
+    MissileSize getMissileSize();
+
     default boolean isFuelTank() {
         return getPartType() == MissilePartType.FUEL_TANK;
     }

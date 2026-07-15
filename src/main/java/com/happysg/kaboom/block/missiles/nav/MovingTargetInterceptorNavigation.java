@@ -182,7 +182,7 @@ public final class MovingTargetInterceptorNavigation {
                      this.transitionTo(access, MovingTargetInterceptorNavigation.State.INTERCEPT, "boost completed; entered intercept");
                   }
 
-                  Vec3 appliedDelta = this.poweredDeltaAlong(access, this.launchDirection, configuredThrustAccelerationPerTick());
+                  Vec3 appliedDelta = this.poweredDeltaAlong(access, this.launchDirection, effectiveThrustAccelerationPerTick(access));
                   this.lastCommand = new MissileNavigation.Command(appliedDelta, this.launchDirection, 0.0, appliedDelta, "boost");
                   this.debug(access, pos, vel, target, this.lastCommand, "boost");
                   return this.lastCommand;
@@ -657,7 +657,7 @@ public final class MovingTargetInterceptorNavigation {
       Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, configuredMaxTurnDegreesPerTick());
       double actualTurnDeg = angleDegrees(currentDir, rotatedDir);
       double currentSpeed = vel.length();
-      double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + configuredThrustAccelerationPerTick());
+      double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + effectiveThrustAccelerationPerTick(access));
       Vec3 requestedVelocity = rotatedDir.scale(requestedSpeed);
       Vec3 requestedDelta = requestedVelocity.subtract(vel);
       Vec3 appliedDelta = clampMagnitude(requestedDelta, configuredMaxAccelerationPerTick());
@@ -666,12 +666,13 @@ public final class MovingTargetInterceptorNavigation {
    }
 
    private Vec3 poweredDeltaAlong(MissileNavigation.FlightAccess access, Vec3 directionOrDelta, double magnitude) {
-      if (access.guidanceFuelMb() > 0 && !(magnitude <= 0.0) && !(directionOrDelta.lengthSqr() < 1.0E-10)) {
+      double thrustAcceleration = effectiveThrustAccelerationPerTick(access);
+      if (access.guidanceFuelMb() > 0 && thrustAcceleration > 1.0E-9 && !(magnitude <= 0.0) && !(directionOrDelta.lengthSqr() < 1.0E-10)) {
          double max = Math.min(magnitude, configuredMaxAccelerationPerTick());
          Vec3 dir = safeNormalize(directionOrDelta, this.launchDirection);
-         double throttle = configuredThrustAccelerationPerTick() <= 1.0E-9 ? 0.0 : Mth.clamp(max / configuredThrustAccelerationPerTick(), 0.0, 1.0);
+         double throttle = Mth.clamp(max / thrustAcceleration, 0.0, 1.0);
          double availableThrottle = this.burnFuelForThrottle(access, throttle);
-         return dir.scale(configuredThrustAccelerationPerTick() * availableThrottle);
+         return dir.scale(thrustAcceleration * availableThrottle);
       } else {
          return Vec3.ZERO;
       }
@@ -903,6 +904,11 @@ public final class MovingTargetInterceptorNavigation {
       }
 
       return Math.max(0.0, configured);
+   }
+
+   private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {
+      double multiplier = Mth.clamp(access.guidanceAccelerationMultiplier(), 0.0, 1.0);
+      return configuredThrustAccelerationPerTick() * multiplier;
    }
 
    private static double configuredOvershootDistanceEpsilon() {
