@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
+import com.happysg.kaboom.block.missiles.nav.ARADNavigation;
 import com.happysg.kaboom.block.missiles.nav.MissileNavigation;
 import com.happysg.kaboom.block.missiles.nav.MovingTargetInterceptorNavigation;
 import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadProjectile;
@@ -9,6 +10,7 @@ import com.happysg.kaboom.block.missiles.util.MissileAttachedParticleOptions;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceType;
 import com.happysg.kaboom.block.missiles.util.MissileProjectileContext;
+import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
@@ -24,6 +26,7 @@ import com.simibubi.create.foundation.collision.CollisionList;
 import com.simibubi.create.foundation.collision.CollisionList.Populate;
 import dev.engine_room.flywheel.lib.transform.PoseTransformStack;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +52,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.SynchedEntityData.Builder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
@@ -116,11 +120,31 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private static final EntityDataAccessor<Integer> NAV_STATE = SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.INT);
    private static final double BOUNCE_RESTITUTION = 0.35;
    private static final int SUBSTEPS = 20;
+   private static final int IDLE_DESPAWN_TICKS = 20 * 120;
+   private static final double IDLE_MOVEMENT_EPSILON_SQR = 1.0E-6;
+   private static final double SUPPORT_PROBE_DISTANCE = 0.125;
+   private static final int LOCAL_CHUNK_RADIUS = 1;
+   private static final int FORWARD_CHUNK_LOOKAHEAD = 3;
+   private static final double FORWARD_CHUNK_SAMPLE_BLOCKS = 8.0;
+   private static final TicketType<UUID> MISSILE_CHUNK_TICKET = TicketType.create(
+      "create_kaboom:missile",
+      Comparator.<UUID>naturalOrder()
+   );
    private boolean latchedInGround = false;
+   @Nullable
+   private BlockPos landingSupportPos = null;
+   @Nullable
+   private Vec3 landingContactPoint = null;
+   @Nullable
+   private Vec3 landingSurfaceNormal = null;
+   private boolean postLandingBallistic = false;
+   private boolean landingImpactFuzeConsumed = false;
+   private int stationaryTicks = 0;
+   @Nullable
+   private Vec3 lastMovementCheckPosition = null;
    @Nullable
    private Vec3 resolvedPosThisTick = null;
    private final Set<Long> forcedChunks = new HashSet<>();
-   private static final int CHUNK_RADIUS = 1;
    @OnlyIn(Dist.CLIENT)
    private boolean spawnedThrusterParticle = false;
    private int fuelMb;
@@ -135,6 +159,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private boolean forceCustomColliders = true;
    private final MissileNavigation navigation = new MissileNavigation();
    private final MovingTargetInterceptorNavigation interceptorNavigation = new MovingTargetInterceptorNavigation();
+   private final ARADNavigation aradNavigation = new ARADNavigation();
    @Nullable
    private MissileGuidanceData guidanceData = null;
    @Nullable
@@ -209,6 +234,12 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    @Override
+   public boolean guidanceHasFuze() {
+      return this.warhead instanceof FuzedBigCannonProjectile fuzed
+         && !((FuzeMixin)fuzed).getFuze().isEmpty();
+   }
+
+   @Override
    public void guidanceSetFuelMb(int mb) {
       this.fuelMb = Math.max(0, mb);
       this.entityData.set(FUEL_MB, this.fuelMb);
@@ -240,6 +271,12 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    public void initFromAssembly(Contraption contraption, BlockPos warheadLocalPos, SableUtils.LaunchKinematics launch) {
       Vec3 launchPos = launch.position();
+      this.latchedInGround = false;
+      this.clearLandingSupport();
+      this.postLandingBallistic = false;
+      this.landingImpactFuzeConsumed = false;
+      this.stationaryTicks = 0;
+      this.lastMovementCheckPosition = launchPos;
       this.setPos(launchPos.x, launchPos.y, launchPos.z);
       this.setContraption(contraption);
       this.setNoGravity(false);
@@ -262,6 +299,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       Vec3 launchDirection = launch.direction();
       this.navigation.initialize(launchDirection, this.position(), this);
       this.interceptorNavigation.initialize(launchDirection, this.position(), this);
+      this.aradNavigation.initialize(launchDirection, this.position(), this);
       this.syncHeading(launchDirection);
       this.sourceSubLevelId = launch.sourceSubLevelId();
       double ejectionVelocity = Math.max(0.0, (double)KaboomConfig.server().missileEjectionVelocity.getF());
@@ -273,6 +311,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          this.guidanceData = MissileGuidanceData.fromTag(mc.guidanceTag);
          if (this.guidanceData.guidanceType() == MissileGuidanceType.GPS) {
             this.navigation.configureStationaryTarget(this.guidanceData, this.position());
+         } else if (this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+            this.aradNavigation.configure(this.guidanceData, this.position(), this);
          } else if (this.guidanceData.guidanceType().isInterceptor()) {
             this.interceptorNavigation.configure(this.guidanceData);
          }
@@ -362,6 +402,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
             super.tick();
          } else {
             this.serverTickMovement();
+            if (!this.isRemoved()) {
+               this.tickIdleDespawn();
+            }
          }
       }
    }
@@ -381,6 +424,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.tickChunkLoading();
       this.noPhysics = true;
       this.setNoGravity(false);
+      if (this.latchedInGround && !this.hasLandingSupport()) {
+         this.releaseFromLanding();
+      }
       if (this.latchedInGround) {
          this.freezeInPlace();
          this.tickWarhead();
@@ -403,8 +449,22 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
          boolean boosting = this.isBoosting();
          MissileNavigation.Command guidance = this.tickGuidance(pos0, vel0);
+         // Guidance may have resolved a moving target this tick, or may have just
+         // entered runaway/abort. Refresh now so target tickets are added and stale
+         // dependency tickets are released without waiting for another entity tick.
+         this.tickChunkLoading();
+         if (this.aradNavigation.shouldDetonateAfterRunaway()
+             || this.interceptorNavigation.shouldDetonateAfterRunaway()) {
+            this.detonateAfterGuidanceFailure();
+            return;
+         }
          Vec3 aCtrl = guidance.appliedDeltaV();
-         Vec3 aBase = boosting && aCtrl.lengthSqr() > 1.0E-12 ? Vec3.ZERO : this.getForcesWithParam(vel0);
+         Vec3 aBase = !this.postLandingBallistic
+            && (this.aradNavigation.isRunaway()
+            || this.interceptorNavigation.isRunaway()
+            || boosting && aCtrl.lengthSqr() > 1.0E-12)
+            ? Vec3.ZERO
+            : this.getForcesWithParam(vel0);
          Vec3 aTick = aBase.add(aCtrl);
          MissileEntity.PhysicsStep step = this.integrateSubsteps(pos0, vel0, aTick, 20);
          Vec3 posPred = step.pos();
@@ -419,14 +479,13 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          Vec3 velNext = clampSpeed(velPred, maxSpeed);
          this.setContraptionMotion(velNext);
          super.setDeltaMovement(velNext);
+         this.syncHeading(velNext);
          this.resolvedPosThisTick = null;
          this.tickCBCImpacts(pos0, pos1);
          this.tickWarhead();
          if (this.resolvedPosThisTick != null) {
             this.setPos(this.resolvedPosThisTick.x, this.resolvedPosThisTick.y, this.resolvedPosThisTick.z);
          } else {
-            Vec3 headingVec = guidance.desiredDir() != null && guidance.desiredDir().lengthSqr() > 1.0E-8 ? guidance.desiredDir() : velNext;
-            this.syncHeading(headingVec);
             this.sendPreciseMotion(pos1, velNext);
          }
       }
@@ -450,10 +509,77 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.noPhysics = true;
    }
 
-   private void latchInGround() {
+   private void latchInGround(BlockHitResult blockHit) {
+      this.syncHeading(this.getDeltaMovement());
       this.latchedInGround = true;
+      this.landingSupportPos = blockHit.getBlockPos().immutable();
+      this.landingContactPoint = blockHit.getLocation();
+      Vec3 normal = CBCUtils.getSurfaceNormalVector(this.level(), blockHit);
+      if (!isFinite(normal) || normal.lengthSqr() <= 1.0E-8) {
+         normal = Vec3.atLowerCornerOf(blockHit.getDirection().getNormal());
+      }
+      this.landingSurfaceNormal = normal.normalize();
       this.drainFuel();
       this.freezeInPlace();
+   }
+
+   private boolean hasLandingSupport() {
+      if (this.landingSupportPos == null
+         || !isFinite(this.landingContactPoint)
+         || !isFinite(this.landingSurfaceNormal)
+         || this.landingSurfaceNormal.lengthSqr() <= 1.0E-8) {
+         return false;
+      }
+      if (!this.level().hasChunk(this.landingSupportPos.getX() >> 4, this.landingSupportPos.getZ() >> 4)) {
+         return true;
+      }
+
+      Vec3 normal = this.landingSurfaceNormal.normalize();
+      Vec3 start = this.landingContactPoint.add(normal.scale(SUPPORT_PROBE_DISTANCE));
+      Vec3 end = this.landingContactPoint.subtract(normal.scale(SUPPORT_PROBE_DISTANCE));
+      BlockHitResult supportHit = this.level().clip(new ClipContext(start, end, Block.COLLIDER, Fluid.NONE, this));
+      return supportHit.getType() != Type.MISS && supportHit.getBlockPos().equals(this.landingSupportPos);
+   }
+
+   private void releaseFromLanding() {
+      this.latchedInGround = false;
+      this.clearLandingSupport();
+      this.postLandingBallistic = true;
+      this.lastPenetratedBlock = Blocks.AIR.defaultBlockState();
+      this.penetrationTime = 0;
+      this.pendingVelocity = null;
+      super.setDeltaMovement(Vec3.ZERO);
+      this.setContraptionMotion(Vec3.ZERO);
+   }
+
+   private void clearLandingSupport() {
+      this.landingSupportPos = null;
+      this.landingContactPoint = null;
+      this.landingSurfaceNormal = null;
+   }
+
+   private void tickIdleDespawn() {
+      Vec3 currentPosition = this.position();
+      if (!isFinite(currentPosition)) {
+         this.stationaryTicks = 0;
+         this.lastMovementCheckPosition = null;
+         return;
+      }
+      if (!isFinite(this.lastMovementCheckPosition)) {
+         this.stationaryTicks = 0;
+         this.lastMovementCheckPosition = currentPosition;
+         return;
+      }
+
+      if (currentPosition.distanceToSqr(this.lastMovementCheckPosition) > IDLE_MOVEMENT_EPSILON_SQR) {
+         this.stationaryTicks = 0;
+      } else {
+         this.stationaryTicks++;
+      }
+      this.lastMovementCheckPosition = currentPosition;
+      if (this.stationaryTicks >= IDLE_DESPAWN_TICKS) {
+         this.discard();
+      }
    }
 
    private void sendPreciseMotion(Vec3 pos, Vec3 v) {
@@ -468,10 +594,15 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    private void syncHeading(Vec3 v) {
-      Vec3 h = v.lengthSqr() > 1.0E-8 ? v.normalize() : new Vec3(0.0, 1.0, 0.0);
+      if (!isFinite(v) || v.lengthSqr() <= 1.0E-8) {
+         return;
+      }
+      Vec3 h = v.normalize();
       this.entityData.set(HEADING_X, (float)h.x);
       this.entityData.set(HEADING_Y, (float)h.y);
       this.entityData.set(HEADING_Z, (float)h.z);
+      this.setXRot(pitchFromVector(h));
+      this.setYRot(yawFromVector(h));
    }
 
    private Vec3 tipWorldAtEntityPos(Vec3 entityPos, BlockPos localBlock, Vec3 worldDirUnit, double ahead) {
@@ -519,6 +650,30 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       tag.putString("kaboom:MissileSize", this.missileSize.name());
       tag.putInt("kaboom:FuelTankCount", this.fuelTankCount);
       tag.putBoolean("kaboom:LatchedInGround", this.latchedInGround);
+      boolean hasLandingSupport = this.landingSupportPos != null
+         && isFinite(this.landingContactPoint)
+         && isFinite(this.landingSurfaceNormal);
+      tag.putBoolean("kaboom:HasLandingSupport", hasLandingSupport);
+      if (hasLandingSupport) {
+         tag.putLong("kaboom:LandingSupportPos", this.landingSupportPos.asLong());
+         tag.putDouble("kaboom:LandingContactX", this.landingContactPoint.x);
+         tag.putDouble("kaboom:LandingContactY", this.landingContactPoint.y);
+         tag.putDouble("kaboom:LandingContactZ", this.landingContactPoint.z);
+         tag.putDouble("kaboom:LandingNormalX", this.landingSurfaceNormal.x);
+         tag.putDouble("kaboom:LandingNormalY", this.landingSurfaceNormal.y);
+         tag.putDouble("kaboom:LandingNormalZ", this.landingSurfaceNormal.z);
+      }
+      tag.putBoolean("kaboom:PostLandingBallistic", this.postLandingBallistic);
+      tag.putBoolean("kaboom:LandingImpactFuzeConsumed", this.landingImpactFuzeConsumed);
+      tag.putInt("kaboom:StationaryTicks", this.stationaryTicks);
+      if (isFinite(this.lastMovementCheckPosition)) {
+         tag.putBoolean("kaboom:HasLastMovementCheckPosition", true);
+         tag.putDouble("kaboom:LastMovementCheckX", this.lastMovementCheckPosition.x);
+         tag.putDouble("kaboom:LastMovementCheckY", this.lastMovementCheckPosition.y);
+         tag.putDouble("kaboom:LastMovementCheckZ", this.lastMovementCheckPosition.z);
+      } else {
+         tag.putBoolean("kaboom:HasLastMovementCheckPosition", false);
+      }
       Vec3 heading = this.getOrientation();
       tag.putDouble("kaboom:HeadingX", heading.x);
       tag.putDouble("kaboom:HeadingY", heading.y);
@@ -532,6 +687,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
       this.navigation.write(tag);
       this.interceptorNavigation.write(tag);
+      this.aradNavigation.write(tag);
    }
 
    protected void readAdditional(CompoundTag tag, boolean spawnData) {
@@ -561,6 +717,41 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.entityData.set(FUEL_MB, this.fuelMb);
       this.entityData.set(FUEL_CAP_MB, this.fuelCapacityMb);
       this.latchedInGround = tag.getBoolean("kaboom:LatchedInGround");
+      this.clearLandingSupport();
+      if (this.latchedInGround && tag.getBoolean("kaboom:HasLandingSupport")) {
+         Vec3 contact = new Vec3(
+            tag.getDouble("kaboom:LandingContactX"),
+            tag.getDouble("kaboom:LandingContactY"),
+            tag.getDouble("kaboom:LandingContactZ")
+         );
+         Vec3 normal = new Vec3(
+            tag.getDouble("kaboom:LandingNormalX"),
+            tag.getDouble("kaboom:LandingNormalY"),
+            tag.getDouble("kaboom:LandingNormalZ")
+         );
+         if (isFinite(contact) && isFinite(normal) && normal.lengthSqr() > 1.0E-8) {
+            this.landingSupportPos = BlockPos.of(tag.getLong("kaboom:LandingSupportPos"));
+            this.landingContactPoint = contact;
+            this.landingSurfaceNormal = normal.normalize();
+         }
+      }
+      this.postLandingBallistic = tag.getBoolean("kaboom:PostLandingBallistic");
+      this.landingImpactFuzeConsumed = tag.contains("kaboom:LandingImpactFuzeConsumed")
+         ? tag.getBoolean("kaboom:LandingImpactFuzeConsumed")
+         : this.latchedInGround;
+      this.stationaryTicks = tag.contains("kaboom:StationaryTicks")
+         ? Mth.clamp(tag.getInt("kaboom:StationaryTicks"), 0, IDLE_DESPAWN_TICKS)
+         : 0;
+      if (tag.getBoolean("kaboom:HasLastMovementCheckPosition")) {
+         Vec3 movementCheckPosition = new Vec3(
+            tag.getDouble("kaboom:LastMovementCheckX"),
+            tag.getDouble("kaboom:LastMovementCheckY"),
+            tag.getDouble("kaboom:LastMovementCheckZ")
+         );
+         this.lastMovementCheckPosition = isFinite(movementCheckPosition) ? movementCheckPosition : null;
+      } else {
+         this.lastMovementCheckPosition = null;
+      }
       if (tag.contains("kaboom:HeadingX")) {
          this.syncHeading(new Vec3(tag.getDouble("kaboom:HeadingX"), tag.getDouble("kaboom:HeadingY"), tag.getDouble("kaboom:HeadingZ")));
       }
@@ -585,7 +776,10 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          }
       }
 
-      if (this.guidanceData != null && this.guidanceData.guidanceType().isInterceptor()) {
+      if (this.guidanceData != null && this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+         this.aradNavigation.configure(this.guidanceData, this.position(), this);
+         this.aradNavigation.read(tag, this, this.position());
+      } else if (this.guidanceData != null && this.guidanceData.guidanceType().isInterceptor()) {
          this.interceptorNavigation.configure(this.guidanceData);
          this.interceptorNavigation.read(tag, this, this.position());
       } else {
@@ -599,31 +793,37 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    private MissileNavigation.Command tickGuidance(Vec3 pos, Vec3 vel) {
+      if (this.guidanceData != null && this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+         return this.aradNavigation.tick(this, pos, vel);
+      }
       return this.guidanceData != null && this.guidanceData.guidanceType().isInterceptor()
-         ? this.interceptorNavigation.tick(this, pos, vel)
-         : this.navigation.tick(this, pos, vel);
+              ? this.interceptorNavigation.tick(this, pos, vel)
+              : this.navigation.tick(this, pos, vel);
    }
 
    private boolean isBoosting() {
+      if (this.guidanceData != null && this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+         return this.aradNavigation.isBoosting();
+      }
       return this.guidanceData != null && this.guidanceData.guidanceType().isInterceptor()
-         ? this.interceptorNavigation.isBoosting()
-         : this.navigation.isBoosting();
+              ? this.interceptorNavigation.isBoosting()
+              : this.navigation.isBoosting();
    }
 
    private void tickChunkLoading() {
       if (this.level() instanceof ServerLevel sl) {
-         ChunkPos var9 = new ChunkPos(this.blockPosition());
-         HashSet wanted = new HashSet();
+         Set<Long> wanted = new HashSet<>();
+         this.addChunkSquare(wanted, new ChunkPos(this.blockPosition()), LOCAL_CHUNK_RADIUS);
+         this.addForwardChunkCorridor(wanted);
+         if (this.hasActiveGuidanceChunkDependencies()) {
+            this.addGuidanceChunkDependencies(wanted);
+         }
 
-         for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-               ChunkPos p = new ChunkPos(var9.x + dx, var9.z + dz);
-               long key = p.toLong();
-               wanted.add(key);
-               if (!this.forcedChunks.contains(key)) {
-                  sl.setChunkForced(p.x, p.z, true);
-                  this.forcedChunks.add(key);
-               }
+         for (long key : wanted) {
+            if (this.forcedChunks.add(key)) {
+               ChunkPos pos = new ChunkPos(key);
+               sl.getChunkSource().addRegionTicket(MISSILE_CHUNK_TICKET, pos, 2, this.getUUID(), true);
+               sl.getChunk(pos.x, pos.z);
             }
          }
 
@@ -632,10 +832,90 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
                return false;
             } else {
                ChunkPos px = new ChunkPos(keyx);
-               sl.setChunkForced(px.x, px.z, false);
+               sl.getChunkSource().removeRegionTicket(MISSILE_CHUNK_TICKET, px, 2, this.getUUID(), true);
                return true;
             }
          });
+      }
+   }
+
+   private void addForwardChunkCorridor(Set<Long> wanted) {
+      Vec3 velocity = this.getDeltaMovement();
+      Vec3 horizontalVelocity = new Vec3(velocity.x, 0.0, velocity.z);
+      if (!isFinite(horizontalVelocity) || horizontalVelocity.lengthSqr() <= 1.0E-8) {
+         return;
+      }
+
+      Vec3 forward = horizontalVelocity.normalize();
+      int samples = FORWARD_CHUNK_LOOKAHEAD * 2;
+      for (int sample = 1; sample <= samples; sample++) {
+         Vec3 samplePosition = this.position().add(forward.scale(FORWARD_CHUNK_SAMPLE_BLOCKS * sample));
+         this.addChunkSquare(wanted, new ChunkPos(BlockPos.containing(samplePosition)), LOCAL_CHUNK_RADIUS);
+      }
+   }
+
+   private void addGuidanceChunkDependencies(Set<Long> wanted) {
+      if (this.guidanceData == null) {
+         return;
+      }
+
+      this.addChunk(wanted, this.guidanceData.networkControllerPos());
+      this.addChunk(wanted, this.guidanceData.radarGuidancePos());
+      if (this.guidanceData.aradTargetReference() != null) {
+         this.addChunk(wanted, this.guidanceData.aradTargetReference().radarPos());
+         this.addChunk(wanted, this.guidanceData.aradTargetReference().noisyWorldPosition());
+      }
+
+      MissileTargetSpec targetSpec = this.guidanceData.target();
+      if (targetSpec != null && targetSpec.type() == MissileTargetSpec.TargetType.POINT) {
+         this.addChunk(wanted, targetSpec.point());
+      }
+
+      if (this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+         this.addTargetChunk(wanted, this.aradNavigation.targetPosition());
+      } else if (this.guidanceData.guidanceType().isInterceptor()) {
+         this.addTargetChunk(wanted, this.interceptorNavigation.targetPosition());
+      } else {
+         this.addChunk(wanted, this.navigation.targetPosition());
+      }
+   }
+
+   private boolean hasActiveGuidanceChunkDependencies() {
+      if (this.guidanceData == null) {
+         return false;
+      }
+      if (this.guidanceData.guidanceType() == MissileGuidanceType.ARAD) {
+         return !this.aradNavigation.isRunaway() && !this.aradNavigation.isAborted();
+      }
+      if (this.guidanceData.guidanceType().isInterceptor()) {
+         return !this.interceptorNavigation.isRunaway() && !this.interceptorNavigation.isAborted();
+      }
+      return !this.navigation.isAborted();
+   }
+
+   private void addChunkSquare(Set<Long> chunks, ChunkPos center, int radius) {
+      for (int dx = -radius; dx <= radius; dx++) {
+         for (int dz = -radius; dz <= radius; dz++) {
+            chunks.add(ChunkPos.asLong(center.x + dx, center.z + dz));
+         }
+      }
+   }
+
+   private void addChunk(Set<Long> chunks, @Nullable BlockPos position) {
+      if (position != null) {
+         chunks.add(new ChunkPos(position).toLong());
+      }
+   }
+
+   private void addChunk(Set<Long> chunks, @Nullable Vec3 position) {
+      if (isFinite(position)) {
+         chunks.add(new ChunkPos(BlockPos.containing(position)).toLong());
+      }
+   }
+
+   private void addTargetChunk(Set<Long> chunks, @Nullable Vec3 position) {
+      if (isFinite(position)) {
+         this.addChunkSquare(chunks, new ChunkPos(BlockPos.containing(position)), 1);
       }
    }
 
@@ -658,7 +938,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    public Quaternionf getAssemblyToHeadingRotation() {
       Vector3f from = new Vector3f((float)this.assemblyDirection.getStepX(), (float)this.assemblyDirection.getStepY(), (float)this.assemblyDirection.getStepZ());
-      Vector3f to = new Vector3f((Float)this.entityData.get(HEADING_X), (Float)this.entityData.get(HEADING_Y), (Float)this.entityData.get(HEADING_Z));
+      Vec3 heading = this.renderHeading();
+      Vector3f to = new Vector3f((float)heading.x, (float)heading.y, (float)heading.z);
       if (to.lengthSquared() < 1.0E-12F) {
          to.set(from);
       } else {
@@ -672,6 +953,20 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       Vec3 v = new Vec3(x, y, z);
       this.setContraptionMotion(v);
       super.setDeltaMovement(v);
+      this.syncHeading(v);
+   }
+
+   private Vec3 renderHeading() {
+      Vec3 velocity = this.getDeltaMovement();
+      if (isFinite(velocity) && velocity.lengthSqr() > 1.0E-8) {
+         return velocity.normalize();
+      }
+
+      Vec3 synchronizedHeading = this.getOrientation();
+      if (isFinite(synchronizedHeading) && synchronizedHeading.lengthSqr() > 1.0E-8) {
+         return synchronizedHeading.normalize();
+      }
+      return directionVector(this.assemblyDirection);
    }
 
    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
@@ -888,7 +1183,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
          for (long key : this.forcedChunks) {
             ChunkPos p = new ChunkPos(key);
-            sl.setChunkForced(p.x, p.z, false);
+            sl.getChunkSource().removeRegionTicket(MISSILE_CHUNK_TICKET, p, 2, this.getUUID(), true);
          }
 
          this.forcedChunks.clear();
@@ -1080,15 +1375,16 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
                         break;
                      case STOP:
                         this.resolvedPosThisTick = snappedEntityPos;
-                        this.latchInGround();
+                        this.latchInGround(blockHit);
                         this.lastPenetratedBlock = hitState;
                         this.penetrationTime = 2;
                         stop = true;
                         break;
                      case BOUNCE:
                         this.resolvedPosThisTick = snappedEntityPos;
-                        Vec3 normal = CBCUtils.getSurfaceNormalVector(this.level(), blockHit);
-                        this.pendingVelocity = reflectVelocity(traj, normal, 0.35);
+                        Vec3 bounceNormal = CBCUtils.getSurfaceNormalVector(this.level(), blockHit);
+                        this.pendingVelocity = reflectVelocity(traj, bounceNormal, 0.35);
+                        this.syncHeading(this.pendingVelocity);
                         stop = true;
                   }
 
@@ -1149,7 +1445,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    private ClipContext collisionClipContext(Vec3 start, Vec3 end, Block blockMode, Fluid fluidMode) {
       ClipContext context = new ClipContext(start, end, blockMode, fluidMode, this);
-      if (this.isBoosting()) {
+      if (this.isBoosting() && !this.postLandingBallistic) {
          SableUtils.ignoreSubLevel(context, this.sourceSubLevelId);
       }
       return context;
@@ -1193,8 +1489,10 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
                wctx.addEntity(e);
             }
 
-            ((AbstractProjectileAccessor)this.warhead)
-               .invokeImpact(new EntityHitResult(entity), new ImpactResult(KinematicOutcome.PENETRATE, this.warhead.getProjectileMass() <= 0.0F), wctx);
+            if (!this.landingImpactFuzeConsumed) {
+               ((AbstractProjectileAccessor)this.warhead)
+                  .invokeImpact(new EntityHitResult(entity), new ImpactResult(KinematicOutcome.PENETRATE, this.warhead.getProjectileMass() <= 0.0F), wctx);
+            }
             EntityDamagePropertiesComponent props = this.warhead.getDamageProperties();
             if (props != null) {
                entity.setDeltaMovement(this.getDeltaMovement().scale((double)props.knockback()));
@@ -1243,8 +1541,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       return velocity.normalize().scale(-this.getDragForce(velocity)).add(0.0, this.getMissileGravity(), 0.0);
    }
 
-   private static boolean isFinite(Vec3 vector) {
-      return Double.isFinite(vector.x) && Double.isFinite(vector.y) && Double.isFinite(vector.z);
+   private static boolean isFinite(@Nullable Vec3 vector) {
+      return vector != null && Double.isFinite(vector.x) && Double.isFinite(vector.y) && Double.isFinite(vector.z);
    }
 
    protected double getMissileGravity() {
@@ -1470,6 +1768,24 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.discard();
    }
 
+   private void detonateAfterGuidanceFailure() {
+      if (this.warhead instanceof FuzedBigCannonProjectile fuzed && this.warheadpos != null) {
+         this.detonate(this.warheadpos, fuzed);
+         fuzed.discard();
+         this.warhead = null;
+         this.warheadpos = null;
+         return;
+      }
+
+      if (!this.level().isClientSide) {
+         if (this.level() instanceof ServerLevel serverLevel) {
+            this.chainSystem.releaseAll(serverLevel);
+         }
+         this.level().explode(this, this.getX(), this.getY(), this.getZ(), 4.0F, ExplosionInteraction.TNT);
+      }
+      this.discard();
+   }
+
    public Vec3 getOrientation() {
       return new Vec3(
          (double)((Float)this.entityData.get(HEADING_X)).floatValue(),
@@ -1480,12 +1796,21 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    protected boolean onImpact(HitResult hitResult, ImpactResult impactResult, MissileProjectileContext projectileContext) {
       if (this.warhead instanceof FuzedBigCannonProjectile fuzed && this.warheadpos != null) {
+         if (this.landingImpactFuzeConsumed) {
+            return false;
+         }
          Vec3 warheadWorld = this.toGlobalVector(Vec3.atCenterOf(this.warheadpos), 1.0F);
          fuzed.setPos(warheadWorld);
          fuzed.setDeltaMovement(this.getDeltaMovement());
          FuzeMixin acc = (FuzeMixin)fuzed;
          boolean baseFuze = acc.invokeGetFuzeProperties().baseFuze();
-         if (acc.invokeCanDetonate(fz -> fz.onProjectileImpact(acc.getFuze(), fuzed, hitResult, impactResult, baseFuze))) {
+         boolean shouldDetonate = acc.invokeCanDetonate(
+            fz -> fz.onProjectileImpact(acc.getFuze(), fuzed, hitResult, impactResult, baseFuze)
+         );
+         if (impactResult.kinematics() == KinematicOutcome.STOP) {
+            this.landingImpactFuzeConsumed = true;
+         }
+         if (shouldDetonate) {
             if (fuzed instanceof MissileWarheadProjectile missileWarhead) {
                missileWarhead.markNextDetonationAsImpact();
             }

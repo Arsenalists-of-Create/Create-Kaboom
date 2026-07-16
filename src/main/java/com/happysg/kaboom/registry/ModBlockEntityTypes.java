@@ -4,6 +4,7 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.arad.ARADGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
@@ -86,6 +87,13 @@ public class ModBlockEntityTypes {
                     .validBlocks(
                             ModBlocks.RADAR_GUIDANCE_SMALL,
                             ModBlocks.RADAR_GUIDANCE_LARGE
+                    )
+                    .register();
+    public static final BlockEntityEntry<ARADGuidanceBlockEntity> ARAD_GUIDANCE =
+            REGISTRATE.blockEntity("arad_guidance_be", ARADGuidanceBlockEntity::new)
+                    .validBlocks(
+                            ModBlocks.ARAD_GUIDANCE_SMALL,
+                            ModBlocks.ARAD_GUIDANCE_LARGE
                     )
                     .register();
     public static final BlockEntityEntry<CommandGuidanceBlockEntity>COMMAND_GUIDANCE =

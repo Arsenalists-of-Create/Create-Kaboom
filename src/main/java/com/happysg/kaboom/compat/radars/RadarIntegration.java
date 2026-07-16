@@ -1,6 +1,7 @@
 package com.happysg.kaboom.compat.radars;
 
 import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
+import com.happysg.kaboom.block.missiles.util.ARADTargetReference;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -10,6 +11,14 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 
 public interface RadarIntegration {
+    record AradAcquisitionRequest(
+            Vec3 sensorOrigin,
+            Vec3 sensorForward,
+            @Nullable UUID launcherSublevelId,
+            double halfAngleDegrees
+    ) {
+    }
+
     record ChaffSuppression(String targetId, long untilTick) {
     }
 
@@ -39,6 +48,18 @@ public interface RadarIntegration {
     @Nullable
     MovingTargetResolver.TargetData resolveLegacyRadarTarget(ServerLevel level, @Nullable BlockPos radarGuidancePos,
                                                              Vec3 missilePosition);
+
+    /** Resolves and validates the current noisy aim point for a native radar designation. */
+    @Nullable
+    Vec3 resolveAradTarget(ServerLevel level, ARADTargetReference targetReference);
+
+    /** Resolves the exact current emitter position for launch-envelope validation. */
+    @Nullable
+    Vec3 resolveAradEmitterPosition(ServerLevel level, ARADTargetReference targetReference);
+
+    /** Passively acquires the best currently emitting native radar for an ARAD seeker. */
+    @Nullable
+    ARADTargetReference acquireAradTarget(ServerLevel level, AradAcquisitionRequest request);
 
     @Nullable
     ChaffSuppression getCommandChaffSuppression(ServerLevel level, @Nullable BlockPos controllerPos);

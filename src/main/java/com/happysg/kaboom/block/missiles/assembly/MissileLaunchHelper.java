@@ -20,6 +20,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -32,6 +33,9 @@ import java.util.UUID;
 
 public class MissileLaunchHelper {
     private static final int MINIMUM_LAUNCH_FUEL_MB = 250;
+    private static final double ARAD_LAUNCH_HALF_ANGLE_DEGREES = 50.0;
+    private static final double HORIZONTAL_LAUNCH_HALF_ANGLE_DEGREES = 90.0;
+    private static final double MINIMUM_TARGET_VECTOR_LENGTH_SQR = 1.0E-8;
 
     public static boolean assembleAndSpawn(ServerLevel level, BlockPos anyThrusterPos) throws AssemblyException {
         MissileAssemblyResult result = MissileAssembler.scan(level, anyThrusterPos);
@@ -54,6 +58,11 @@ public class MissileLaunchHelper {
         BlockPos warheadWorldPos = result.getWarhead();
         BlockPos warheadLocalPos = warheadWorldPos.subtract(controllerPos);
 
+        Vec3 localLaunchDirection = Vec3.atLowerCornerOf(result.getAssemblyDirection().getNormal());
+        SableUtils.LaunchKinematics launch = SableUtils.getLaunchKinematics(
+                level, controllerPos, controllerPos.getCenter(), localLaunchDirection
+        );
+
         BlockPos guidanceWorldPos = result.guidance();
 
         MissileGuidanceData guidance = null;
@@ -68,7 +77,7 @@ public class MissileLaunchHelper {
             return rejectLaunch(level, result, anyThrusterPos);
         }
 
-        if (!isGuidanceValidForLaunch(level, controllerPos, guidance)) {
+        if (!isGuidanceValidForLaunch(level, controllerPos, guidance, launch.position(), launch.direction())) {
             return rejectLaunch(level, result, anyThrusterPos);
         }
 
@@ -85,11 +94,6 @@ public class MissileLaunchHelper {
         }
 
         mc.guidanceTag = guidance.toTag();
-
-        Vec3 localLaunchDirection = Vec3.atLowerCornerOf(result.getAssemblyDirection().getNormal());
-        SableUtils.LaunchKinematics launch = SableUtils.getLaunchKinematics(
-                level, controllerPos, controllerPos.getCenter(), localLaunchDirection
-        );
 
         BlockEntity controllerBE = level.getBlockEntity(controllerPos);
         ChainSystem chainSystem = null;
@@ -165,7 +169,16 @@ public class MissileLaunchHelper {
                 3, 0.08, 0.08, 0.08, 0.015);
     }
 
-    private static boolean isGuidanceValidForLaunch(ServerLevel level, BlockPos controllerPos, MissileGuidanceData guidance) {
+    private static boolean isGuidanceValidForLaunch(
+            ServerLevel level,
+            BlockPos controllerPos,
+            MissileGuidanceData guidance,
+            Vec3 launchPosition,
+            Vec3 launchDirection
+    ) {
+        if (guidance.guidanceType() == MissileGuidanceType.ARAD) {
+            return isAradTargetValidForLaunch(level, controllerPos, guidance, launchPosition, launchDirection);
+        }
         if (guidance.guidanceType().isInterceptor()) {
             if (guidance.guidanceType() == MissileGuidanceType.COMMAND && !RadarCompatRegistry.isAvailable()) {
                 CreateKaboom.getLogger().info(
@@ -182,7 +195,7 @@ public class MissileLaunchHelper {
             };
             if (!hasResolverMetadata) return false;
 
-            MovingTargetResolver.TargetData target = MovingTargetResolver.resolve(level, guidance, controllerPos.getCenter());
+            MovingTargetResolver.TargetData target = MovingTargetResolver.resolve(level, guidance, launchPosition);
             if (target == null) {
                 CreateKaboom.getLogger().info(
                         "Rejected {} missile launch at {}: no selected target",
@@ -203,21 +216,114 @@ public class MissileLaunchHelper {
                 return false;
             }
 
-            return true;
+            return isTargetValidForHorizontalLaunch(
+                    controllerPos,
+                    guidance.guidanceType(),
+                    launchPosition,
+                    launchDirection,
+                    target.position()
+            );
         }
-        return isGpsTargetFarEnoughToLaunch(controllerPos, guidance);
+        if (!isGpsTargetFarEnoughToLaunch(controllerPos, guidance, launchPosition)) {
+            return false;
+        }
+        return isTargetValidForHorizontalLaunch(
+                controllerPos,
+                guidance.guidanceType(),
+                launchPosition,
+                launchDirection,
+                guidance.target().point()
+        );
     }
 
-    private static boolean isGpsTargetFarEnoughToLaunch(BlockPos controllerPos, MissileGuidanceData guidance) {
+    private static boolean isAradTargetValidForLaunch(
+            ServerLevel level,
+            BlockPos controllerPos,
+            MissileGuidanceData guidance,
+            Vec3 launchPosition,
+            Vec3 launchDirection
+    ) {
+        if (!RadarCompatRegistry.isAvailable()) {
+            CreateKaboom.getLogger().info(
+                    "Rejected ARAD missile launch at {}: Create Radar compatibility is unavailable",
+                    controllerPos
+            );
+            return false;
+        }
+
+        Vec3 targetPoint;
+        Vec3 launchEnvelopeTarget;
+        if (guidance.aradTargetReference() != null) {
+            targetPoint = RadarCompatRegistry.get().resolveAradTarget(level, guidance.aradTargetReference());
+            launchEnvelopeTarget = RadarCompatRegistry.get()
+                    .resolveAradEmitterPosition(level, guidance.aradTargetReference());
+        } else {
+            MissileTargetSpec target = guidance.target();
+            targetPoint = target != null && target.type() == MissileTargetSpec.TargetType.POINT
+                    ? target.point()
+                    : null;
+            launchEnvelopeTarget = targetPoint;
+        }
+        if (!isFinite(targetPoint) || !isFinite(launchEnvelopeTarget)) {
+            CreateKaboom.getLogger().info(
+                    "Rejected ARAD missile launch at {}: no valid running radar target or target coordinates",
+                    controllerPos
+            );
+            return false;
+        }
+        if (!isFinite(launchPosition) || !isFinite(launchDirection) || launchDirection.lengthSqr() < MINIMUM_TARGET_VECTOR_LENGTH_SQR) {
+            CreateKaboom.getLogger().info(
+                    "Rejected ARAD missile launch at {}: invalid world-space launch transform",
+                    controllerPos
+            );
+            return false;
+        }
+
+        Vec3 toTarget = launchEnvelopeTarget.subtract(launchPosition);
+        if (toTarget.lengthSqr() < MINIMUM_TARGET_VECTOR_LENGTH_SQR) {
+            CreateKaboom.getLogger().info(
+                    "Rejected ARAD missile launch at {}: target coincides with launch position",
+                    controllerPos
+            );
+            return false;
+        }
+
+        if (!isHorizontalLaunchDirection(launchDirection)) {
+            return true;
+        }
+
+        double targetDot = launchDirection.normalize().dot(toTarget.normalize());
+        double minimumDot = Math.cos(Math.toRadians(ARAD_LAUNCH_HALF_ANGLE_DEGREES));
+        if (targetDot + 1.0E-12 < minimumDot) {
+            double targetAngle = Math.toDegrees(Math.acos(Mth.clamp(targetDot, -1.0, 1.0)));
+            CreateKaboom.getLogger().info(
+                    "Rejected ARAD missile launch at {}: target={} angleDegrees={} maximumAngleDegrees={}",
+                    controllerPos,
+                    fmt(launchEnvelopeTarget),
+                    String.format(Locale.ROOT, "%.3f", targetAngle),
+                    String.format(Locale.ROOT, "%.3f", ARAD_LAUNCH_HALF_ANGLE_DEGREES)
+            );
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isGpsTargetFarEnoughToLaunch(
+            BlockPos controllerPos,
+            MissileGuidanceData guidance,
+            Vec3 launchPosition
+    ) {
         MissileTargetSpec target = guidance.target();
-        if (target == null || target.type() != MissileTargetSpec.TargetType.POINT || !isFinite(target.point())) {
+        if (target == null
+                || target.type() != MissileTargetSpec.TargetType.POINT
+                || !isFinite(target.point())
+                || !isFinite(launchPosition)) {
             return false;
         }
 
         Vec3 targetPoint = target.point();
-        Vec3 launcher = controllerPos.getCenter();
-        double dx = targetPoint.x - launcher.x;
-        double dz = targetPoint.z - launcher.z;
+        double dx = targetPoint.x - launchPosition.x;
+        double dz = targetPoint.z - launchPosition.z;
         double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
         double minimumDistance = configuredMinimumGpsLaunchHorizontalDistance();
 
@@ -233,6 +339,68 @@ public class MissileLaunchHelper {
         }
 
         return true;
+    }
+
+    private static boolean isTargetValidForHorizontalLaunch(
+            BlockPos controllerPos,
+            MissileGuidanceType guidanceType,
+            Vec3 launchPosition,
+            Vec3 launchDirection,
+            Vec3 targetPosition
+    ) {
+        if (!isFinite(launchPosition)
+                || !isFinite(launchDirection)
+                || launchDirection.lengthSqr() < MINIMUM_TARGET_VECTOR_LENGTH_SQR
+                || !isFinite(targetPosition)) {
+            CreateKaboom.getLogger().info(
+                    "Rejected {} missile launch at {}: invalid world-space launch direction or target position",
+                    guidanceType,
+                    controllerPos
+            );
+            return false;
+        }
+
+        Vec3 heading = launchDirection.normalize();
+        if (!isHorizontalLaunchDirection(heading)) {
+            return true;
+        }
+
+        Vec3 toTarget = targetPosition.subtract(launchPosition);
+        if (toTarget.lengthSqr() < MINIMUM_TARGET_VECTOR_LENGTH_SQR) {
+            CreateKaboom.getLogger().info(
+                    "Rejected {} missile launch at {}: target coincides with launch position",
+                    guidanceType,
+                    controllerPos
+            );
+            return false;
+        }
+
+        double targetDot = heading.dot(toTarget.normalize());
+        double minimumDot = Math.cos(Math.toRadians(HORIZONTAL_LAUNCH_HALF_ANGLE_DEGREES));
+        if (targetDot + 1.0E-12 >= minimumDot) {
+            return true;
+        }
+
+        double targetAngle = Math.toDegrees(Math.acos(Mth.clamp(targetDot, -1.0, 1.0)));
+        CreateKaboom.getLogger().info(
+                "Rejected horizontal {} missile launch at {}: target={} angleDegrees={} maximumAngleDegrees={}",
+                guidanceType,
+                controllerPos,
+                fmt(targetPosition),
+                String.format(Locale.ROOT, "%.3f", targetAngle),
+                String.format(Locale.ROOT, "%.3f", HORIZONTAL_LAUNCH_HALF_ANGLE_DEGREES)
+        );
+        return false;
+    }
+
+    private static boolean isHorizontalLaunchDirection(Vec3 launchDirection) {
+        if (!isFinite(launchDirection) || launchDirection.lengthSqr() < MINIMUM_TARGET_VECTOR_LENGTH_SQR) {
+            return false;
+        }
+        Vec3 heading = launchDirection.normalize();
+        double horizontalComponentSqr = heading.x * heading.x + heading.z * heading.z;
+        double verticalComponentSqr = heading.y * heading.y;
+        return horizontalComponentSqr > verticalComponentSqr;
     }
 
     private static double configuredMinimumGpsLaunchHorizontalDistance() {

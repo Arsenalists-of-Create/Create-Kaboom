@@ -6,6 +6,7 @@ public enum MissileGuidanceType {
     GPS,
     COMMAND,
     RADAR,
+    ARAD,
     UNKNOWN;
 
     public boolean isInterceptor() {

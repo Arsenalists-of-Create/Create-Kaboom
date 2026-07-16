@@ -17,6 +17,7 @@ import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
+import com.happysg.kaboom.block.missiles.parts.guidance.arad.ARADGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
@@ -248,6 +249,34 @@ public class ModBlocks {
                     .item()
                     .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                             CreateKaboom.asResource("block/missile/medium_command_guidance")))
+                    .build()
+                    .register();
+    public static final BlockEntry<ARADGuidanceBlock> ARAD_GUIDANCE_SMALL =
+            REGISTRATE.block("arad_guidance_small", properties -> new ARADGuidanceBlock(properties, MissileSize.SMALL))
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .lang("Small ARAD Guidance Unit")
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/small_arad_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/small_arad_guidance")))
+                    .build()
+                    .register();
+    public static final BlockEntry<ARADGuidanceBlock> ARAD_GUIDANCE_LARGE =
+            REGISTRATE.block("arad_guidance_large", properties -> new ARADGuidanceBlock(properties, MissileSize.LARGE))
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .lang("Large ARAD Guidance Unit")
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/medium_arad_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/medium_arad_guidance")))
                     .build()
                     .register();
     public static final BlockEntry<RadarGuidanceBlock> RADAR_GUIDANCE_SMALL =

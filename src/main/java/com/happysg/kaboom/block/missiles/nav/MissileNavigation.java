@@ -116,6 +116,15 @@ public final class MissileNavigation {
       }
    }
 
+   public boolean isAborted() {
+      return this.state == MissileNavigation.State.ABORTED;
+   }
+
+   @Nullable
+   public Vec3 targetPosition() {
+      return this.target;
+   }
+
    public void write(CompoundTag tag) {
       tag.putString("kaboom:GuidanceState", this.state.name());
       putVec(tag, "kaboom:LaunchDirection", this.launchDirection);
@@ -529,6 +538,8 @@ public final class MissileNavigation {
       int guidanceFuelCapacityMb();
 
       double guidanceAccelerationMultiplier();
+
+      boolean guidanceHasFuze();
 
       void guidanceSetFuelMb(int var1);
 

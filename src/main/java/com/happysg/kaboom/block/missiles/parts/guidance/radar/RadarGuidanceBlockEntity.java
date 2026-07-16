@@ -1,6 +1,7 @@
 package com.happysg.kaboom.block.missiles.parts.guidance.radar;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
+import com.happysg.kaboom.block.missiles.parts.guidance.IPoweredTargetAcquisition;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
@@ -20,7 +21,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGuidanceProvider {
+public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGuidanceProvider, IPoweredTargetAcquisition {
    private static final int LOCK_GRACE_TICKS = 5;
    private static final String TAG_CANDIDATE = "RadarCandidate";
    private static final String TAG_LOCK_TICKS = "RadarCandidateTicks";
@@ -45,6 +46,7 @@ public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGui
       return MissileGuidanceData.radar(this.worldPosition, this.lockedTargetId, MissileFlightProfile.defaults(), this.rwrEmitterId);
    }
 
+   @Override
    public boolean tickAcquisition(ServerLevel level, MissileAssemblyResult result) {
       long gameTime = level.getGameTime();
       this.spawnLockParticles(level);
@@ -107,6 +109,7 @@ public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGui
       level.sendParticles(DustParticleOptions.REDSTONE, center.x, center.y, center.z, 2, 0.3, 0.3, 0.3, 0.0);
    }
 
+   @Override
    public void resetAcquisition() {
       this.removeRwrEmitter();
       if (this.candidateTargetId != null || this.candidateLockTicks != 0 || this.lockedTargetId != null || this.lastAcquisitionTick != -1L) {

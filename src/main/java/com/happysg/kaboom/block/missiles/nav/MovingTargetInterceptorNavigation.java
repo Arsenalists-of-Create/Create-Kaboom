@@ -16,8 +16,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-public final class MovingTargetInterceptorNavigation {
+public final class  MovingTargetInterceptorNavigation {
    private static final double BOOST_DISTANCE_BLOCKS = 30.0;
+   private static final double EARLY_TARGET_LOSS_DISTANCE_BLOCKS = 100.0;
+   private static final double RUNAWAY_DISTANCE_BLOCKS = 500.0;
    private static final double EPSILON_DIR_SQR = 1.0E-10;
    private static final double NEAR_ZERO_SPEED = 1.0E-4;
    private static final int RWR_ENGAGEMENT_REFRESH_TICKS = 10;
@@ -29,6 +31,10 @@ public final class MovingTargetInterceptorNavigation {
    private Vec3 launchPosition = Vec3.ZERO;
    private Vec3 previousGuidancePosition = Vec3.ZERO;
    private double accumulatedBoostDistance = 0.0;
+   private Vec3 runawayDirection = new Vec3(0.0, 1.0, 0.0);
+   private Vec3 previousRunawayPosition = Vec3.ZERO;
+   private double accumulatedRunawayDistance = 0.0;
+   private boolean runawayDetonationRequested = false;
    private int fuelAtLaunch = 0;
    private String targetId = "";
    private String targetCategory = "";
@@ -61,6 +67,10 @@ public final class MovingTargetInterceptorNavigation {
       this.launchPosition = launchPosition;
       this.previousGuidancePosition = launchPosition;
       this.accumulatedBoostDistance = 0.0;
+      this.runawayDirection = this.launchDirection;
+      this.previousRunawayPosition = launchPosition;
+      this.accumulatedRunawayDistance = 0.0;
+      this.runawayDetonationRequested = false;
       this.fuelAtLaunch = access.guidanceFuelMb();
       this.state = MovingTargetInterceptorNavigation.State.BOOST;
       this.abortReason = "";
@@ -83,7 +93,25 @@ public final class MovingTargetInterceptorNavigation {
    }
 
    public boolean isBoosting() {
-      return this.state == MovingTargetInterceptorNavigation.State.BOOST;
+      return this.state == MovingTargetInterceptorNavigation.State.BOOST
+         || this.state == MovingTargetInterceptorNavigation.State.RUNAWAY;
+   }
+
+   public boolean isRunaway() {
+      return this.state == MovingTargetInterceptorNavigation.State.RUNAWAY;
+   }
+
+   public boolean isAborted() {
+      return this.state == MovingTargetInterceptorNavigation.State.ABORTED;
+   }
+
+   @Nullable
+   public Vec3 targetPosition() {
+      return this.latestTargetPosition;
+   }
+
+   public boolean shouldDetonateAfterRunaway() {
+      return this.runawayDetonationRequested;
    }
 
    public MissileNavigation.Command tick(MissileNavigation.FlightAccess access, Vec3 pos, Vec3 vel) {
@@ -91,6 +119,8 @@ public final class MovingTargetInterceptorNavigation {
          if (!this.guidanceType.isInterceptor()) {
             this.lastCommand = MissileNavigation.Command.none("not_interceptor_guidance");
             return this.lastCommand;
+         } else if (this.state == MovingTargetInterceptorNavigation.State.RUNAWAY) {
+            return this.tickRunaway(access, pos, vel);
          } else if (this.state == MovingTargetInterceptorNavigation.State.ABORTED) {
             this.clearRadarRwrEmitter(access);
             this.lastCommand = MissileNavigation.Command.none("aborted:" + this.abortReason);
@@ -131,10 +161,7 @@ public final class MovingTargetInterceptorNavigation {
 
                   String chaffExitFailure = this.validateChaffExit(serverLevel, pos, vel, exitTarget);
                   if (chaffExitFailure != null) {
-                     this.abort(access, chaffExitFailure);
-                     this.lastCommand = MissileNavigation.Command.none("chaff_exit_abort:" + this.abortReason);
-                     this.debug(access, pos, vel, exitTarget, this.lastCommand, "chaff_exit_abort");
-                     return this.lastCommand;
+                     return this.handleTargetLoss(access, pos, vel, exitTarget, chaffExitFailure, "chaff_exit_abort");
                   }
 
                   this.resetTarget(exitTarget);
@@ -150,10 +177,14 @@ public final class MovingTargetInterceptorNavigation {
                if (lockedRadarGuidance) {
                   target = this.applyRadarSeekerEnvelope(serverLevel, pos, vel, target);
                   if (this.radarLockLossTicks > configuredTargetDataTimeoutTicks()) {
-                     this.abort(access, "radar lock lost outside seeker envelope");
-                     this.lastCommand = MissileNavigation.Command.none("abort:" + this.abortReason);
-                     this.debug(access, pos, vel, target, this.lastCommand, "radar_lock_abort");
-                     return this.lastCommand;
+                     return this.handleTargetLoss(
+                        access,
+                        pos,
+                        vel,
+                        target,
+                        "radar lock lost outside seeker envelope",
+                        "radar_lock_abort"
+                     );
                   }
 
                   if (this.radarLockLossTicks == 0) {
@@ -173,10 +204,14 @@ public final class MovingTargetInterceptorNavigation {
                   this.accumulateBoostDistance(pos);
                   if (this.accumulatedBoostDistance >= 30.0) {
                      if (!this.acceptTarget(serverLevel, target, true)) {
-                        this.abort(access, "no valid target after boost");
-                        this.lastCommand = MissileNavigation.Command.none("abort:" + this.abortReason);
-                        this.debug(access, pos, vel, target, this.lastCommand, "boost_abort");
-                        return this.lastCommand;
+                        return this.handleTargetLoss(
+                           access,
+                           pos,
+                           vel,
+                           target,
+                           "no valid target after boost",
+                           "boost_abort"
+                        );
                      }
 
                      this.transitionTo(access, MovingTargetInterceptorNavigation.State.INTERCEPT, "boost completed; entered intercept");
@@ -187,10 +222,14 @@ public final class MovingTargetInterceptorNavigation {
                   this.debug(access, pos, vel, target, this.lastCommand, "boost");
                   return this.lastCommand;
                } else if (!this.acceptTarget(serverLevel, target, false)) {
-                  this.abort(access, "stale or invalid target data");
-                  this.lastCommand = MissileNavigation.Command.none("abort:" + this.abortReason);
-                  this.debug(access, pos, vel, target, this.lastCommand, "stale_abort");
-                  return this.lastCommand;
+                  return this.handleTargetLoss(
+                     access,
+                     pos,
+                     vel,
+                     target,
+                     "stale or invalid target data",
+                     "stale_abort"
+                  );
                } else if (this.detectOvershoot(access, pos, vel)) {
                   this.lastCommand = MissileNavigation.Command.none("overshoot:" + this.abortReason);
                   this.debug(access, pos, vel, target, this.lastCommand, "overshoot_abort");
@@ -224,6 +263,9 @@ public final class MovingTargetInterceptorNavigation {
       putVec(tag, "kaboom:InterceptorLaunchDirection", this.launchDirection);
       putVec(tag, "kaboom:InterceptorPreviousPosition", this.previousGuidancePosition);
       tag.putDouble("kaboom:InterceptorBoostDistance", this.accumulatedBoostDistance);
+      putVec(tag, "kaboom:InterceptorRunawayDirection", this.runawayDirection);
+      putVec(tag, "kaboom:InterceptorPreviousRunawayPosition", this.previousRunawayPosition);
+      tag.putDouble("kaboom:InterceptorRunawayDistance", this.accumulatedRunawayDistance);
       tag.putInt("kaboom:InterceptorFuelAtLaunch", this.fuelAtLaunch);
       tag.putString("kaboom:InterceptorTargetId", this.targetId);
       tag.putString("kaboom:InterceptorTargetCategory", this.targetCategory);
@@ -277,6 +319,15 @@ public final class MovingTargetInterceptorNavigation {
       this.launchDirection = safeNormalize(readVec(tag, "kaboom:InterceptorLaunchDirection", this.launchDirection), new Vec3(0.0, 1.0, 0.0));
       this.previousGuidancePosition = readVec(tag, "kaboom:InterceptorPreviousPosition", currentPosition);
       this.accumulatedBoostDistance = tag.contains("kaboom:InterceptorBoostDistance") ? tag.getDouble("kaboom:InterceptorBoostDistance") : 0.0;
+      this.runawayDirection = safeNormalize(
+         readVec(tag, "kaboom:InterceptorRunawayDirection", this.launchDirection),
+         this.launchDirection
+      );
+      this.previousRunawayPosition = readVec(tag, "kaboom:InterceptorPreviousRunawayPosition", currentPosition);
+      this.accumulatedRunawayDistance = tag.contains("kaboom:InterceptorRunawayDistance")
+         ? Math.max(0.0, tag.getDouble("kaboom:InterceptorRunawayDistance"))
+         : 0.0;
+      this.runawayDetonationRequested = false;
       this.fuelAtLaunch = tag.contains("kaboom:InterceptorFuelAtLaunch") ? tag.getInt("kaboom:InterceptorFuelAtLaunch") : access.guidanceFuelMb();
       this.targetId = tag.getString("kaboom:InterceptorTargetId");
       this.targetCategory = tag.getString("kaboom:InterceptorTargetCategory");
@@ -323,7 +374,9 @@ public final class MovingTargetInterceptorNavigation {
 
    @Nullable
    public String getRadarChaffTargetId() {
-      if (this.state != MovingTargetInterceptorNavigation.State.ABORTED && this.hasLockedRadarTarget()) {
+      if ((this.state == MovingTargetInterceptorNavigation.State.BOOST
+         || this.state == MovingTargetInterceptorNavigation.State.INTERCEPT)
+         && this.hasLockedRadarTarget()) {
          MissileTargetSpec target = this.guidanceData.target();
          return target.entityId().toString();
       } else {
@@ -713,6 +766,89 @@ public final class MovingTargetInterceptorNavigation {
       return vel.length() > 1.0E-4 ? safeNormalize(vel, this.launchDirection) : this.launchDirection;
    }
 
+   private MissileNavigation.Command handleTargetLoss(
+      MissileNavigation.FlightAccess access,
+      Vec3 pos,
+      Vec3 vel,
+      @Nullable MovingTargetResolver.TargetData target,
+      String reason,
+      String phase
+   ) {
+      if (this.isEarlyTargetLoss(pos)) {
+         this.enterRunaway(access, pos, vel, reason);
+         return this.tickRunaway(access, pos, vel);
+      }
+
+      this.abort(access, reason);
+      this.lastCommand = MissileNavigation.Command.none("abort:" + this.abortReason);
+      this.debug(access, pos, vel, target, this.lastCommand, phase);
+      return this.lastCommand;
+   }
+
+   private boolean isEarlyTargetLoss(Vec3 pos) {
+      return this.state == MovingTargetInterceptorNavigation.State.BOOST
+         || isFinite(this.launchPosition)
+         && this.launchPosition.distanceToSqr(pos)
+         <= EARLY_TARGET_LOSS_DISTANCE_BLOCKS * EARLY_TARGET_LOSS_DISTANCE_BLOCKS;
+   }
+
+   private void enterRunaway(MissileNavigation.FlightAccess access, Vec3 pos, Vec3 vel, String reason) {
+      this.clearRadarRwrEmitter(access);
+      this.runawayDirection = this.currentOrLaunchDirection(vel);
+      this.previousRunawayPosition = pos;
+      this.accumulatedRunawayDistance = 0.0;
+      this.runawayDetonationRequested = false;
+      this.chaffSuppressedUntilTick = 0L;
+      this.chaffTargetId = "";
+      this.chaffActiveLastTick = false;
+      this.abortReason = reason;
+      this.transitionTo(
+         access,
+         MovingTargetInterceptorNavigation.State.RUNAWAY,
+         "entered early target-loss runaway: " + reason
+      );
+   }
+
+   private MissileNavigation.Command tickRunaway(MissileNavigation.FlightAccess access, Vec3 pos, Vec3 vel) {
+      this.clearRadarRwrEmitter(access);
+      if (isFinite(this.previousRunawayPosition)) {
+         double traveled = this.previousRunawayPosition.distanceTo(pos);
+         if (Double.isFinite(traveled)) {
+            this.accumulatedRunawayDistance += traveled;
+         }
+      }
+      this.previousRunawayPosition = pos;
+
+      if (this.accumulatedRunawayDistance >= RUNAWAY_DISTANCE_BLOCKS) {
+         access.guidanceSetFuelMb(0);
+         if (!access.guidanceHasFuze()) {
+            this.abort(access, "runaway completed without a fuze");
+            this.lastCommand = MissileNavigation.Command.none("abort:" + this.abortReason);
+            this.debug(access, pos, vel, null, this.lastCommand, "runaway_abort");
+            return this.lastCommand;
+         }
+         this.runawayDetonationRequested = true;
+         this.lastCommand = MissileNavigation.Command.none("runaway_detonation");
+         this.debug(access, pos, vel, null, this.lastCommand, "runaway_detonation");
+         return this.lastCommand;
+      }
+
+      Vec3 appliedDelta = this.poweredDeltaAlong(
+         access,
+         this.runawayDirection,
+         effectiveThrustAccelerationPerTick(access)
+      );
+      this.lastCommand = new MissileNavigation.Command(
+         appliedDelta,
+         this.runawayDirection,
+         0.0,
+         appliedDelta,
+         "runaway"
+      );
+      this.debug(access, pos, vel, null, this.lastCommand, "runaway");
+      return this.lastCommand;
+   }
+
    private void abort(MissileNavigation.FlightAccess access, String reason) {
       this.clearRadarRwrEmitter(access);
       access.guidanceSetFuelMb(0);
@@ -946,6 +1082,7 @@ public final class MovingTargetInterceptorNavigation {
    public static enum State {
       BOOST,
       INTERCEPT,
-      ABORTED;
+      ABORTED,
+      RUNAWAY;
    }
 }

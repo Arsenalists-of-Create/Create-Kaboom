@@ -138,12 +138,27 @@ public final class RadarTargeting {
 
     public static boolean hasLineOfSight(ServerLevel level, Vec3 origin, Vec3 targetPosition,
                                          @Nullable UUID targetSublevelId) {
+        return hasLineOfSight(level, origin, targetPosition, targetSublevelId, null);
+    }
+
+    /**
+     * Block-target variant used by passive seekers. A world radar's own collider is a valid
+     * terminal hit; moving Sable targets continue to use the ignored-sublevel ray behavior.
+     */
+    public static boolean hasLineOfSightToBlock(ServerLevel level, Vec3 origin, Vec3 targetPosition,
+                                                BlockPos targetBlockPos, @Nullable UUID targetSublevelId) {
+        return hasLineOfSight(level, origin, targetPosition, targetSublevelId, targetBlockPos);
+    }
+
+    private static boolean hasLineOfSight(ServerLevel level, Vec3 origin, Vec3 targetPosition,
+                                          @Nullable UUID targetSublevelId, @Nullable BlockPos acceptedTargetBlock) {
         if (!isFinite(origin) || !isFinite(targetPosition)) return false;
         ClipContext context = new ClipContext(origin, targetPosition,
                 ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, (Entity) null);
         ignoreTargetSublevel(level, context, targetSublevelId);
         BlockHitResult hit = level.clip(context);
         return hit.getType() == HitResult.Type.MISS
+                || acceptedTargetBlock != null && acceptedTargetBlock.equals(hit.getBlockPos())
                 || hit.getLocation().distanceToSqr(targetPosition) <= SENSOR_APERTURE_EPSILON * SENSOR_APERTURE_EPSILON;
     }
 

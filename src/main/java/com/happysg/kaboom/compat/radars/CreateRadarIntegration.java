@@ -2,6 +2,10 @@ package com.happysg.kaboom.compat.radars;
 
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
+import com.happysg.kaboom.block.missiles.parts.guidance.arad.ARADGuidanceBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarTargeting;
+import com.happysg.kaboom.block.missiles.util.ARADTargetReference;
+import com.happysg.kaboom.compat.Mods;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.registry.ModEntities;
@@ -13,9 +17,16 @@ import com.happysg.radar.block.controller.networkcontroller.NetworkFiltererBlock
 import com.happysg.radar.block.radar.behavior.IRadar;
 import com.happysg.radar.block.radar.track.RadarTrack;
 import com.happysg.radar.block.radar.track.TrackCategory;
+import com.happysg.radar.api.arad.ARADTargeting;
+import com.happysg.radar.api.arad.ARADTargetDesignationEvent;
 import com.happysg.radar.chaff.ChaffLockAdapter;
 import com.happysg.radar.chaff.ChaffLockRegistry;
+import com.happysg.radar.compat.vs2.PhysicsHandler;
+import dev.ryanhcode.sable.api.SubLevelHelper;
+import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
+import dev.ryanhcode.sable.companion.SableCompanion;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
+import dev.ryanhcode.sable.sublevel.SubLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -23,17 +34,32 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
 import javax.annotation.Nullable;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 final class CreateRadarIntegration implements RadarIntegration {
     private static final int LEGACY_RADAR_SEARCH_RADIUS_BLOCKS = 512;
     private static final int EXTERNAL_EMITTER_TTL_TICKS = 5;
     private static final String EXTERNAL_EMITTER_PREFIX = "create_kaboom:radar_guidance:";
+
+    private record RankedAradContact(
+            ARADTargeting.NativeRadarContact contact,
+            double alignment,
+            double distanceSqr
+    ) {
+    }
 
     @Override
     public boolean isAvailable() {
@@ -43,7 +69,40 @@ final class CreateRadarIntegration implements RadarIntegration {
     @Override
     public void register(IEventBus modEventBus) {
         NeoForge.EVENT_BUS.register(new CommandGuidanceInteractionHandler());
+        NeoForge.EVENT_BUS.register(this);
         modEventBus.addListener(this::commonSetup);
+    }
+
+    @SubscribeEvent
+    public void onAradTargetDesignation(ARADTargetDesignationEvent event) {
+        if (event == null || event.level() == null || event.rwrPos() == null) {
+            return;
+        }
+
+        if (event.action() == ARADTargetDesignationEvent.Action.CLEAR) {
+            visitAradGuidanceBlocks(event.level(), event.rwrPos(),
+                    blockEntity -> blockEntity.clearRadarTarget(event.sourceId()));
+            return;
+        }
+
+        ARADTargetDesignationEvent.Target target = event.target();
+        if (target == null || event.sourceId() == null || event.sourceId().isBlank()) {
+            return;
+        }
+        ARADTargetReference reference = new ARADTargetReference(
+                event.sourceId(),
+                target.emitterId(),
+                target.radarPos(),
+                target.rangeRatio(),
+                target.noisyWorldPosition(),
+                target.targetSublevelId(),
+                target.targetLocalPosition()
+        );
+        if (!reference.isValid()) {
+            return;
+        }
+        visitAradGuidanceBlocks(event.level(), event.rwrPos(),
+                blockEntity -> blockEntity.setRadarTarget(reference));
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
@@ -177,6 +236,219 @@ final class CreateRadarIntegration implements RadarIntegration {
             }
         }
         return resolveTrack(level, best);
+    }
+
+    @Override
+    @Nullable
+    public Vec3 resolveAradTarget(ServerLevel level, ARADTargetReference targetReference) {
+        if (level == null || targetReference == null || !targetReference.isValid()) {
+            return null;
+        }
+
+        BlockPos radarPos = targetReference.radarPos();
+        IRadar radar = resolveAradRadar(level, targetReference);
+        if (radar == null) {
+            return null;
+        }
+
+        if (!Mods.SABLE.isLoaded()) {
+            return targetReference.isMovingTarget() ? null : targetReference.noisyWorldPosition();
+        }
+        SubLevelAccess containingSublevel = SableCompanion.INSTANCE.getContaining(level, radarPos);
+        if (!targetReference.isMovingTarget()) {
+            return containingSublevel == null ? targetReference.noisyWorldPosition() : null;
+        }
+
+        UUID targetSublevelId = targetReference.targetSublevelId();
+        if (containingSublevel == null || !targetSublevelId.equals(containingSublevel.getUniqueId())) {
+            return null;
+        }
+        SubLevelContainer container = SubLevelContainer.getContainer(level);
+        if (container == null) {
+            return null;
+        }
+        SubLevel targetSublevel = container.getSubLevel(targetSublevelId);
+        if (targetSublevel == null || targetSublevel.isRemoved()) {
+            return null;
+        }
+
+        Vec3 resolved = SableUtils.getWorldVec(targetReference.targetLocalPosition(), targetSublevel);
+        return isFinite(resolved) ? resolved : null;
+    }
+
+    @Override
+    @Nullable
+    public Vec3 resolveAradEmitterPosition(ServerLevel level, ARADTargetReference targetReference) {
+        IRadar radar = resolveAradRadar(level, targetReference);
+        if (radar == null) {
+            return null;
+        }
+        Vec3 position = PhysicsHandler.getWorldVec(level, radar.getWorldPos().getCenter());
+        return isFinite(position) ? position : null;
+    }
+
+    @Nullable
+    private static IRadar resolveAradRadar(ServerLevel level, ARADTargetReference targetReference) {
+        if (level == null || targetReference == null || !targetReference.isValid()) {
+            return null;
+        }
+        BlockPos radarPos = targetReference.radarPos();
+        if (!(level.getBlockEntity(radarPos) instanceof IRadar radar) || !radar.isRunning()) {
+            return null;
+        }
+        if (!RadarContactRegistry.radarSourceId(level, radar.getWorldPos()).equals(targetReference.sourceId())) {
+            return null;
+        }
+        return targetReference.emitterId() == null || targetReference.emitterId().equals(radar.getEmitterId())
+                ? radar
+                : null;
+    }
+
+    @Override
+    @Nullable
+    public ARADTargetReference acquireAradTarget(ServerLevel level, AradAcquisitionRequest request) {
+        if (level == null || request == null
+                || !isFinite(request.sensorOrigin())
+                || !isFinite(request.sensorForward())
+                || request.sensorForward().lengthSqr() < 1.0E-8
+                || !Double.isFinite(request.halfAngleDegrees())) {
+            return null;
+        }
+
+        ARADTargeting.Receiver receiver;
+        if (request.launcherSublevelId() == null) {
+            receiver = ARADTargeting.worldReceiver(request.sensorOrigin());
+        } else {
+            receiver = ARADTargeting.sableReceiver(level, request.launcherSublevelId()).orElse(null);
+            if (receiver == null) {
+                return null;
+            }
+        }
+
+        Set<UUID> launcherChain = launcherSublevelChain(level, request.launcherSublevelId());
+        Vec3 forward = request.sensorForward().normalize();
+        List<RankedAradContact> candidates = new ArrayList<>();
+        for (ARADTargeting.NativeRadarContact contact : ARADTargeting.findNativeContacts(level, receiver)) {
+            Vec3 radarPosition = contact.radarWorldPosition();
+            if (!isFinite(radarPosition)
+                    || contact.targetSublevelId() != null && launcherChain.contains(contact.targetSublevelId())
+                    || !RadarTargeting.isWithinEnvelope(
+                    request.sensorOrigin(),
+                    forward,
+                    radarPosition,
+                    Double.MAX_VALUE,
+                    request.halfAngleDegrees())
+                    || !RadarTargeting.hasLineOfSightToBlock(
+                    level,
+                    request.sensorOrigin(),
+                    radarPosition,
+                    contact.radarPos(),
+                    contact.targetSublevelId())) {
+                continue;
+            }
+
+            Vec3 offset = radarPosition.subtract(request.sensorOrigin());
+            candidates.add(new RankedAradContact(
+                    contact,
+                    forward.dot(offset.normalize()),
+                    offset.lengthSqr()
+            ));
+        }
+
+        candidates.sort(Comparator
+                .comparingDouble((RankedAradContact ranked) -> ranked.contact().signalStrength()).reversed()
+                .thenComparingDouble(ranked -> ranked.contact().rangeRatio())
+                .thenComparing(Comparator.comparingDouble(RankedAradContact::alignment).reversed())
+                .thenComparingDouble(RankedAradContact::distanceSqr)
+                .thenComparing(ranked -> ranked.contact().sourceId()));
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        ARADTargetDesignationEvent.Target target = ARADTargeting.createNoisyTarget(
+                level,
+                candidates.getFirst().contact(),
+                level.getRandom()
+        );
+        if (target == null) {
+            return null;
+        }
+        ARADTargetReference reference = new ARADTargetReference(
+                candidates.getFirst().contact().sourceId(),
+                candidates.getFirst().contact().emitterId(),
+                target.radarPos(),
+                target.rangeRatio(),
+                target.noisyWorldPosition(),
+                target.targetSublevelId(),
+                target.targetLocalPosition()
+        );
+        return reference.isValid() ? reference : null;
+    }
+
+    private static Set<UUID> launcherSublevelChain(ServerLevel level, @Nullable UUID launcherSublevelId) {
+        Set<UUID> ids = new HashSet<>();
+        if (!Mods.SABLE.isLoaded() || launcherSublevelId == null) {
+            return ids;
+        }
+        ids.add(launcherSublevelId);
+        SubLevelContainer container = SubLevelContainer.getContainer(level);
+        if (container == null) {
+            return ids;
+        }
+        SubLevel launcher = container.getSubLevel(launcherSublevelId);
+        if (launcher == null || launcher.isRemoved()) {
+            return ids;
+        }
+        for (SubLevel connected : SubLevelHelper.getConnectedChain(launcher)) {
+            if (connected != null && !connected.isRemoved()) {
+                ids.add(connected.getUniqueId());
+            }
+        }
+        return ids;
+    }
+
+    private static void visitAradGuidanceBlocks(ServerLevel level, BlockPos rwrPos,
+                                                java.util.function.Consumer<ARADGuidanceBlockEntity> visitor) {
+        if (!Mods.SABLE.isLoaded()) {
+            return;
+        }
+        SubLevelAccess containingSublevel = SableCompanion.INSTANCE.getContaining(level, rwrPos);
+        if (containingSublevel == null) {
+            return;
+        }
+        SubLevelContainer container = SubLevelContainer.getContainer(level);
+        if (container == null) {
+            return;
+        }
+        SubLevel source = container.getSubLevel(containingSublevel.getUniqueId());
+        if (source == null || source.isRemoved()) {
+            return;
+        }
+
+        Map<UUID, SubLevel> chain = new LinkedHashMap<>();
+        chain.put(source.getUniqueId(), source);
+        for (SubLevel connected : SubLevelHelper.getConnectedChain(source)) {
+            if (connected != null && !connected.isRemoved()) {
+                chain.putIfAbsent(connected.getUniqueId(), connected);
+            }
+        }
+
+        for (SubLevel sublevel : chain.values()) {
+            for (var chunkHolder : sublevel.getPlot().getLoadedChunks()) {
+                LevelChunk chunk = chunkHolder.getChunk();
+                if (chunk == null) {
+                    continue;
+                }
+                for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
+                    if (blockEntity instanceof ARADGuidanceBlockEntity aradGuidance) {
+                        SubLevelAccess owner = SableCompanion.INSTANCE.getContaining(level, aradGuidance.getBlockPos());
+                        if (owner != null && sublevel.getUniqueId().equals(owner.getUniqueId())) {
+                            visitor.accept(aradGuidance);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Nullable

@@ -150,7 +150,7 @@ dependencies {
 
 
    // compileOnly files("lib/createbigcannons-5.11.7-mc.1.21.1.jar")
-    compileOnly files("lib/create_radar-${create_radar_version}.jar")
+    implementation files("lib/create_radar-${create_radar_version}.jar")
 
 
 

@@ -1,6 +1,7 @@
 package com.happysg.kaboom.compat.radars;
 
 import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
+import com.happysg.kaboom.block.missiles.util.ARADTargetReference;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -24,6 +25,21 @@ final class NoRadarIntegration implements RadarIntegration {
     public MovingTargetResolver.TargetData resolveLegacyRadarTarget(ServerLevel level,
                                                                     @Nullable BlockPos radarGuidancePos,
                                                                     Vec3 missilePosition) {
+        return null;
+    }
+
+    @Override
+    public Vec3 resolveAradTarget(ServerLevel level, ARADTargetReference targetReference) {
+        return null;
+    }
+
+    @Override
+    public Vec3 resolveAradEmitterPosition(ServerLevel level, ARADTargetReference targetReference) {
+        return null;
+    }
+
+    @Override
+    public ARADTargetReference acquireAradTarget(ServerLevel level, AradAcquisitionRequest request) {
         return null;
     }
 

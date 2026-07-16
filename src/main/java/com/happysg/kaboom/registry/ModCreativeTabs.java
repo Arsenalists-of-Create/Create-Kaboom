@@ -73,6 +73,8 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
         pOutput.accept(ModBlocks.RADAR_GUIDANCE_SMALL);
         if (Mods.CREATE_RADAR.isLoaded()) {
+            pOutput.accept(ModBlocks.ARAD_GUIDANCE_SMALL);
+            pOutput.accept(ModBlocks.ARAD_GUIDANCE_LARGE);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
             pOutput.accept(ModBlocks.TARGET_COORDINATOR);
