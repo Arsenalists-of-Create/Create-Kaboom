@@ -77,7 +77,7 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : (lvl, p, st, be) -> {
+        return (lvl, p, st, be) -> {
             if (be instanceof ThrusterBlockEntity thruster) thruster.tick();
         };
     }

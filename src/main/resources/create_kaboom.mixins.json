@@ -9,7 +9,11 @@
   "mixins": [
     "AbstractCannonProjectileMixin",
     "AbstractProjectileAccessor",
-    "FuzeMixin"
+    "CannonMountMissileReleaseMixin",
+    "FixedCannonMountMissileReleaseMixin",
+    "FuzeMixin",
+    "MissileWarheadMountProviderMixin",
+    "RocketPodCannonMountPointMixin"
   ],
   "injectors": {
     "defaultRequire": 1

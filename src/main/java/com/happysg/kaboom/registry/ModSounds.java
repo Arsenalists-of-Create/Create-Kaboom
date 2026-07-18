@@ -22,6 +22,21 @@ public class ModSounds {
                     () -> SoundEvent.createVariableRangeEvent(
                             ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "missile_launch")
                     ));
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_BOOF =
+            SOUND_EVENTS.register("missile_boof",
+                    () -> SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "missile_boof")
+                    ));
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROCKET_LOOP =
+            SOUND_EVENTS.register("rocket_loop",
+                    () -> SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "rocket_loop")
+                    ));
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROCKET_BOOF =
+            SOUND_EVENTS.register("rocket_boof",
+                    () -> SoundEvent.createVariableRangeEvent(
+                            ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "rocket_boof")
+                    ));
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_TURBINE =
             SOUND_EVENTS.register("cruise_turbine",
             () -> SoundEvent.createVariableRangeEvent(

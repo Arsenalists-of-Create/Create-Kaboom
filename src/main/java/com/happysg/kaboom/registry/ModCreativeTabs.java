@@ -1,6 +1,7 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.block.rocketpod.RocketPod;
 import com.happysg.kaboom.compat.Mods;
 import com.simibubi.create.AllCreativeModeTabs;
 import net.minecraft.core.registries.Registries;
@@ -79,8 +80,18 @@ public class ModCreativeTabs {
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
             pOutput.accept(ModBlocks.TARGET_COORDINATOR);
         }
+        //pOutput.accept(ModBlocks.ROCKET_POD_FRONT);
+        pOutput.accept(ModBlocks.ROCKET_POD_CENTER);
+        pOutput.accept(ModBlocks.ROCKET_POD_REAR);
+        pOutput.accept(ModItems.ROCKET);
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
+
+
+//        solid rocket small
+//        solid rocket large
+
+
     }
 
     public static void register(IEventBus eventBus) {

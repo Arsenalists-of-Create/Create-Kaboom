@@ -6,6 +6,8 @@ import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.FallingAerialBombRenderer;
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterRenderer;
 import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadProjectile;
+import com.happysg.kaboom.items.rocket.UnguidedRocketProjectile;
+import com.happysg.kaboom.items.rocket.UnguidedRocketRenderer;
 import com.tterrag.registrate.util.entry.EntityEntry;
 import com.tterrag.registrate.util.nullness.NonNullConsumer;
 import net.minecraft.world.entity.Entity;
@@ -34,6 +36,12 @@ public class ModProjectiles {
             .tag(RPLTags.PRECISE_MOTION)
             .renderer(() -> BigCannonProjectileRenderer::new)
             .register();
+    public static final EntityEntry<UnguidedRocketProjectile> UNGUIDED_ROCKET = CreateKaboom.REGISTRATE
+            .entity("unguided_rocket", UnguidedRocketProjectile::new, MobCategory.MISC)
+            .properties(rocketProperties())
+            .tag(RPLTags.PRECISE_MOTION)
+            .renderer(() -> UnguidedRocketRenderer::new)
+            .register();
 
     private static <T extends Entity> NonNullConsumer<EntityType.Builder<T>> bombProperties() {
         return builder -> builder
@@ -41,7 +49,16 @@ public class ModProjectiles {
                 .fireImmune()
                 .updateInterval(1)
                 .setShouldReceiveVelocityUpdates(false)
-                .clientTrackingRange(16);
+                .clientTrackingRange(1024);
+    }
+
+    private static <T extends Entity> NonNullConsumer<EntityType.Builder<T>> rocketProperties() {
+        return builder -> builder
+                .sized(0.25F, 0.25F)
+                .fireImmune()
+                .updateInterval(1)
+                .setShouldReceiveVelocityUpdates(false)
+                .clientTrackingRange(1024);
     }
 
     public static void register() {

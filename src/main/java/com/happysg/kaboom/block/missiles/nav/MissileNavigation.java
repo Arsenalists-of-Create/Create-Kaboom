@@ -246,7 +246,7 @@ public final class MissileNavigation {
    private MissileNavigation.Command steerToward(MissileNavigation.FlightAccess access, Vec3 vel, Vec3 desiredDirRaw) {
       Vec3 desiredDir = safeNormalize(desiredDirRaw, this.launchDirection);
       Vec3 currentDir = this.currentOrLaunchDirection(vel);
-      Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, configuredMaxTurnDegreesPerTick());
+      Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, configuredTurnRateDegreesPerTick(vel));
       double actualTurnDeg = angleDegrees(currentDir, rotatedDir);
       double currentSpeed = vel.length();
       double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + effectiveThrustAccelerationPerTick(access));
@@ -459,25 +459,27 @@ public final class MissileNavigation {
    }
 
    public static double configuredMaxSpeed() {
-      double configured = (double)KaboomConfig.server().maxSpeed.getF();
-      if (configured <= 0.0) {
-         configured = (double)((Integer)KaboomConfig.server().maxMissileSpeed.get()).intValue();
-      }
-
-      return Math.max(0.0, configured);
+      return Math.max(0.0, (double)KaboomConfig.server().maxSpeed.getF());
    }
 
    private static double configuredMaxTurnDegreesPerTick() {
       return Math.max(0.0, (double)KaboomConfig.server().maxTurnDegreesPerTick.getF());
    }
 
-   private static double configuredThrustAccelerationPerTick() {
-      double configured = (double)KaboomConfig.server().thrustAccelerationPerTick.getF();
-      if (configured <= 0.0) {
-         configured = (double)KaboomConfig.server().maxMissileAccel.getF();
+   static double configuredTurnRateDegreesPerTick(Vec3 velocity) {
+      double maxTurnRate = configuredMaxTurnDegreesPerTick();
+      double referenceSpeed = Math.max(1.0E-6, (double)KaboomConfig.server().turnReferenceSpeedMetersPerSecond.getF());
+      double exponent = Math.max(0.0, (double)KaboomConfig.server().turnRateSpeedExponent.getF());
+      double currentSpeed = velocity.length() * 20.0;
+      if (!Double.isFinite(currentSpeed) || currentSpeed <= referenceSpeed) {
+         return maxTurnRate;
       }
 
-      return Math.max(0.0, configured);
+      return maxTurnRate * Math.pow(referenceSpeed / currentSpeed, exponent);
+   }
+
+   private static double configuredThrustAccelerationPerTick() {
+      return Math.max(0.0, (double)KaboomConfig.server().thrustAccelerationPerTick.getF());
    }
 
    private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {

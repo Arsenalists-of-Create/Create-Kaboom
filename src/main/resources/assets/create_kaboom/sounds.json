@@ -6,5 +6,29 @@
         "stream": false
       }
     ]
+  },
+  "missile_boof": {
+    "sounds": [
+      {
+        "name": "create_kaboom:missile_boof",
+        "stream": false
+      }
+    ]
+  },
+  "rocket_loop": {
+    "sounds": [
+      {
+        "name": "create_kaboom:missile_loop_pitchup",
+        "stream": false
+      }
+    ]
+  },
+  "rocket_boof": {
+    "sounds": [
+      {
+        "name": "create_kaboom:rocket_boof",
+        "stream": false
+      }
+    ]
   }
 }

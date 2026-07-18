@@ -1,5 +1,8 @@
 package com.happysg.kaboom;
 
+import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlockEntity;
+import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadBlockEntity;
 import com.happysg.kaboom.client.CreateKaboomClient;
 import com.happysg.kaboom.commands.SelfChainCommand;
 import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
@@ -10,6 +13,7 @@ import com.happysg.kaboom.networking.NetworkHandler;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModCreativeTabs;
+import com.happysg.kaboom.registry.ModContraptionTypes;
 import com.happysg.kaboom.registry.ModEntities;
 import com.happysg.kaboom.registry.ModItems;
 import com.happysg.kaboom.registry.ModLang;
@@ -57,6 +61,7 @@ public class CreateKaboom {
       ModEntities.register(modEventBus);
       ModSounds.register(modEventBus);
       KaboomConfig.register(container);
+      modEventBus.addListener(ModContraptionTypes::register);
       modEventBus.addListener(CreateKaboom::registerCapabilities);
       modEventBus.addListener(NetworkHandler::register);
       if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -80,13 +85,13 @@ public class CreateKaboom {
 
    public static void registerCapabilities(RegisterCapabilitiesEvent event) {
       event.registerBlockEntity(
-         FluidHandler.BLOCK, ModBlockEntityTypes.FLUID_AERIAL_BOMB_BE.get(), (blockEntity, side) -> blockEntity.getFluidHandler(side)
+         FluidHandler.BLOCK, ModBlockEntityTypes.FLUID_AERIAL_BOMB_BE.get(), FluidAerialBombBlockEntity::getFluidHandler
       );
       event.registerBlockEntity(
-         FluidHandler.BLOCK, ModBlockEntityTypes.FUEL_TANK_SMALL.get(), (blockEntity, side) -> blockEntity.getFluidHandler(side)
+         FluidHandler.BLOCK, ModBlockEntityTypes.FUEL_TANK_SMALL.get(), MissileFuelTankBlockEntity::getFluidHandler
       );
       event.registerBlockEntity(
-         FluidHandler.BLOCK, ModBlockEntityTypes.MISSILE_WARHEAD.get(), (blockEntity, side) -> blockEntity.getFluidHandler(side)
+         FluidHandler.BLOCK, ModBlockEntityTypes.MISSILE_WARHEAD.get(), MissileWarheadBlockEntity::getFluidHandler
       );
    }
 }

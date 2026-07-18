@@ -70,6 +70,8 @@ public final class CreateKaboomClient {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null && minecraft.level != null) {
             FUZE_GUIDE_HANDLER.tick();
+            MissileClientEffects.tickMountedLaunches();
+            RocketClientEffects.tickHandoffs();
         }
     }
 }

@@ -4,11 +4,11 @@ import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
+import com.happysg.kaboom.client.ClientScreenOpener;
 
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -73,7 +73,7 @@ public class GPSGuidanceBlock extends RotatedPillarBlock implements IBE<GPSGuida
 
     private static void openScreen(Level level, BlockPos pos) {
         if (level.isClientSide) {
-            Minecraft.getInstance().setScreen(new GPSScreen(pos));
+            ClientScreenOpener.openGpsGuidance(pos);
         }
     }
 

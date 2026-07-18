@@ -24,18 +24,22 @@ import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
 import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.warhead.AbstractMissileWarhead;
+import com.happysg.kaboom.block.rocketpod.RocketPod;
 import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlock;
 import com.happysg.radar.compat.Mods;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
+import com.tterrag.registrate.Registrate;
 import com.tterrag.registrate.builders.BlockBuilder;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.tterrag.registrate.util.nullness.NonNullFunction;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
+import net.neoforged.neoforge.client.model.generators.ModelFile;
 
 import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 
@@ -111,6 +115,17 @@ public class ModBlocks {
         int suffixCount = Mth.clamp(count, 1, 4);
         return "aerial_bomb/" + fuze + name + (suffixCount <= 1 ? "" : "_" + suffixCount);
     }
+
+    private static ConfiguredModel[] rocketPodModel(ModelFile model, Direction facing) {
+        int rotationX = facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0;
+        int rotationY = facing.getAxis().isVertical() ? 0 : (int) facing.toYRot();
+        return ConfiguredModel.builder()
+                .modelFile(model)
+                .rotationX(rotationX)
+                .rotationY(rotationY)
+                .build();
+    }
+
     public static final BlockEntry<ThrusterBlock> MISSILE_THRUSTER = REGISTRATE.block("missile_liquid_thruster_large",
                     properties -> new ThrusterBlock(properties, MissileSize.LARGE))
             .initialProperties(SharedProperties::softMetal)
@@ -297,6 +312,46 @@ public class ModBlocks {
                     .initialProperties(SharedProperties::softMetal)
                     .simpleItem()
                     .register();
+
+
+    public static final BlockEntry<RocketPod> ROCKET_POD_FRONT =
+            REGISTRATE.block("rocket_pod_front",RocketPod::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/rocket_pod_front"));
+                        prov.getVariantBuilder(ctx.getEntry()).forAllStates(state ->
+                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING).getOpposite()));
+                    })
+                    .simpleItem()
+                    .register();
+    public static final BlockEntry<RocketPod> ROCKET_POD_REAR =
+            REGISTRATE.block("rocket_pod_rear",RocketPod::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/rocket_pod_rear"));
+                        prov.getVariantBuilder(ctx.getEntry()).forAllStates(state ->
+                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING).getOpposite()));
+                    })
+                    .simpleItem()
+                    .register();
+
+    public static final BlockEntry<RocketPod> ROCKET_POD_CENTER =
+            REGISTRATE.block("rocket_pod_center",RocketPod::new)
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/rocket_pod_center"));
+                        prov.getVariantBuilder(ctx.getEntry()).forAllStates(state ->
+                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING)));
+                    })
+                    .simpleItem()
+                    .register();
+
+
+
+
 
 
 

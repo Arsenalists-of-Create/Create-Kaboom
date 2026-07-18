@@ -444,7 +444,7 @@ public final class ARADNavigation {
     ) {
         Vec3 desiredDirection = safeNormalize(desiredDirectionRaw, this.launchDirection);
         Vec3 currentDirection = currentOrLaunchDirection(velocity);
-        Vec3 rotatedDirection = limitTurnSafe(currentDirection, desiredDirection, configuredMaxTurnDegreesPerTick());
+        Vec3 rotatedDirection = limitTurnSafe(currentDirection, desiredDirection, MissileNavigation.configuredTurnRateDegreesPerTick(velocity));
         double actualTurnDegrees = angleDegrees(currentDirection, rotatedDirection);
         double currentSpeed = velocity.length();
         double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + effectiveThrustAccelerationPerTick(access));
@@ -683,23 +683,11 @@ public final class ARADNavigation {
     }
 
     private static double configuredMaxSpeed() {
-        double configured = KaboomConfig.server().maxSpeed.getF();
-        if (configured <= 0.0) {
-            configured = KaboomConfig.server().maxMissileSpeed.get();
-        }
-        return Math.max(0.0, configured);
-    }
-
-    private static double configuredMaxTurnDegreesPerTick() {
-        return Math.max(0.0, KaboomConfig.server().maxTurnDegreesPerTick.getF());
+        return Math.max(0.0, KaboomConfig.server().maxSpeed.getF());
     }
 
     private static double configuredThrustAccelerationPerTick() {
-        double configured = KaboomConfig.server().thrustAccelerationPerTick.getF();
-        if (configured <= 0.0) {
-            configured = KaboomConfig.server().maxMissileAccel.getF();
-        }
-        return Math.max(0.0, configured);
+        return Math.max(0.0, KaboomConfig.server().thrustAccelerationPerTick.getF());
     }
 
     private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {

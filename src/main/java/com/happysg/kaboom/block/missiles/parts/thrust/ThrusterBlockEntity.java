@@ -4,22 +4,36 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssembler;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
 import com.happysg.kaboom.block.missiles.assembly.MissileLaunchHelper;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import com.happysg.kaboom.block.missiles.chaining.ChainSystem;
 import com.happysg.kaboom.block.missiles.chaining.client.ChainRenderer;
+import com.happysg.kaboom.block.missiles.parts.fuel.MissileFuelTankBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.IPoweredTargetAcquisition;
+import com.happysg.kaboom.client.MissileClientEffects;
+import com.happysg.kaboom.client.MissileLaunchEffects;
+import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.config.KaboomConfig;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup.Provider;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 public class ThrusterBlockEntity extends SmartBlockEntity {
    private boolean lastAssemblyPowered = false;
@@ -30,6 +44,10 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
    private List<BlockPos> lastAssemblyBlocks = List.of();
    private final ChainSystem chainSystem = new ChainSystem();
    private int chainSyncTimer = 0;
+   private int launchTicksRemaining;
+   private MissileSize pendingLaunchSize = MissileSize.SMALL;
+   private final Map<BlockPos, BlockState> pendingLaunchBlocks = new LinkedHashMap<>();
+   private transient boolean clientLaunchSoundStarted;
    public static final List<ThrusterBlockEntity.PendingEnforcement> PENDING_ENFORCEMENTS = new ArrayList<>();
 
    public ThrusterBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -43,8 +61,18 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
    public void tick() {
       super.tick();
       Level level = this.getLevel();
-      if (level != null && !level.isClientSide) {
+      if (level != null && level.isClientSide) {
+         this.tickClientLaunchEffects(level);
+      } else if (level != null) {
          if (level instanceof ServerLevel serverLevel) {
+            if (this.launchTicksRemaining > 0) {
+               this.tickPendingLaunch(serverLevel);
+               if (!this.isRemoved()) {
+                  this.chainSystem.tickFromBlock(this.worldPosition, serverLevel);
+                  PENDING_ENFORCEMENTS.add(new PendingEnforcement(this.worldPosition.immutable(), serverLevel));
+               }
+               return;
+            }
             BlockPos controller = MissileAssembler.findControllerThruster(level, this.worldPosition);
             if (controller != null && controller.equals(this.worldPosition)) {
                if (this.tickLaunchControl(serverLevel)) {
@@ -122,11 +150,78 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
 
    private boolean tryLaunch(ServerLevel level) {
       try {
-         return MissileLaunchHelper.assembleAndSpawn(level, this.worldPosition);
+         if (!KaboomConfig.server().delayedMissileLaunch.get()) {
+            return MissileLaunchHelper.assembleAndSpawn(level, this.worldPosition);
+         }
+         MissileLaunchHelper.PreparedFreeLaunch prepared =
+                 MissileLaunchHelper.prepareFreeLaunch(level, this.worldPosition);
+         if (prepared == null) return false;
+         this.pendingLaunchBlocks.clear();
+         this.pendingLaunchBlocks.putAll(prepared.blocks());
+         this.pendingLaunchSize = prepared.size();
+         this.launchTicksRemaining = prepared.size().launchDelayTicks();
+         this.clientLaunchSoundStarted = false;
+         this.setChanged();
+         this.notifyUpdate();
+         return true;
       } catch (AssemblyException var3) {
          CreateKaboom.getLogger().error("Failed to assemble missile at {}", this.worldPosition, var3);
          return false;
       }
+   }
+
+   private void tickPendingLaunch(ServerLevel level) {
+      this.burnPendingFuel(Math.max(1, KaboomConfig.server().maxFuelBurnPerTick.get()));
+      --this.launchTicksRemaining;
+      this.setChanged();
+      if (this.launchTicksRemaining > 0) return;
+
+      boolean launched = false;
+      try {
+         launched = MissileLaunchHelper.finishFreeLaunch(level, this.worldPosition,
+                 Map.copyOf(this.pendingLaunchBlocks));
+      } catch (AssemblyException exception) {
+         CreateKaboom.getLogger().error("Failed to finish missile launch at {}", this.worldPosition, exception);
+      }
+      if (!launched && !this.isRemoved()) {
+         this.pendingLaunchBlocks.clear();
+         this.poweredLaunchRejected = true;
+         this.notifyUpdate();
+      }
+   }
+
+   private void burnPendingFuel(int requested) {
+      int remaining = requested;
+      Level level = this.getLevel();
+      if (level == null) return;
+      for (BlockPos pos : this.pendingLaunchBlocks.keySet()) {
+         if (remaining <= 0) break;
+         if (level.getBlockEntity(pos) instanceof MissileFuelTankBlockEntity tank) {
+            remaining -= tank.getTank().drain(remaining, IFluidHandler.FluidAction.EXECUTE).getAmount();
+         }
+      }
+   }
+
+   private void tickClientLaunchEffects(Level level) {
+      if (this.launchTicksRemaining <= 0) return;
+      Direction forward = this.getBlockState().hasProperty(ThrusterBlock.FACING)
+              ? this.getBlockState().getValue(ThrusterBlock.FACING) : Direction.UP;
+      Vec3 localDirection = Vec3.atLowerCornerOf(forward.getNormal());
+      SableUtils.LaunchKinematics pose = SableUtils.getLaunchKinematics(
+              level, this.worldPosition, this.worldPosition.getCenter(), localDirection);
+      if (!this.clientLaunchSoundStarted) {
+         this.clientLaunchSoundStarted = true;
+         MissileClientEffects.startBlockLaunch(this, this.launchTicksRemaining);
+      }
+      if (level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel) {
+         MissileLaunchEffects.emit(clientLevel, pose.position(),
+                 pose.direction(), pose.carrierVelocity(), this.pendingLaunchSize);
+      }
+      --this.launchTicksRemaining;
+   }
+
+   public int getLaunchTicksRemaining() {
+      return this.launchTicksRemaining;
    }
 
    private boolean tryLatchedLaunch(ServerLevel level) {
@@ -161,6 +256,16 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
    protected void write(CompoundTag tag, Provider registries, boolean clientPacket) {
       super.write(tag, registries, clientPacket);
       tag.put("kaboom:ChainSystem", this.chainSystem.save());
+      tag.putInt("kaboom:LaunchTicksRemaining", this.launchTicksRemaining);
+      tag.putString("kaboom:PendingLaunchSize", this.pendingLaunchSize.name());
+      ListTag blocks = new ListTag();
+      for (Map.Entry<BlockPos, BlockState> entry : this.pendingLaunchBlocks.entrySet()) {
+         CompoundTag block = new CompoundTag();
+         block.putLong("Pos", entry.getKey().asLong());
+         block.putInt("State", Block.getId(entry.getValue()));
+         blocks.add(block);
+      }
+      tag.put("kaboom:PendingLaunchBlocks", blocks);
    }
 
    protected void read(CompoundTag tag, Provider registries, boolean clientPacket) {
@@ -168,6 +273,19 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
       if (tag.contains("kaboom:ChainSystem")) {
          this.chainSystem.load(tag.getCompound("kaboom:ChainSystem"));
       }
+      this.launchTicksRemaining = Math.max(0, tag.getInt("kaboom:LaunchTicksRemaining"));
+      try {
+         this.pendingLaunchSize = MissileSize.valueOf(tag.getString("kaboom:PendingLaunchSize"));
+      } catch (IllegalArgumentException ignored) {
+         this.pendingLaunchSize = MissileSize.SMALL;
+      }
+      this.pendingLaunchBlocks.clear();
+      ListTag blocks = tag.getList("kaboom:PendingLaunchBlocks", Tag.TAG_COMPOUND);
+      for (int i = 0; i < blocks.size(); ++i) {
+         CompoundTag block = blocks.getCompound(i);
+         this.pendingLaunchBlocks.put(BlockPos.of(block.getLong("Pos")), Block.stateById(block.getInt("State")));
+      }
+      this.clientLaunchSoundStarted = false;
 
       if (clientPacket && !this.chainSystem.getAnchors().isEmpty()) {
          ChainRenderer.TRACKED_THRUSTERS.add(this.worldPosition);

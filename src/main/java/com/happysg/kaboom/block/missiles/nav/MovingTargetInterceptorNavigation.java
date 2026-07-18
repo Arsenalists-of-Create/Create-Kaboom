@@ -707,7 +707,7 @@ public final class  MovingTargetInterceptorNavigation {
    private MissileNavigation.Command steerToward(MissileNavigation.FlightAccess access, Vec3 vel, Vec3 desiredDirRaw) {
       Vec3 desiredDir = safeNormalize(desiredDirRaw, this.launchDirection);
       Vec3 currentDir = this.currentOrLaunchDirection(vel);
-      Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, configuredMaxTurnDegreesPerTick());
+      Vec3 rotatedDir = limitTurnSafe(currentDir, desiredDir, MissileNavigation.configuredTurnRateDegreesPerTick(vel));
       double actualTurnDeg = angleDegrees(currentDir, rotatedDir);
       double currentSpeed = vel.length();
       double requestedSpeed = Math.min(configuredMaxSpeed(), currentSpeed + effectiveThrustAccelerationPerTick(access));
@@ -1021,25 +1021,11 @@ public final class  MovingTargetInterceptorNavigation {
    }
 
    private static double configuredMaxSpeed() {
-      double configured = (double)KaboomConfig.server().maxSpeed.getF();
-      if (configured <= 0.0) {
-         configured = (double)((Integer)KaboomConfig.server().maxMissileSpeed.get()).intValue();
-      }
-
-      return Math.max(0.0, configured);
-   }
-
-   private static double configuredMaxTurnDegreesPerTick() {
-      return Math.max(0.0, (double)KaboomConfig.server().maxTurnDegreesPerTick.getF());
+      return Math.max(0.0, (double)KaboomConfig.server().maxSpeed.getF());
    }
 
    private static double configuredThrustAccelerationPerTick() {
-      double configured = (double)KaboomConfig.server().thrustAccelerationPerTick.getF();
-      if (configured <= 0.0) {
-         configured = (double)KaboomConfig.server().maxMissileAccel.getF();
-      }
-
-      return Math.max(0.0, configured);
+      return Math.max(0.0, (double)KaboomConfig.server().thrustAccelerationPerTick.getF());
    }
 
    private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {

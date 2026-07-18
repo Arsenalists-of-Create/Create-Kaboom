@@ -45,6 +45,8 @@
   "block.create_kaboom.heatseeker_small": "Small Heatseeker Unit",
   "entity.create_kaboom.cluster_bomblet": "Cluster Bomblet",
   "entity.create_kaboom.missile_warhead_projectile": "Missile Warhead Projectile",
+  "entity.create_kaboom.unguided_rocket": "Unguided Rocket",
+  "item.create_kaboom.rocket": "Rocket",
   "block.create_kaboom.large_high_explosive_warhead": "Large High Explosive Warhead",
   "block.create_kaboom.huge_high_explosive_warhead": "Huge High Explosive Warhead",
   "block.create_kaboom.large_armor_piercing_warhead": "Large Armor Piercing Warhead",
@@ -54,5 +56,13 @@
   "block.create_kaboom.large_cluster_warhead": "Large Cluster Warhead",
   "block.create_kaboom.huge_cluster_warhead": "Huge Cluster Warhead",
   "block.create_kaboom.large_fluid_warhead": "Large Fluid Warhead",
-  "block.create_kaboom.huge_fluid_warhead": "Huge Fluid Warhead"
+  "block.create_kaboom.huge_fluid_warhead": "Huge Fluid Warhead",
+  "exception.create_kaboom.cannon_mount.invalidRocketPod": "A rocket pod must contain one rear followed by at least one center, with no gaps and no more blocks than CBC's maximum cannon length. A front cap is optional.",
+  "exception.create_kaboom.cannon_mount.misalignedRocketPod": "Rocket pod component at %s, %s, %s is not aligned with the pod.",
+  "exception.create_kaboom.cannon_mount.invalidRocketPodBundle": "Side rocket pods must be complete, aligned, equally long, and limited to one pod on each side.",
+  "exception.create_kaboom.cannon_mount.invalidMissile": "A mounted missile must contain a controller thruster, at least one matching fuel tank, one matching guidance unit, and a matching warhead in a straight line.",
+  "exception.create_kaboom.cannon_mount.misalignedMissileComponent": "Missile component at %s, %s, %s is not aligned with the missile.",
+  "exception.create_kaboom.cannon_mount.unsupportedMissileSize": "CBC cannon mounts support small and large missiles, but not huge missiles.",
+  "exception.create_kaboom.cannon_mount.missileTooLong": "This missile exceeds CBC's maximum cannon length of %s blocks.",
+  "exception.create_kaboom.cannon_mount.unsupportedMissileMount": "Missiles can only be assembled on standard and fixed cannon mounts."
 }

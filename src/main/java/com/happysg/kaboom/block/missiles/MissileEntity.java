@@ -12,13 +12,13 @@ import com.happysg.kaboom.block.missiles.util.MissileGuidanceType;
 import com.happysg.kaboom.block.missiles.util.MissileProjectileContext;
 import com.happysg.kaboom.block.missiles.util.MissileTargetSpec;
 import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
+import com.happysg.kaboom.client.MissileClientEffects;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.ChainSystemSyncPacket;
 import com.happysg.kaboom.registry.ModParticles;
-import com.happysg.kaboom.sounds.MissileEngineSound;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.OrientedContraptionEntity;
@@ -36,8 +36,6 @@ import java.util.UUID;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
@@ -152,8 +150,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private MissileSize missileSize = MissileSize.SMALL;
    private int fuelTankCount = 1;
    private Vec3 lastVelForSmoke = Vec3.ZERO;
-   @OnlyIn(Dist.CLIENT)
-   private MissileEngineSound engineSound;
+   @Nullable
+   private Vec3 lastSmokePosition = null;
    @Nullable
    private Vec3 pendingVelocity = null;
    private boolean forceCustomColliders = true;
@@ -172,7 +170,12 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    private static final double NOSE_TIP_AHEAD = 0.55;
    private static final double MIN_MAX_COLLISION_SWEEP = 64.0;
    private static final double POSITION_REMAP_TOLERANCE = 1.0;
+   private static final int DENSE_SMOKE_TICKS = 20 * 10;
+   private static final int DENSE_SMOKE_EXTRA_PARTICLES = 3;
+   private static final int MAX_SMOKE_PARTICLES_PER_TICK = 14;
+   private static final float SMOKE_PARTICLE_DENSITY = 4.0F;
    private boolean launched = false;
+   private int poweredSmokeTicks = 0;
    private final ChainSystem chainSystem = new ChainSystem();
    public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.08, 0.0, false, 2.0F, 1.0F, 1.0F, 0.7F);
    public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30.0F, false, true, true, 2.0F);
@@ -302,7 +305,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       this.aradNavigation.initialize(launchDirection, this.position(), this);
       this.syncHeading(launchDirection);
       this.sourceSubLevelId = launch.sourceSubLevelId();
-      double ejectionVelocity = Math.max(0.0, (double)KaboomConfig.server().missileEjectionVelocity.getF());
+      double ejectionVelocity = Math.max(this.missileSize.minimumLaunchSpeed(),
+              Math.max(0.0, (double)KaboomConfig.server().missileEjectionVelocity.getF()));
       Vec3 initialVelocity = launch.carrierVelocity().add(launchDirection.scale(ejectionVelocity));
       this.setContraptionMotion(initialVelocity);
       super.setDeltaMovement(initialVelocity);
@@ -384,8 +388,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          this.enforceCustomColliders();
          if (this.level().isClientSide && !this.launched && this.getFuelMbSynced() > 0) {
             this.launched = true;
-            this.engineSound = new MissileEngineSound(this);
-            Minecraft.getInstance().getSoundManager().play(this.engineSound);
+            MissileClientEffects.startEngineSound(this);
          }
 
          if (this.level().isClientSide) {
@@ -459,12 +462,14 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
             return;
          }
          Vec3 aCtrl = guidance.appliedDeltaV();
-         Vec3 aBase = !this.postLandingBallistic
+         boolean suppressGravity = !this.postLandingBallistic
             && (this.aradNavigation.isRunaway()
             || this.interceptorNavigation.isRunaway()
-            || boosting && aCtrl.lengthSqr() > 1.0E-12)
-            ? Vec3.ZERO
-            : this.getForcesWithParam(vel0);
+            || boosting && aCtrl.lengthSqr() > 1.0E-12);
+         Vec3 aBase = this.getDragAcceleration(vel0);
+         if (!suppressGravity) {
+            aBase = aBase.add(0.0, this.getMissileGravity(), 0.0);
+         }
          Vec3 aTick = aBase.add(aCtrl);
          MissileEntity.PhysicsStep step = this.integrateSubsteps(pos0, vel0, aTick, 20);
          Vec3 posPred = step.pos();
@@ -491,11 +496,11 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       }
    }
 
-   protected Vec3 getForcesWithParam(Vec3 velocity) {
-      double g = this.isNoGravity()
-         ? 0.0
-         : (double)((Float)this.entityData.get(GRAVITY)).floatValue() * DimensionMunitionPropertiesHandler.getProperties(this.level()).gravityMultiplier();
-      return new Vec3(0.0, g, 0.0);
+   protected Vec3 getDragAcceleration(Vec3 velocity) {
+      double speed = velocity.length();
+      return speed > 1.0E-9
+         ? velocity.scale(-this.getDragForce(velocity) / speed)
+         : Vec3.ZERO;
    }
 
    private int getFuelMbSynced() {
@@ -713,6 +718,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       if (tag.contains("kaboom:FuelTankCount")) {
          this.fuelTankCount = Math.max(1, tag.getInt("kaboom:FuelTankCount"));
       }
+
 
       this.entityData.set(FUEL_MB, this.fuelMb);
       this.entityData.set(FUEL_CAP_MB, this.fuelCapacityMb);
@@ -1136,7 +1142,13 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    @OnlyIn(Dist.CLIENT)
    private void clientTickVisuals() {
       if (this.getFuelMbSynced() > 0) {
-         this.spawnSmokeClient(this.position(), this.getDeltaMovement());
+         Vec3 currentPosition = this.position();
+         Vec3 previousPosition = this.lastSmokePosition == null ? currentPosition : this.lastSmokePosition;
+         this.spawnSmokeClient(previousPosition, currentPosition, this.getDeltaMovement());
+         this.lastSmokePosition = currentPosition;
+         ++this.poweredSmokeTicks;
+      } else {
+         this.lastSmokePosition = null;
       }
    }
 
@@ -1194,8 +1206,8 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    @OnlyIn(Dist.CLIENT)
-   private void spawnSmokeClient(Vec3 pos, Vec3 v) {
-      ClientLevel cl = (ClientLevel)this.level();
+   private void spawnSmokeClient(Vec3 previousPosition, Vec3 currentPosition, Vec3 v) {
+      Level cl = this.level();
       double speed = v.length();
       double accel = v.subtract(this.lastVelForSmoke).length();
       this.lastVelForSmoke = v;
@@ -1205,18 +1217,23 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
       Vec3 forward = v.lengthSqr() > 1.0E-6 ? v.normalize() : new Vec3(0.0, 1.0, 0.0);
       Vec3 back = forward.scale(-1.0);
       double behind = 0.65;
-      int count = Mth.clamp((int)Math.ceil((double)(2.0F * intensity)), 1, 10);
+      int count = Mth.clamp((int)Math.ceil((double)(SMOKE_PARTICLE_DENSITY * intensity)), 1, MAX_SMOKE_PARTICLES_PER_TICK);
+      if (this.poweredSmokeTicks < DENSE_SMOKE_TICKS) {
+         count = Math.min(MAX_SMOKE_PARTICLES_PER_TICK, count + DENSE_SMOKE_EXTRA_PARTICLES);
+      }
       double coneRadius = 0.05 + 0.18 * (double)intensity;
       double inherit = 0.2;
-      double pushBack = 0.05;
+      double pushBack = 0.35;
 
       for (int i = 0; i < count; i++) {
+         double pathProgress = ((double)i + cl.random.nextDouble()) / (double)count;
+         Vec3 emissionPosition = previousPosition.lerp(currentPosition, pathProgress);
          double ox = (cl.random.nextDouble() - 0.5) * coneRadius;
          double oy = (cl.random.nextDouble() - 0.5) * coneRadius;
          double oz = (cl.random.nextDouble() - 0.5) * coneRadius;
-         double x = pos.x + back.x * behind + ox;
-         double y = pos.y + 0.15 + back.y * behind + oy;
-         double z = pos.z + back.z * behind + oz;
+         double x = emissionPosition.x + back.x * behind + ox;
+         double y = emissionPosition.y + 0.15 + back.y * behind + oy;
+         double z = emissionPosition.z + back.z * behind + oz;
          double tx = (cl.random.nextDouble() - 0.5) * 0.03 * (double)intensity;
          double ty = (cl.random.nextDouble() - 0.5) * 0.02 * (double)intensity;
          double tz = (cl.random.nextDouble() - 0.5) * 0.03 * (double)intensity;
@@ -1538,7 +1555,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    protected Vec3 getForces(Vec3 velocity) {
-      return velocity.normalize().scale(-this.getDragForce(velocity)).add(0.0, this.getMissileGravity(), 0.0);
+      return this.getDragAcceleration(velocity).add(0.0, this.getMissileGravity(), 0.0);
    }
 
    private static boolean isFinite(@Nullable Vec3 vector) {
@@ -1552,16 +1569,21 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    protected double getDragForce(Vec3 velocity) {
-      double vel = velocity.length();
-      double formDrag = BALLISTIC_PROPERTIES.drag();
+      double speedBlocksPerTick = velocity.length();
+      double speedMetersPerSecond = speedBlocksPerTick * 20.0;
+      double coefficient = Math.max(0.0, (double)KaboomConfig.server().missileDragCoefficient.getF());
+      double dragMetersPerSecondSquared = 0.5 * coefficient * speedMetersPerSecond * speedMetersPerSecond;
+      double quadraticDrag = dragMetersPerSecondSquared / 400.0;
+
       double density = DimensionMunitionPropertiesHandler.getProperties(this.level()).dragMultiplier();
       FluidState fluidState = this.level().getFluidState(this.blockPosition());
       if (!fluidState.isEmpty()) {
          density += FluidDragHandler.getFluidDrag(fluidState);
       }
+      double legacyDrag = BALLISTIC_PROPERTIES.drag() * density * speedBlocksPerTick;
 
-      double drag = formDrag * density * vel;
-      return Math.min(drag, vel);
+      double sizeScaledDrag = Math.max(quadraticDrag, legacyDrag) * this.missileSize.dragMultiplier();
+      return Math.min(sizeScaledDrag, speedBlocksPerTick);
    }
 
    protected boolean onImpactFluid(
@@ -1753,10 +1775,6 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
       if (!this.level().isClientSide && this.level() instanceof ServerLevel sl) {
          this.chainSystem.releaseAll(sl);
-      }
-
-      if (this.level().isClientSide && this.engineSound != null) {
-         Minecraft.getInstance().getSoundManager().stop(this.engineSound);
       }
 
       BlockPos oldPos = this.blockPosition();

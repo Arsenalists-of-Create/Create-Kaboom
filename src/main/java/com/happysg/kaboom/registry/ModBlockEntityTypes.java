@@ -10,6 +10,7 @@ import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlock
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.warhead.MissileWarheadBlockEntity;
 import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlockEntity;
+import com.happysg.kaboom.block.rocketpod.RocketPodBlockEntity;
 import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlock;
 import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlockEntity;
 import com.simibubi.create.content.logistics.tableCloth.TableClothBlockEntity;
@@ -106,6 +107,11 @@ public class ModBlockEntityTypes {
     public static final BlockEntityEntry<TargetCoordinatorBlockEntity> TARGET_COORDINATOR_BE =
             REGISTRATE.blockEntity("target_coordinator_be", TargetCoordinatorBlockEntity::new)
                     .validBlocks(ModBlocks.TARGET_COORDINATOR)
+                    .register();
+
+    public static final BlockEntityEntry<RocketPodBlockEntity> ROCKET_POD_REAR =
+            REGISTRATE.blockEntity("rocket_pod_rear", RocketPodBlockEntity::new)
+                    .validBlocks(ModBlocks.ROCKET_POD_REAR)
                     .register();
 
     public static void register() {

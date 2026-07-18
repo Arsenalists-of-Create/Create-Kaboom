@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "create_kaboom:block/rocket_pod_center",
+      "x": 270
+    },
+    "facing=down": {
+      "model": "create_kaboom:block/rocket_pod_center",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "create_kaboom:block/rocket_pod_center"
+    },
+    "facing=west": {
+      "model": "create_kaboom:block/rocket_pod_center",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "create_kaboom:block/rocket_pod_center",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "create_kaboom:block/rocket_pod_center",
+      "y": 270
+    }
+  }
+}
