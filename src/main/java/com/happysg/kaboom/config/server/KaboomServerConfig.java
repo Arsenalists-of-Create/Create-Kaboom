@@ -35,6 +35,10 @@ public class KaboomServerConfig extends ConfigBase {
     public final ConfigFloat interceptPointSmoothing = f(0.45F, 0.0F, "interceptPointSmoothing", "Smoothing factor for command/radar intercept point");
     public final ConfigInt targetDataTimeoutTicks = i(20, 0, "targetDataTimeoutTicks", "Maximum age in ticks for fallback command/radar target data");
 
+    public final ConfigGroup ordnanceInterceptionConfig = group(1, "ordnanceInterception", "Configs for intercepting missiles, rockets, and aerial bombs");
+    public final ConfigFloat ordnanceHealth = f(20.0F, 1.0F, "ordnanceHealth", "Raw interception damage required to destroy newly spawned ordnance");
+    public final ConfigFloat interceptedDetonationChance = f(0.5F, 0.0F, 1.0F, "interceptedDetonationChance", "Chance that destroyed ordnance detonates its payload instead of disappearing");
+
     public final ConfigGroup radarSeekerConfig = group(1, "radarSeeker", "Configs for radar seeker acquisition and tracking");
     public final ConfigFloat radarAcquisitionRangeBlocks = f(1000.0F, 1.0F, "radarAcquisitionRangeBlocks", "Maximum radar-guidance acquisition and tracking range in blocks");
     public final ConfigFloat radarAcquisitionHalfAngleDegrees = f(15.0F, 0.0F, "radarAcquisitionHalfAngleDegrees", "Radar-guidance acquisition cone half-angle in degrees");

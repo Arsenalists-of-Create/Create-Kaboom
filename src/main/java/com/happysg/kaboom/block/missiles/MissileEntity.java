@@ -15,6 +15,8 @@ import com.happysg.kaboom.block.missiles.util.PreciseMotionSyncPacket;
 import com.happysg.kaboom.client.MissileClientEffects;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
+import com.happysg.kaboom.interception.InterceptableOrdnance;
+import com.happysg.kaboom.interception.OrdnanceInterceptionState;
 import com.happysg.kaboom.mixin.AbstractProjectileAccessor;
 import com.happysg.kaboom.mixin.FuzeMixin;
 import com.happysg.kaboom.networking.ChainSystemSyncPacket;
@@ -108,7 +110,7 @@ import rbasamoyai.createbigcannons.network.CBCNeoForgePacket;
 import rbasamoyai.createbigcannons.network.ClientboundPlayBlockHitEffectPacket;
 import rbasamoyai.createbigcannons.utils.CBCUtils;
 
-public class MissileEntity extends OrientedContraptionEntity implements MissileNavigation.FlightAccess {
+public class MissileEntity extends OrientedContraptionEntity implements MissileNavigation.FlightAccess, InterceptableOrdnance {
    private static final EntityDataAccessor<Float> HEADING_X = SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
    private static final EntityDataAccessor<Float> HEADING_Y = SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
    private static final EntityDataAccessor<Float> HEADING_Z = SynchedEntityData.defineId(MissileEntity.class, EntityDataSerializers.FLOAT);
@@ -187,9 +189,15 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    protected AbstractBigCannonProjectile warhead = null;
    protected BlockPos warheadpos = null;
    protected BlockPos capPos = null;
+   private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
 
    public MissileEntity(EntityType<?> type, Level level) {
       super(type, level);
+   }
+
+   @Override
+   public boolean hurt(DamageSource source, float amount) {
+      return this.interceptionState.hurt(this, source, amount, this::detonateInterceptedPayload);
    }
 
    public ChainSystem getChainSystem() {
@@ -650,6 +658,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    protected void writeAdditional(CompoundTag tag, Provider registries, boolean spawnPacket) {
       super.writeAdditional(tag, registries, spawnPacket);
+      this.interceptionState.save(tag);
       tag.putInt("kaboom:FuelMb", this.fuelMb);
       tag.putInt("kaboom:FuelCapacityMb", this.fuelCapacityMb);
       tag.putString("kaboom:MissileSize", this.missileSize.name());
@@ -697,6 +706,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
 
    protected void readAdditional(CompoundTag tag, boolean spawnData) {
       super.readAdditional(tag, spawnData);
+      this.interceptionState.load(tag);
       this.fuelMb = tag.contains("kaboom:FuelMb") ? tag.getInt("kaboom:FuelMb") : this.fuelMb;
       this.fuelCapacityMb = tag.contains("kaboom:FuelCapacityMb") ? tag.getInt("kaboom:FuelCapacityMb") : this.fuelCapacityMb;
       this.fuelMb = Math.max(0, this.fuelMb);
@@ -1773,17 +1783,50 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    protected void detonate(BlockPos pos, FuzedBigCannonProjectile fuzed) {
-      if (!this.level().isClientSide && this.level() instanceof ServerLevel sl) {
-         this.chainSystem.releaseAll(sl);
-      }
-
       BlockPos oldPos = this.blockPosition();
       Vec3 oldDelta = this.getDeltaMovement();
-      fuzed.setDeltaMovement(oldDelta);
-      ((FuzeMixin)fuzed).invokeDetonate(this.toGlobalVector(Vec3.atCenterOf(pos), 0.0F));
+      this.detonateWarheadPayload(fuzed, this.toGlobalVector(Vec3.atCenterOf(pos), 0.0F));
       this.setPos((double)oldPos.getX(), (double)oldPos.getY(), (double)oldPos.getZ());
       this.setContraptionMotion(oldDelta.scale(0.75));
       this.discard();
+   }
+
+   private void detonateInterceptedPayload() {
+      Vec3 detonationPosition = this.position();
+      if (this.warhead instanceof FuzedBigCannonProjectile fuzed && this.warheadpos != null) {
+         this.detonateWarheadPayload(fuzed, detonationPosition);
+         fuzed.discard();
+         this.warhead = null;
+         this.warheadpos = null;
+         return;
+      }
+
+      this.detonateFallbackPayload(detonationPosition);
+   }
+
+   private void detonateWarheadPayload(FuzedBigCannonProjectile fuzed, Vec3 detonationPosition) {
+      if (!this.level().isClientSide && this.level() instanceof ServerLevel serverLevel) {
+         this.chainSystem.releaseAll(serverLevel);
+      }
+      fuzed.setDeltaMovement(this.getDeltaMovement());
+      ((FuzeMixin)fuzed).invokeDetonate(detonationPosition);
+   }
+
+   private void detonateFallbackPayload(Vec3 detonationPosition) {
+      if (this.level().isClientSide) {
+         return;
+      }
+      if (this.level() instanceof ServerLevel serverLevel) {
+         this.chainSystem.releaseAll(serverLevel);
+      }
+      this.level().explode(
+         this,
+         detonationPosition.x,
+         detonationPosition.y,
+         detonationPosition.z,
+         4.0F,
+         ExplosionInteraction.TNT
+      );
    }
 
    private void detonateAfterGuidanceFailure() {
@@ -1795,12 +1838,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          return;
       }
 
-      if (!this.level().isClientSide) {
-         if (this.level() instanceof ServerLevel serverLevel) {
-            this.chainSystem.releaseAll(serverLevel);
-         }
-         this.level().explode(this, this.getX(), this.getY(), this.getZ(), 4.0F, ExplosionInteraction.TNT);
-      }
+      this.detonateFallbackPayload(this.position());
       this.discard();
    }
 

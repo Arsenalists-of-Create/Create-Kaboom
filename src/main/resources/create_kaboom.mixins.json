@@ -9,6 +9,7 @@
   "mixins": [
     "AbstractCannonProjectileMixin",
     "AbstractProjectileAccessor",
+    "CBCProjectileBurstMixin",
     "CannonMountMissileReleaseMixin",
     "FixedCannonMountMissileReleaseMixin",
     "FuzeMixin",

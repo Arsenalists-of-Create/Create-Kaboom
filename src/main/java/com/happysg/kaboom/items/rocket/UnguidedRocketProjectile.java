@@ -2,12 +2,15 @@ package com.happysg.kaboom.items.rocket;
 
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.client.RocketClientEffects;
+import com.happysg.kaboom.interception.InterceptableOrdnance;
+import com.happysg.kaboom.interception.OrdnanceInterceptionState;
 import com.happysg.kaboom.registry.ModParticles;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
@@ -26,8 +29,11 @@ import rbasamoyai.createbigcannons.munitions.ProjectileContext;
 import rbasamoyai.createbigcannons.munitions.ShellExplosion;
 import rbasamoyai.createbigcannons.munitions.config.components.BallisticPropertiesComponent;
 import rbasamoyai.createbigcannons.munitions.config.components.EntityDamagePropertiesComponent;
+import rbasamoyai.createbigcannons.munitions.fuzes.FuzeItem;
 
-public class UnguidedRocketProjectile extends AbstractCannonProjectile {
+import java.util.function.Predicate;
+
+public class UnguidedRocketProjectile extends AbstractCannonProjectile implements InterceptableOrdnance {
     public static final double LAUNCH_SPEED_BLOCKS_PER_TICK = 0.1;
     public static final double BOOST_ACCELERATION_PER_TICK = 0.1;
     public static final double BOOST_DISTANCE_BLOCKS = 250.0;
@@ -47,6 +53,7 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
     private static final double EXHAUST_MOTION_INHERITANCE = 0.20;
 
     private static final String ROCKET_STACK_TAG = "RocketStack";
+    private static final String FUZE_TAG = "Fuze";
     private static final String BOOST_DISTANCE_TAG = "BoostDistance";
     private static final String FLIGHT_AGE_TAG = "FlightAge";
     private static final String BOOSTING_TAG = "Boosting";
@@ -64,7 +71,9 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
     private static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES =
             EntityDamagePropertiesComponent.DEFAULT;
 
+    private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
     private ItemStack rocketStack = ItemStack.EMPTY;
+    private ItemStack fuze = ItemStack.EMPTY;
     private double boostDistance;
     private int flightAge;
     private boolean detonated;
@@ -74,9 +83,15 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
         super(type, level);
     }
 
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        return this.interceptionState.hurt(this, source, amount, () -> this.detonate(this.position()));
+    }
+
     public void initialize(ItemStack stack, Vec3 launchDirection) {
         Vec3 direction = safeDirection(launchDirection);
         this.rocketStack = stack.copyWithCount(1);
+        this.fuze = RocketItem.getAttachedFuze(stack);
         this.boostDistance = 0.0;
         this.flightAge = 0;
         this.detonated = false;
@@ -121,6 +136,11 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
             return;
         }
 
+        if (this.canDetonate(fuzeItem -> fuzeItem.onProjectileTick(this.fuze, this))) {
+            this.detonate(this.position());
+            return;
+        }
+
         ++this.flightAge;
         updateExhaustStage();
         if (this.isBoosting()) {
@@ -134,7 +154,11 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
         }
 
         if (this.flightAge >= MAX_FLIGHT_TICKS) {
-            this.discard();
+            if (this.canDetonate(fuzeItem -> fuzeItem.onProjectileExpiry(this.fuze, this))) {
+                this.detonate(this.position());
+            } else {
+                this.discard();
+            }
         }
     }
 
@@ -245,22 +269,60 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
     @Override
     protected ImpactResult calculateBlockPenetration(ProjectileContext projectileContext, BlockState state,
                                                       BlockHitResult blockHitResult) {
-        ImpactResult result = new ImpactResult(ImpactResult.KinematicOutcome.STOP, true);
-        this.onImpact(blockHitResult, result, projectileContext);
-        return result;
+        ImpactResult result = new ImpactResult(ImpactResult.KinematicOutcome.STOP, false);
+        boolean shouldRemove = this.onImpact(blockHitResult, result, projectileContext);
+        return new ImpactResult(ImpactResult.KinematicOutcome.STOP, shouldRemove);
     }
 
     @Override
     protected boolean onHitEntity(Entity entity, ProjectileContext projectileContext) {
         return this.onImpact(new EntityHitResult(entity),
-                new ImpactResult(ImpactResult.KinematicOutcome.STOP, true), projectileContext);
+                new ImpactResult(ImpactResult.KinematicOutcome.STOP, false), projectileContext);
+    }
+
+    @Override
+    protected boolean onClip(ProjectileContext projectileContext, Vec3 start, Vec3 end) {
+        if (super.onClip(projectileContext, start, end)) {
+            return true;
+        }
+        if (this.canDetonate(fuzeItem -> fuzeItem.onProjectileClip(
+                this.fuze, this, start, end, projectileContext, false))) {
+            this.detonate(projectileContext.getDetonationPositionForClip());
+            return true;
+        }
+        return false;
     }
 
     @Override
     protected boolean onImpact(HitResult hitResult, ImpactResult impactResult,
                                ProjectileContext projectileContext) {
-        this.detonate(hitResult.getLocation());
-        return true;
+        super.onImpact(hitResult, impactResult, projectileContext);
+        ImpactResult fuzeImpact = new ImpactResult(impactResult.kinematics(), false);
+        if (this.canDetonate(fuzeItem -> fuzeItem.onProjectileImpact(
+                this.fuze, this, hitResult, fuzeImpact, false))) {
+            this.detonate(hitResult.getLocation());
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean canLingerInGround() {
+        if (this.level().isClientSide || !this.level().isLoaded(this.blockPosition())) {
+            return false;
+        }
+        return this.fuze.getItem() instanceof FuzeItem fuzeItem
+                && fuzeItem.canLingerInGround(this.fuze, this);
+    }
+
+    private boolean canDetonate(Predicate<FuzeItem> condition) {
+        if (this.level().isClientSide
+                || !this.level().isLoaded(this.blockPosition())
+                || this.isRemoved()
+                || !(this.fuze.getItem() instanceof FuzeItem fuzeItem)) {
+            return false;
+        }
+        return condition.test(fuzeItem);
     }
 
     private void detonate(Vec3 position) {
@@ -284,7 +346,9 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        this.interceptionState.save(tag);
         tag.put(ROCKET_STACK_TAG, this.rocketStack.saveOptional(this.registryAccess()));
+        tag.put(FUZE_TAG, this.fuze.saveOptional(this.registryAccess()));
         tag.putDouble(BOOST_DISTANCE_TAG, this.boostDistance);
         tag.putInt(FLIGHT_AGE_TAG, this.flightAge);
         tag.putBoolean(BOOSTING_TAG, this.isBoosting());
@@ -297,9 +361,13 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.interceptionState.load(tag);
         this.rocketStack = tag.contains(ROCKET_STACK_TAG, Tag.TAG_COMPOUND)
                 ? ItemStack.parseOptional(this.registryAccess(), tag.getCompound(ROCKET_STACK_TAG))
                 : ItemStack.EMPTY;
+        this.fuze = tag.contains(FUZE_TAG, Tag.TAG_COMPOUND)
+                ? ItemStack.parseOptional(this.registryAccess(), tag.getCompound(FUZE_TAG))
+                : RocketItem.getAttachedFuze(this.rocketStack);
         this.boostDistance = Math.max(0.0, tag.getDouble(BOOST_DISTANCE_TAG));
         this.flightAge = Math.max(0, tag.getInt(FLIGHT_AGE_TAG));
         this.entityData.set(EXHAUST_STAGE, exhaustStageForAge(this.flightAge));

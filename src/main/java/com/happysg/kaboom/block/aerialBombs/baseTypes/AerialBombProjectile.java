@@ -2,6 +2,8 @@ package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
 import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.interception.InterceptableOrdnance;
+import com.happysg.kaboom.interception.OrdnanceInterceptionState;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.happysg.kaboom.registry.ModTags;
@@ -18,6 +20,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
@@ -64,7 +67,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-public class AerialBombProjectile extends AbstractCannonProjectile {
+public class AerialBombProjectile extends AbstractCannonProjectile implements InterceptableOrdnance {
 
     public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1, .01, false, 2.0f, 1, 1, 0.70f);
     public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30, false, true, true, 2);
@@ -84,11 +87,17 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private UUID sourceSubLevelId = null;
     private int carrierCollisionGraceTicks = 0;
     private Vec3 previousRenderVelocity = Vec3.ZERO;
+    private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
 
     public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
         this.fuze = ItemStack.EMPTY;
         this.explosionCountdown = -1;
+    }
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        return this.interceptionState.hurt(this, source, amount, () -> this.detonate(this.position()));
     }
 
     public void setFluidStack(EndFluidStack fstack) {
@@ -323,6 +332,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        this.interceptionState.save(tag);
         tag.put("Fuze", this.fuze.saveOptional(this.registryAccess()));
         tag.put("PayloadFluid", this.entityData.get(PAYLOAD_FLUID));
         if (this.explosionCountdown >= 0) {
@@ -339,6 +349,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.interceptionState.load(tag);
         this.fuze = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("Fuze"));
         this.explosionCountdown = tag.contains("ExplosionCountdown", 3) ? tag.getInt("ExplosionCountdown") : -1;
         this.sourceSubLevelId = tag.hasUUID("SourceSubLevel") ? tag.getUUID("SourceSubLevel") : null;
