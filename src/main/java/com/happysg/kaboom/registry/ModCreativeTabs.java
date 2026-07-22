@@ -90,10 +90,17 @@ public class ModCreativeTabs {
         pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.SHRAPNEL));
         pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.SMOKE));
         pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.FLUID));
-        pOutput.accept(ModItems.ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.COMMAND));
-        pOutput.accept(ModItems.ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.RADAR));
+        pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.COMMAND));
+        pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.RADAR));
         // ARAD rocket presets are not obtainable yet.
-        // pOutput.accept(ModItems.ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.ARAD));
+        // pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.ARAD));
+
+        pOutput.accept(ModItems.BLUE_TRACER_TIP);
+        pOutput.accept(ModItems.RED_TRACER_TIP);
+        pOutput.accept(ModItems.GREEN_TRACER_TIP);
+        pOutput.accept(ModItems.PINK_TRACER_TIP);
+        pOutput.accept(ModItems.WHITE_TRACER_TIP);
+        pOutput.accept(ModItems.ORANGE_TRACER_TIP);
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
 

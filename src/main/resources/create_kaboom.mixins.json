@@ -5,10 +5,13 @@
   "refmap": "create_kaboom.refmap.json",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "AutocannonProjectileRendererMixin"
   ],
   "mixins": [
     "AbstractCannonProjectileMixin",
+    "AbstractAutocannonProjectileTracerMixin",
     "AbstractProjectileAccessor",
+    "AutocannonAmmoItemTracerMixin",
     "CBCProjectileBurstMixin",
     "CannonMountMissileReleaseMixin",
     "FixedCannonMountMissileReleaseMixin",

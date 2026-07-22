@@ -35,9 +35,9 @@ public class RocketPodBlockEntity extends BlockEntity {
         return !stack.isEmpty() && stack.getItem() instanceof RocketItem;
     }
 
-    /** Player and automation insertion requires a configured payload. */
+    /** Player and automation insertion requires every component needed by the registered rocket type. */
     public static boolean isLoadableRocket(ItemStack stack) {
-        return isRocket(stack) && RocketItem.hasPayload(stack);
+        return isRocket(stack) && ((RocketItem) stack.getItem()).isLaunchable(stack);
     }
 
     public ItemStack getRocket(int slot) {

@@ -12,6 +12,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.SimpleFluidContent;
 import org.jetbrains.annotations.Nullable;
 import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 import rbasamoyai.createbigcannons.munitions.FuzedItemMunition;
@@ -21,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class RocketItem extends Item implements FuzedItemMunition {
-    public RocketItem(Properties properties) {
+public abstract class RocketItem extends Item implements FuzedItemMunition {
+    protected RocketItem(Properties properties) {
         super(properties);
     }
 
@@ -45,11 +46,12 @@ public class RocketItem extends Item implements FuzedItemMunition {
     }
 
     public static FluidStack getFluidContent(ItemStack rocket) {
-        FluidStack stored = rocket.get(ModDataComponents.ROCKET_FLUID_CONTENT);
+        SimpleFluidContent stored = rocket.get(ModDataComponents.ROCKET_FLUID_CONTENT);
         if (stored == null || stored.isEmpty()) {
             return FluidStack.EMPTY;
         }
-        return stored.copyWithAmount(Math.min(stored.getAmount(), RocketFluidHandler.CAPACITY_MB));
+        FluidStack fluid = stored.copy();
+        return fluid.copyWithAmount(Math.min(fluid.getAmount(), RocketFluidHandler.CAPACITY_MB));
     }
 
     public static void setFluidContent(ItemStack rocket, FluidStack fluid) {
@@ -59,25 +61,28 @@ public class RocketItem extends Item implements FuzedItemMunition {
         }
         rocket.set(
                 ModDataComponents.ROCKET_FLUID_CONTENT,
-                fluid.copyWithAmount(Math.min(fluid.getAmount(), RocketFluidHandler.CAPACITY_MB))
+                SimpleFluidContent.copyOf(
+                        fluid.copyWithAmount(Math.min(fluid.getAmount(), RocketFluidHandler.CAPACITY_MB)))
         );
     }
 
-    public ItemStack createGuidancePreset(RocketGuidanceType guidanceType) {
-        return createPreset(RocketPayload.HE, guidanceType);
-    }
-
-    public ItemStack createPayloadPreset(RocketPayload payload) {
-        return createPreset(payload, null);
-    }
-
-    public ItemStack createPreset(RocketPayload payload, @Nullable RocketGuidanceType guidanceType) {
+    protected ItemStack createConfiguredPreset(RocketPayload payload, @Nullable RocketGuidanceType guidanceType) {
         ItemStack preset = getDefaultInstance();
         preset.set(ModDataComponents.ROCKET_PAYLOAD, Objects.requireNonNull(payload, "payload"));
-        if (guidanceType != null) {
+        if (guidanceType == null) {
+            preset.remove(ModDataComponents.ROCKET_GUIDANCE);
+        } else {
             preset.set(ModDataComponents.ROCKET_GUIDANCE, guidanceType);
         }
         return preset;
+    }
+
+    /**
+     * Returns whether this item stack contains every component required to be launched.
+     * Subclasses can impose stronger requirements for their registered rocket type.
+     */
+    public boolean isLaunchable(ItemStack stack) {
+        return stack.getItem() == this && hasPayload(stack);
     }
 
     @Override
@@ -149,7 +154,7 @@ public class RocketItem extends Item implements FuzedItemMunition {
 
     @Nullable
     public AbstractCannonProjectile createProjectile(ServerLevel level, ItemStack stack, Vec3 launchDirection) {
-        if (!hasPayload(stack)) {
+        if (!isLaunchable(stack)) {
             return null;
         }
         UnguidedRocketProjectile projectile = ModProjectiles.UNGUIDED_ROCKET.create(level);

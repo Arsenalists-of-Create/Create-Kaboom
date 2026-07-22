@@ -23,6 +23,7 @@ import com.happysg.kaboom.registry.ModItems;
 import com.happysg.kaboom.registry.ModLang;
 import com.happysg.kaboom.registry.ModParticles;
 import com.happysg.kaboom.registry.ModProjectiles;
+import com.happysg.kaboom.registry.ModRecipeSerializers;
 import com.happysg.kaboom.registry.ModSounds;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
@@ -56,6 +57,7 @@ public class CreateKaboom {
       REGISTRATE.defaultCreativeTab((ResourceKey)null);
       REGISTRATE.registerEventListeners(modEventBus);
       ModDataComponents.register(modEventBus);
+      ModRecipeSerializers.register(modEventBus);
       ModItems.register();
       ModBlocks.register();
       ModBlockEntityTypes.register();
@@ -103,7 +105,8 @@ public class CreateKaboom {
          (stack, ignored) -> RocketItem.getPayload(stack) == RocketPayload.FLUID
             ? new RocketFluidHandler(stack)
             : null,
-         ModItems.ROCKET.get()
+         ModItems.ROCKET.get(),
+         ModItems.GUIDED_ROCKET.get()
       );
    }
 }

@@ -524,10 +524,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
                     continue;
                 }
                 ItemStack rocket = rear.getRocket(slot);
-                if (RocketPodBlockEntity.isRocket(rocket)) {
-                    if (!RocketItem.hasPayload(rocket)) {
-                        continue;
-                    }
+                if (RocketPodBlockEntity.isLoadableRocket(rocket)) {
                     RocketLaunchFrame launchFrame = createLaunchFrame(level, entity, rearPos);
                     RocketGuidanceLaunchResolver.Resolution guidance =
                             RocketGuidanceLaunchResolver.resolve(
@@ -596,7 +593,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
                 iterator.remove();
                 continue;
             }
-            if (!RocketItem.hasPayload(rear.getRocket(pending.slot))) {
+            if (!RocketPodBlockEntity.isLoadableRocket(rear.getRocket(pending.slot))) {
                 iterator.remove();
                 continue;
             }
@@ -608,7 +605,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
             }
 
             ItemStack preview = rear.getRocket(pending.slot);
-            if (!RocketItem.hasPayload(preview)) {
+            if (!RocketPodBlockEntity.isLoadableRocket(preview)) {
                 iterator.remove();
                 continue;
             }
