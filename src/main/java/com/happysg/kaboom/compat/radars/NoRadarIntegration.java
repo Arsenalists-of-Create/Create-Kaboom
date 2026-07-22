@@ -15,6 +15,11 @@ final class NoRadarIntegration implements RadarIntegration {
     }
 
     @Override
+    public BlockPos resolveWeaponMountController(ServerLevel level, @Nullable BlockPos mountPos) {
+        return null;
+    }
+
+    @Override
     public MovingTargetResolver.TargetData resolveCommandTarget(ServerLevel level, @Nullable BlockPos controllerPos,
                                                                 @Nullable String preferredTargetId,
                                                                 boolean includeSuppressedTrack) {

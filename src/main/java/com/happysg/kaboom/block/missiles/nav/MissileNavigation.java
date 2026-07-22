@@ -483,8 +483,7 @@ public final class MissileNavigation {
    }
 
    private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {
-      double multiplier = Mth.clamp(access.guidanceAccelerationMultiplier(), 0.0, 1.0);
-      return configuredThrustAccelerationPerTick() * multiplier;
+      return Math.max(0.0, access.guidanceAccelerationPerTick());
    }
 
    private static double configuredCruiseAltitudeY(Level level) {
@@ -539,7 +538,7 @@ public final class MissileNavigation {
 
       int guidanceFuelCapacityMb();
 
-      double guidanceAccelerationMultiplier();
+      double guidanceAccelerationPerTick();
 
       boolean guidanceHasFuze();
 

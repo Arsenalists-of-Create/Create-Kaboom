@@ -3,6 +3,7 @@ package com.happysg.kaboom.client;
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.chaining.client.ChainRenderer;
+import com.happysg.kaboom.client.model.RocketModel;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.ponder.KaboomPonderPlugin;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
@@ -35,7 +36,9 @@ public final class CreateKaboomClient {
     public static void register(IEventBus modEventBus, ModContainer container) {
         modEventBus.addListener(CreateKaboomClient::clientInit);
         modEventBus.addListener(CreateKaboomClient::registerAdditionalModels);
+        modEventBus.addListener(CreateKaboomClient::registerGeometryLoaders);
         NeoForge.EVENT_BUS.register(CreateKaboomClient.class);
+        NeoForge.EVENT_BUS.addListener(RocketTooltipHandler::onItemTooltip);
         container.registerExtensionPoint(IConfigScreenFactory.class, KaboomConfig::createConfigScreen);
     }
 
@@ -63,6 +66,10 @@ public final class CreateKaboomClient {
         event.register(ModelResourceLocation.standalone(
                 ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "block/chain_anchor")
         ));
+    }
+
+    private static void registerGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
+        event.register(CreateKaboom.asResource("rocket"), RocketModel.Loader.INSTANCE);
     }
 
     @SubscribeEvent

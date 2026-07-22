@@ -1,8 +1,14 @@
 package com.happysg.kaboom.config.server;
 
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
 import net.createmod.catnip.config.ConfigBase;
 
 public class KaboomServerConfig extends ConfigBase {
+    public final ConfigGroup rocketMovementConfig = group(1, "rocketMovement", "Configs for rocket movement");
+    public final ConfigFloat rocketBoostDistance = f(125.0F, 0.0F, "rocketBoostDistance", "Distance rockets accelerate before their motors burn out, in blocks");
+    public final ConfigFloat rocketInitialVelocity = f(0.3F, 0.0F, "rocketInitialVelocity", "Rocket launch velocity in blocks per tick");
+    public final ConfigFloat rocketAccelerationPerTick = f(0.2F, 0.0F, "rocketAccelerationPerTick", "Rocket acceleration added per tick while the motor is burning");
+
     public final ConfigGroup missileMovementConfig = group(1, "missileMovement", "Configs for missile movement and fuel consumption");
     public final ConfigInt maxFuelBurnPerTick = i(1, 1, "maxFuelBurnPerTick", "Maximum missile fuel consumed per tick");
     public final ConfigFloat maxTurnDegreesPerTick = f(8.0F, 0.0F, "maxTurnDegreesPerTick", "Maximum missile steering turn angle per tick");
@@ -10,11 +16,14 @@ public class KaboomServerConfig extends ConfigBase {
     public final ConfigFloat turnRateSpeedExponent = f(0.7F, 0.0F, "turnRateSpeedExponent", "Exponent controlling how missile steering turn rate decreases above the reference speed");
     public final ConfigFloat maxAccelerationPerTick = f(0.5F, 0.0F, "maxAccelerationPerTick", "Maximum missile guidance delta-velocity per tick");
     public final ConfigFloat maxSpeed = f(10.0F, 0.0F, "maxSpeed", "Maximum missile speed in blocks per tick");
-    public final ConfigFloat thrustAccelerationPerTick = f(0.1F, 0.0F, "thrustAccelerationPerTick", "Powered missile acceleration per tick");
+    public final ConfigFloat thrustAccelerationPerTick = f(0.3F, 0.0F, "thrustAccelerationPerTick", "Powered missile acceleration per tick");
     public final ConfigFloat missileDragCoefficient = f(0.002F, 0.0F, "missileDragCoefficient", "Quadratic missile drag coefficient x in 0.5 * x * speed^2, in inverse meters");
 
     public final ConfigGroup launchAndReleaseConfig = group(1, "launchAndRelease", "Configs for missile launches and aerial bomb releases");
-    public final ConfigBool delayedMissileLaunch = b(true, "delayedMissileLaunch", "Do delayed launch by default");
+    public final ConfigFloat rocketLaunchDelaySeconds = f(0.0F, 0.0F, "rocketLaunchDelaySeconds", "Delay before rockets leave rocket pods, in seconds");
+    public final ConfigFloat smallMissileLaunchDelaySeconds = f(0.25F, 0.0F, "smallMissileLaunchDelaySeconds", "Delay before small missiles leave their launcher, in seconds");
+    public final ConfigFloat largeMissileLaunchDelaySeconds = f(0.5F, 0.0F, "largeMissileLaunchDelaySeconds", "Delay before large missiles leave their launcher, in seconds");
+    public final ConfigFloat hugeMissileLaunchDelaySeconds = f(2.0F, 0.0F, "hugeMissileLaunchDelaySeconds", "Delay before huge missiles leave their launcher, in seconds");
     public final ConfigFloat missileEjectionVelocity = f(0.5F, 0.0F, "missileEjectionVelocity", "One-time forward velocity added when a missile launches, in blocks per tick");
     public final ConfigFloat bombEjectionVelocity = f(0.25F, 0.0F, "bombEjectionVelocity", "One-time local-down velocity added when an aerial bomb releases, in blocks per tick");
     public final ConfigInt bombCarrierCollisionGraceTicks = i(20, 0, "bombCarrierCollisionGraceTicks", "Ticks that a released aerial bomb ignores only its launching Sable sublevel");
@@ -36,8 +45,8 @@ public class KaboomServerConfig extends ConfigBase {
     public final ConfigInt targetDataTimeoutTicks = i(20, 0, "targetDataTimeoutTicks", "Maximum age in ticks for fallback command/radar target data");
 
     public final ConfigGroup ordnanceInterceptionConfig = group(1, "ordnanceInterception", "Configs for intercepting missiles, rockets, and aerial bombs");
-    public final ConfigFloat ordnanceHealth = f(20.0F, 1.0F, "ordnanceHealth", "Raw interception damage required to destroy newly spawned ordnance");
-    public final ConfigFloat interceptedDetonationChance = f(0.5F, 0.0F, 1.0F, "interceptedDetonationChance", "Chance that destroyed ordnance detonates its payload instead of disappearing");
+    public final ConfigFloat ordnanceHealth = f(40.0F, 1.0F, "ordnanceHealth", "Raw interception damage required to destroy newly spawned ordnance");
+    public final ConfigFloat interceptedDetonationChance = f(0.3F, 0.0F, 1.0F, "interceptedDetonationChance", "Chance that destroyed ordnance detonates its payload instead of disappearing");
 
     public final ConfigGroup radarSeekerConfig = group(1, "radarSeeker", "Configs for radar seeker acquisition and tracking");
     public final ConfigFloat radarAcquisitionRangeBlocks = f(1000.0F, 1.0F, "radarAcquisitionRangeBlocks", "Maximum radar-guidance acquisition and tracking range in blocks");
@@ -52,5 +61,26 @@ public class KaboomServerConfig extends ConfigBase {
     @Override
     public String getName() {
         return "Kaboom Server";
+    }
+
+    public int rocketLaunchDelayTicks() {
+        return secondsToTicks(rocketLaunchDelaySeconds.getF());
+    }
+
+    public int missileLaunchDelayTicks(MissileSize size) {
+        MissileSize safeSize = size == null ? MissileSize.SMALL : size;
+        float seconds = switch (safeSize) {
+            case SMALL -> smallMissileLaunchDelaySeconds.getF();
+            case LARGE -> largeMissileLaunchDelaySeconds.getF();
+            case HUGE -> hugeMissileLaunchDelaySeconds.getF();
+        };
+        return secondsToTicks(seconds);
+    }
+
+    private static int secondsToTicks(float seconds) {
+        if (!Float.isFinite(seconds) || seconds <= 0.0F) {
+            return 0;
+        }
+        return (int)Math.ceil(seconds * 20.0F);
     }
 }

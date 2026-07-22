@@ -73,11 +73,18 @@ public final class RadarTargeting {
     @Nullable
     public static Candidate acquire(ServerLevel level, SensorFrame frame, double range, double halfAngleDegrees,
                                     @Nullable UUID stickyTargetId) {
+        return acquire(level, frame, range, halfAngleDegrees, stickyTargetId, null);
+    }
+
+    @Nullable
+    public static Candidate acquire(ServerLevel level, SensorFrame frame, double range, double halfAngleDegrees,
+                                    @Nullable UUID stickyTargetId, @Nullable UUID excludedTargetId) {
         double safeRange = Math.max(1.0, range);
         AABB searchBounds = new AABB(frame.origin(), frame.origin()).inflate(safeRange);
         List<Candidate> candidates = new ArrayList<>();
 
         for (Entity entity : level.getEntities((Entity) null, searchBounds, RadarTargeting::isAircraftLike)) {
+            if (excludedTargetId != null && excludedTargetId.equals(entity.getUUID())) continue;
             if (SableUtils.getShipManagingPos(level, entity.position()) != null) continue;
             Vec3 position = entity.getBoundingBox().getCenter();
             Candidate candidate = candidate(frame, entity.getUUID(), TargetKind.ENTITY,
@@ -89,7 +96,7 @@ public final class RadarTargeting {
             for (SubLevel subLevel : SableUtils.getLoadedShips(level, searchBounds)) {
                 if (subLevel == null || subLevel.isRemoved()) continue;
                 UUID id = subLevel.getUniqueId();
-                if (id == null || id.equals(frame.launcherSublevelId())) continue;
+                if (id == null || id.equals(frame.launcherSublevelId()) || id.equals(excludedTargetId)) continue;
                 Vec3 position = SableUtils.getSubLevelPosition(subLevel);
                 Vec3 velocity = SableUtils.getSubLevelVelocity(level, subLevel);
                 Candidate candidate = candidate(frame, id, TargetKind.SABLE,

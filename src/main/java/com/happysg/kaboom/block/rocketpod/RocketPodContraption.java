@@ -1,7 +1,11 @@
 package com.happysg.kaboom.block.rocketpod;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
 import com.happysg.kaboom.client.RocketClientEffects;
+import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.config.KaboomConfig;
+import com.happysg.kaboom.items.rocket.RocketGuidanceLaunchResolver;
 import com.happysg.kaboom.items.rocket.RocketItem;
 import com.happysg.kaboom.items.rocket.UnguidedRocketProjectile;
 import com.happysg.kaboom.networking.LaunchSoundHandoffPacket;
@@ -44,7 +48,6 @@ import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 
 public class RocketPodContraption extends AbstractMountedCannonContraption {
     private static final int MIN_CENTERS = 1;
-    private static final int LAUNCH_DELAY_TICKS = 15;
     private static final int POST_LAUNCH_BACKBLAST_TICKS = 5;
     private static final int BACKBLAST_PARTICLES_PER_TICK = 3;
     private static final double BACKBLAST_SPAWN_OFFSET = 0.65;
@@ -326,7 +329,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
             CompoundTag launchTag = new CompoundTag();
             launchTag.putLong(PENDING_REAR_TAG, pending.rearPos.asLong());
             launchTag.putByte(PENDING_SLOT_TAG, (byte) pending.slot);
-            launchTag.putByte(PENDING_TICKS_TAG, (byte) pending.ticksRemaining);
+            launchTag.putInt(PENDING_TICKS_TAG, pending.ticksRemaining);
             launchTag.putLong(PENDING_LAUNCH_ID_TAG, pending.launchId);
             pendingTag.add(launchTag);
         }
@@ -360,14 +363,13 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
                 CompoundTag launchTag = pendingTag.getCompound(index);
                 BlockPos rearPos = BlockPos.of(launchTag.getLong(PENDING_REAR_TAG));
                 int slot = launchTag.getByte(PENDING_SLOT_TAG) & 255;
-                int ticksRemaining = launchTag.getByte(PENDING_TICKS_TAG) & 255;
+                int ticksRemaining = launchTag.getInt(PENDING_TICKS_TAG);
                 long launchId = launchTag.contains(PENDING_LAUNCH_ID_TAG, Tag.TAG_LONG)
                         ? launchTag.getLong(PENDING_LAUNCH_ID_TAG)
                         : this.nextLaunchId++;
                 if (!isRearBlock(rearPos)
                         || slot >= RocketPodBlockEntity.SLOT_COUNT
                         || ticksRemaining < 1
-                        || ticksRemaining > LAUNCH_DELAY_TICKS
                         || launchId < 0L
                         || isSlotReserved(rearPos, slot)
                         || !(this.presentBlockEntities.get(rearPos) instanceof RocketPodBlockEntity rear)
@@ -512,18 +514,41 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
 
     @Override
     public void fireShot(ServerLevel level, PitchOrientedContraptionEntity entity) {
+        int launchDelayTicks = KaboomConfig.server().rocketLaunchDelayTicks();
         for (BlockPos rearPos : this.launcherRears) {
             if (!(this.presentBlockEntities.get(rearPos) instanceof RocketPodBlockEntity rear)) {
                 continue;
             }
             for (int slot = 0; slot < RocketPodBlockEntity.SLOT_COUNT; ++slot) {
-                if (!isSlotReserved(rearPos, slot) && RocketPodBlockEntity.isRocket(rear.getRocket(slot))) {
+                if (isSlotReserved(rearPos, slot)) {
+                    continue;
+                }
+                ItemStack rocket = rear.getRocket(slot);
+                if (RocketPodBlockEntity.isRocket(rocket)) {
+                    if (!RocketItem.hasPayload(rocket)) {
+                        continue;
+                    }
+                    RocketLaunchFrame launchFrame = createLaunchFrame(level, entity, rearPos);
+                    RocketGuidanceLaunchResolver.Resolution guidance =
+                            RocketGuidanceLaunchResolver.resolve(
+                                    level, entity, rocket, launchFrame.spawnPosition, launchFrame.launchDirection);
+                    if (!guidance.accepted()) {
+                        return;
+                    }
+                    long launchId = this.nextLaunchId++;
+                    if (launchDelayTicks <= 0) {
+                        spawnBackblast(level, entity, rearPos);
+                        fireRocketFromSlot(
+                                level, entity, rear, rearPos, slot, launchId,
+                                launchFrame, guidance.guidanceData());
+                        return;
+                    }
                     PendingLaunch pending = new PendingLaunch(
-                            rearPos, slot, LAUNCH_DELAY_TICKS, this.nextLaunchId++);
+                            rearPos, slot, launchDelayTicks, launchId);
                     this.pendingLaunches.add(pending);
                     NetworkHandler.sendToPlayersTrackingEntity(entity,
                             new RocketPodLaunchSoundPacket(
-                                    entity.getId(), rearPos, slot, pending.launchId, LAUNCH_DELAY_TICKS));
+                                    entity.getId(), rearPos, slot, pending.launchId, launchDelayTicks));
                     return;
                 }
             }
@@ -571,6 +596,10 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
                 iterator.remove();
                 continue;
             }
+            if (!RocketItem.hasPayload(rear.getRocket(pending.slot))) {
+                iterator.remove();
+                continue;
+            }
 
             spawnBackblast(serverLevel, entity, pending.rearPos);
             --pending.ticksRemaining;
@@ -578,16 +607,51 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
                 continue;
             }
 
-            ItemStack rocket = rear.extractRocket(pending.slot, false);
-            iterator.remove();
-            if (!rocket.isEmpty()) {
-                this.lingeringBackblasts.add(
-                        new LingeringBackblast(pending.rearPos, POST_LAUNCH_BACKBLAST_TICKS));
-                syncRear(pending.rearPos, entity);
-                playRocketBoof(serverLevel, entity, pending.rearPos);
-                onRocketFired(serverLevel, entity, pending.rearPos, pending.slot, pending.launchId, rocket);
+            ItemStack preview = rear.getRocket(pending.slot);
+            if (!RocketItem.hasPayload(preview)) {
+                iterator.remove();
+                continue;
             }
+            RocketLaunchFrame launchFrame = createLaunchFrame(serverLevel, entity, pending.rearPos);
+            RocketGuidanceLaunchResolver.Resolution guidance = RocketGuidanceLaunchResolver.resolve(
+                    serverLevel, entity, preview, launchFrame.spawnPosition, launchFrame.launchDirection);
+            iterator.remove();
+            if (!guidance.accepted()) {
+                continue;
+            }
+
+            fireRocketFromSlot(
+                    serverLevel, entity, rear, pending.rearPos, pending.slot,
+                    pending.launchId, launchFrame, guidance.guidanceData());
         }
+    }
+
+    private boolean fireRocketFromSlot(ServerLevel level, PitchOrientedContraptionEntity entity,
+                                       RocketPodBlockEntity rear, BlockPos rearPos, int slot,
+                                       long launchId, RocketLaunchFrame launchFrame,
+                                       MissileGuidanceData guidanceData) {
+        ItemStack rocket = rear.extractRocket(slot, false);
+        if (rocket.isEmpty()) {
+            return false;
+        }
+        boolean fired = onRocketFired(
+                level, entity, rearPos, slot, launchId,
+                rocket, launchFrame, guidanceData);
+        if (!fired) {
+            if (!rear.restoreRocket(slot, rocket)) {
+                CreateKaboom.getLogger().error(
+                        "Failed to restore rocket to launcher slot {} after projectile spawn failure",
+                        slot);
+            }
+            syncRear(rearPos, entity);
+            return false;
+        }
+
+        this.lingeringBackblasts.add(
+                new LingeringBackblast(rearPos, POST_LAUNCH_BACKBLAST_TICKS));
+        syncRear(rearPos, entity);
+        playRocketBoof(level, entity, rearPos);
+        return true;
     }
 
     private void playRocketBoof(ServerLevel level, PitchOrientedContraptionEntity entity, BlockPos rearPos) {
@@ -631,36 +695,58 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
         }
     }
 
-    protected void onRocketFired(ServerLevel level, PitchOrientedContraptionEntity entity,
-                                 BlockPos rearPos, int slot, long launchId, ItemStack rocket) {
-        BlockPos frontPos = findLauncherEnd(rearPos);
-        Vec3 frontCenter = entity.toGlobalVector(Vec3.atCenterOf(frontPos), 0);
-        Vec3 spawnPos = entity.toGlobalVector(
-                Vec3.atCenterOf(frontPos.relative(this.initialOrientation)), 0);
-        Vec3 launchDirection = spawnPos.subtract(frontCenter).normalize();
-
+    protected boolean onRocketFired(ServerLevel level, PitchOrientedContraptionEntity entity,
+                                    BlockPos rearPos, int slot, long launchId, ItemStack rocket,
+                                    RocketLaunchFrame launchFrame,
+                                    MissileGuidanceData guidanceData) {
         if (!(rocket.getItem() instanceof RocketItem rocketItem)) {
-            return;
+            return false;
         }
-        AbstractCannonProjectile projectile = rocketItem.createProjectile(level, rocket, launchDirection);
+        AbstractCannonProjectile projectile = rocketItem.createProjectile(
+                level, rocket, launchFrame.launchDirection);
         if (projectile == null) {
-            return;
+            return false;
         }
 
-        projectile.setPos(spawnPos);
+        projectile.setPos(launchFrame.spawnPosition);
+        if (projectile instanceof UnguidedRocketProjectile rocketProjectile) {
+            rocketProjectile.setGuidanceData(guidanceData);
+        }
         projectile.addUntouchableEntity(entity, 1);
         Entity vehicle = entity.getVehicle();
         if (vehicle != null) {
             projectile.addUntouchableEntity(vehicle, 1);
         }
         boolean added = level.addFreshEntity(projectile);
-        if (added && projectile instanceof UnguidedRocketProjectile) {
+        if (!added) {
+            projectile.discard();
+            return false;
+        }
+        if (projectile instanceof UnguidedRocketProjectile) {
             NetworkHandler.sendToPlayersTrackingEntity(projectile,
                     LaunchSoundHandoffPacket.rocketPod(entity.getId(), rearPos, slot,
                             launchId, projectile.getId()));
         }
         projectile.xRotO = projectile.getXRot();
         projectile.yRotO = projectile.getYRot();
+        return true;
+    }
+
+    private RocketLaunchFrame createLaunchFrame(ServerLevel level, PitchOrientedContraptionEntity entity,
+                                                BlockPos rearPos) {
+        BlockPos frontPos = findLauncherEnd(rearPos);
+        Vec3 frontCenter = entity.toGlobalVector(Vec3.atCenterOf(frontPos), 0);
+        Vec3 mountedSpawnPosition = entity.toGlobalVector(
+                Vec3.atCenterOf(frontPos.relative(this.initialOrientation)), 0);
+        Vec3 mountedDirection = mountedSpawnPosition.subtract(frontCenter).normalize();
+
+        BlockPos sourcePos = entity.blockPosition();
+        if (entity.getController() instanceof BlockEntity controller) {
+            sourcePos = controller.getBlockPos();
+        }
+        SableUtils.LaunchKinematics launch = SableUtils.getLaunchKinematics(
+                level, sourcePos, mountedSpawnPosition, mountedDirection);
+        return new RocketLaunchFrame(launch.position(), launch.direction());
     }
 
     private BlockPos findLauncherEnd(BlockPos rearPos) {
@@ -738,6 +824,9 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
     }
 
     private record LoadedRocket(BlockPos rearPos, ItemStack stack) {
+    }
+
+    protected record RocketLaunchFrame(Vec3 spawnPosition, Vec3 launchDirection) {
     }
 
     private static final class PendingLaunch {

@@ -1,26 +1,29 @@
 {
   "variants": {
     "facing=up": {
-      "model": "create_kaboom:block/rocket_pod_center",
-      "x": 270
+      "model": "create_kaboom:block/rocket_pod_center"
     },
     "facing=down": {
       "model": "create_kaboom:block/rocket_pod_center",
-      "x": 90
+      "x": 180
     },
     "facing=south": {
-      "model": "create_kaboom:block/rocket_pod_center"
+      "model": "create_kaboom:block/rocket_pod_center",
+      "x": 90
     },
     "facing=west": {
       "model": "create_kaboom:block/rocket_pod_center",
+      "x": 90,
       "y": 90
     },
     "facing=north": {
       "model": "create_kaboom:block/rocket_pod_center",
+      "x": 90,
       "y": 180
     },
     "facing=east": {
       "model": "create_kaboom:block/rocket_pod_center",
+      "x": 90,
       "y": 270
     }
   }

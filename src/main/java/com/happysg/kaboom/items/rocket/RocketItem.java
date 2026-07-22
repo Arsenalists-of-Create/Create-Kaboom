@@ -1,5 +1,6 @@
 package com.happysg.kaboom.items.rocket;
 
+import com.happysg.kaboom.registry.ModDataComponents;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.simibubi.create.foundation.utility.CreateLang;
 import net.minecraft.ChatFormatting;
@@ -10,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 import rbasamoyai.createbigcannons.munitions.FuzedItemMunition;
@@ -17,21 +19,115 @@ import rbasamoyai.createbigcannons.index.CBCDataComponents;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class RocketItem extends Item implements FuzedItemMunition {
     public RocketItem(Properties properties) {
         super(properties);
     }
 
-    // TODO: Add configurable rocket payload variants.
-
     public static ItemStack getAttachedFuze(ItemStack rocket) {
         return rocket.getOrDefault(CBCDataComponents.FUZE, ItemContainerContents.EMPTY).copyOne();
+    }
+
+    @Nullable
+    public static RocketGuidanceType getGuidanceType(ItemStack rocket) {
+        return rocket.get(ModDataComponents.ROCKET_GUIDANCE);
+    }
+
+    @Nullable
+    public static RocketPayload getPayload(ItemStack rocket) {
+        return rocket.get(ModDataComponents.ROCKET_PAYLOAD);
+    }
+
+    public static boolean hasPayload(ItemStack rocket) {
+        return getPayload(rocket) != null;
+    }
+
+    public static FluidStack getFluidContent(ItemStack rocket) {
+        FluidStack stored = rocket.get(ModDataComponents.ROCKET_FLUID_CONTENT);
+        if (stored == null || stored.isEmpty()) {
+            return FluidStack.EMPTY;
+        }
+        return stored.copyWithAmount(Math.min(stored.getAmount(), RocketFluidHandler.CAPACITY_MB));
+    }
+
+    public static void setFluidContent(ItemStack rocket, FluidStack fluid) {
+        if (fluid.isEmpty()) {
+            rocket.remove(ModDataComponents.ROCKET_FLUID_CONTENT);
+            return;
+        }
+        rocket.set(
+                ModDataComponents.ROCKET_FLUID_CONTENT,
+                fluid.copyWithAmount(Math.min(fluid.getAmount(), RocketFluidHandler.CAPACITY_MB))
+        );
+    }
+
+    public ItemStack createGuidancePreset(RocketGuidanceType guidanceType) {
+        return createPreset(RocketPayload.HE, guidanceType);
+    }
+
+    public ItemStack createPayloadPreset(RocketPayload payload) {
+        return createPreset(payload, null);
+    }
+
+    public ItemStack createPreset(RocketPayload payload, @Nullable RocketGuidanceType guidanceType) {
+        ItemStack preset = getDefaultInstance();
+        preset.set(ModDataComponents.ROCKET_PAYLOAD, Objects.requireNonNull(payload, "payload"));
+        if (guidanceType != null) {
+            preset.set(ModDataComponents.ROCKET_GUIDANCE, guidanceType);
+        }
+        return preset;
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        if (getPayload(stack) == RocketPayload.FLUID) {
+            return Component.translatable(getGuidanceType(stack) == null
+                    ? "item.create_kaboom.fluid_rocket"
+                    : "item.create_kaboom.guided_fluid_rocket");
+        }
+        if (getGuidanceType(stack) != null) {
+            return Component.translatable("item.create_kaboom.guided_rocket");
+        }
+        return super.getName(stack);
     }
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
+
+        RocketPayload payload = getPayload(stack);
+        if (payload == RocketPayload.FLUID) {
+            FluidStack fluid = getFluidContent(stack);
+            Component fluidName = fluid.isEmpty()
+                    ? Component.translatable("item.create_kaboom.rocket.fluid.empty")
+                    : fluid.getHoverName();
+            CreateLang.builder("item")
+                    .translate("create_kaboom.rocket.tooltip.fluid")
+                    .add(Component.literal(" "))
+                    .add(fluidName)
+                    .add(Component.literal(" (" + fluid.getAmount() + " / "
+                            + RocketFluidHandler.CAPACITY_MB + " mB)"))
+                    .addTo(tooltip);
+        } else {
+            CreateLang.builder("item")
+                    .translate("create_kaboom.rocket.tooltip.payload")
+                    .add(Component.literal(" "))
+                    .add(payload == null
+                            ? Component.translatable("item.create_kaboom.rocket.payload.none")
+                            : Component.translatable(payload.getTranslationKey()))
+                    .addTo(tooltip);
+        }
+
+        RocketGuidanceType guidanceType = getGuidanceType(stack);
+        if (guidanceType != null) {
+            tooltip.add(Component.translatable(
+                    "item.create_kaboom.rocket.tooltip.guidance",
+                    Component.translatable(guidanceType.getTranslationKey())
+            ).withStyle(ChatFormatting.GRAY));
+        }
+
         ItemStack fuze = getAttachedFuze(stack);
         if (fuze.isEmpty()) {
             return;
@@ -53,6 +149,9 @@ public class RocketItem extends Item implements FuzedItemMunition {
 
     @Nullable
     public AbstractCannonProjectile createProjectile(ServerLevel level, ItemStack stack, Vec3 launchDirection) {
+        if (!hasPayload(stack)) {
+            return null;
+        }
         UnguidedRocketProjectile projectile = ModProjectiles.UNGUIDED_ROCKET.create(level);
         if (projectile != null) {
             projectile.initialize(stack, launchDirection);

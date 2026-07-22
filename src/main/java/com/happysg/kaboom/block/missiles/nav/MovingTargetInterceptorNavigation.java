@@ -23,6 +23,47 @@ public final class  MovingTargetInterceptorNavigation {
    private static final double EPSILON_DIR_SQR = 1.0E-10;
    private static final double NEAR_ZERO_SPEED = 1.0E-4;
    private static final int RWR_ENGAGEMENT_REFRESH_TICKS = 10;
+
+   /** Platform-specific radar seeker limits. The legacy configure overload keeps using live missile config values. */
+   public record RadarSeekerProfile(
+      double trackingRangeBlocks,
+      double seekerHalfAngleDegrees,
+      double trackingConePaddingDegrees,
+      double engagementRangeBlocks
+   ) {
+      public RadarSeekerProfile {
+         trackingRangeBlocks = positiveFiniteOrDefault(trackingRangeBlocks, 1.0);
+         seekerHalfAngleDegrees = Mth.clamp(finiteOrDefault(seekerHalfAngleDegrees, 0.0), 0.0, 180.0);
+         trackingConePaddingDegrees = Math.max(0.0, finiteOrDefault(trackingConePaddingDegrees, 0.0));
+         engagementRangeBlocks = positiveFiniteOrDefault(engagementRangeBlocks, trackingRangeBlocks);
+      }
+
+      public static RadarSeekerProfile configuredMissile() {
+         double range = configuredRadarRange();
+         return new RadarSeekerProfile(
+            range,
+            configuredRadarAcquisitionHalfAngleDegrees(),
+            configuredRadarTrackingConePaddingDegrees(),
+            range
+         );
+      }
+
+      public static RadarSeekerProfile configuredRocket(double acquisitionRangeBlocks) {
+         double minimumTrackingRange = positiveFiniteOrDefault(acquisitionRangeBlocks, 1.0);
+         double trackingRange = Math.max(configuredRadarRange(), minimumTrackingRange);
+         return new RadarSeekerProfile(
+            trackingRange,
+            Math.min(180.0, configuredRadarAcquisitionHalfAngleDegrees() * 2.0),
+            configuredRadarTrackingConePaddingDegrees(),
+            trackingRange
+         );
+      }
+
+      public double trackingHalfAngleDegrees() {
+         return Math.min(180.0, this.seekerHalfAngleDegrees + this.trackingConePaddingDegrees);
+      }
+   }
+
    private MovingTargetInterceptorNavigation.State state = MovingTargetInterceptorNavigation.State.BOOST;
    private MissileGuidanceType guidanceType = MissileGuidanceType.UNKNOWN;
    @Nullable
@@ -61,6 +102,8 @@ public final class  MovingTargetInterceptorNavigation {
    private String chaffTargetId = "";
    private boolean chaffActiveLastTick = false;
    private RadarIntegration.ThreatStage radarRwrThreatStage = RadarIntegration.ThreatStage.ENGAGED;
+   @Nullable
+   private RadarSeekerProfile radarSeekerProfile = null;
 
    public void initialize(Vec3 launchDirection, Vec3 launchPosition, MissileNavigation.FlightAccess access) {
       this.launchDirection = safeNormalize(launchDirection, new Vec3(0.0, 1.0, 0.0));
@@ -88,8 +131,13 @@ public final class  MovingTargetInterceptorNavigation {
    }
 
    public void configure(MissileGuidanceData data) {
+      this.configure(data, null);
+   }
+
+   public void configure(MissileGuidanceData data, @Nullable RadarSeekerProfile radarSeekerProfile) {
       this.guidanceData = data;
       this.guidanceType = data == null ? MissileGuidanceType.UNKNOWN : data.guidanceType();
+      this.radarSeekerProfile = radarSeekerProfile;
    }
 
    public boolean isBoosting() {
@@ -440,8 +488,13 @@ public final class  MovingTargetInterceptorNavigation {
          } else {
             if (this.guidanceType == MissileGuidanceType.RADAR) {
                Vec3 seekerForward = this.state == MovingTargetInterceptorNavigation.State.BOOST ? this.launchDirection : forward;
-               double trackingHalfAngle = configuredRadarAcquisitionHalfAngleDegrees() + configuredRadarTrackingConePaddingDegrees();
-               if (!RadarTargeting.isWithinEnvelope(missilePosition, seekerForward, exitTarget.position(), configuredRadarRange(), trackingHalfAngle)) {
+               if (!RadarTargeting.isWithinEnvelope(
+                  missilePosition,
+                  seekerForward,
+                  exitTarget.position(),
+                  this.radarTrackingRangeBlocks(),
+                  this.radarTrackingHalfAngleDegrees()
+               )) {
                   return "radar target outside seeker envelope when chaff expired";
                }
             }
@@ -482,8 +535,13 @@ public final class  MovingTargetInterceptorNavigation {
       boolean valid = isUsableTarget(level, resolvedTarget);
       if (valid) {
          Vec3 forward = this.state == MovingTargetInterceptorNavigation.State.BOOST ? this.launchDirection : this.currentOrLaunchDirection(missileVelocity);
-         double trackingHalfAngle = configuredRadarAcquisitionHalfAngleDegrees() + configuredRadarTrackingConePaddingDegrees();
-         valid = RadarTargeting.isWithinEnvelope(missilePosition, forward, resolvedTarget.position(), configuredRadarRange(), trackingHalfAngle);
+         valid = RadarTargeting.isWithinEnvelope(
+            missilePosition,
+            forward,
+            resolvedTarget.position(),
+            this.radarTrackingRangeBlocks(),
+            this.radarTrackingHalfAngleDegrees()
+         );
          if (valid) {
             UUID targetSublevelId = "sable".equalsIgnoreCase(resolvedTarget.category()) ? parseShipId(resolvedTarget.id()) : null;
             valid = RadarTargeting.hasLineOfSight(level, missilePosition, resolvedTarget.position(), targetSublevelId);
@@ -532,8 +590,8 @@ public final class  MovingTargetInterceptorNavigation {
                   emitterId,
                   position,
                   safeNormalize(forward, this.launchDirection),
-                  configuredRadarRange(),
-                  configuredRadarAcquisitionHalfAngleDegrees() + configuredRadarTrackingConePaddingDegrees(),
+                  this.radarEngagementRangeBlocks(),
+                  this.radarTrackingHalfAngleDegrees(),
                   target.entityId(),
                   stage
                );
@@ -1029,8 +1087,7 @@ public final class  MovingTargetInterceptorNavigation {
    }
 
    private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {
-      double multiplier = Mth.clamp(access.guidanceAccelerationMultiplier(), 0.0, 1.0);
-      return configuredThrustAccelerationPerTick() * multiplier;
+      return Math.max(0.0, access.guidanceAccelerationPerTick());
    }
 
    private static double configuredOvershootDistanceEpsilon() {
@@ -1063,6 +1120,32 @@ public final class  MovingTargetInterceptorNavigation {
 
    private static double configuredRadarTrackingConePaddingDegrees() {
       return Math.max(0.0, (double)KaboomConfig.server().radarTrackingConePaddingDegrees.getF());
+   }
+
+   private double radarTrackingRangeBlocks() {
+      return this.radarSeekerProfile == null
+         ? configuredRadarRange()
+         : this.radarSeekerProfile.trackingRangeBlocks();
+   }
+
+   private double radarTrackingHalfAngleDegrees() {
+      return this.radarSeekerProfile == null
+         ? Math.min(180.0, configuredRadarAcquisitionHalfAngleDegrees() + configuredRadarTrackingConePaddingDegrees())
+         : this.radarSeekerProfile.trackingHalfAngleDegrees();
+   }
+
+   private double radarEngagementRangeBlocks() {
+      return this.radarSeekerProfile == null
+         ? configuredRadarRange()
+         : this.radarSeekerProfile.engagementRangeBlocks();
+   }
+
+   private static double finiteOrDefault(double value, double fallback) {
+      return Double.isFinite(value) ? value : fallback;
+   }
+
+   private static double positiveFiniteOrDefault(double value, double fallback) {
+      return Double.isFinite(value) && value > 0.0 ? value : fallback;
    }
 
    public static enum State {

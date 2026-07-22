@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles.assembly;
 
 import java.util.List;
 import javax.annotation.Nullable;
+import com.simibubi.create.content.contraptions.AssemblyException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
@@ -16,10 +17,13 @@ public class MissileAssemblyResult {
    @Nullable
    private final MissileSize missileSize;
    private final int fuelTankCount;
+   @Nullable
+   private final AssemblyException failure;
 
    private MissileAssemblyResult(
       boolean valid, List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, int warheadIndex, BlockPos guidance,
-      Direction assemblyDirection, @Nullable MissileSize missileSize, int fuelTankCount
+      Direction assemblyDirection, @Nullable MissileSize missileSize, int fuelTankCount,
+      @Nullable AssemblyException failure
    ) {
       this.valid = valid;
       this.blocks = blocks;
@@ -30,10 +34,16 @@ public class MissileAssemblyResult {
       this.assemblyDirection = assemblyDirection;
       this.missileSize = missileSize;
       this.fuelTankCount = Math.max(0, fuelTankCount);
+      this.failure = failure;
    }
 
    public static MissileAssemblyResult invalid() {
-      return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1, BlockPos.ZERO, Direction.UP, null, 0);
+      return invalid(null);
+   }
+
+   public static MissileAssemblyResult invalid(@Nullable AssemblyException failure) {
+      return new MissileAssemblyResult(false, List.of(), BlockPos.ZERO, BlockPos.ZERO, -1, BlockPos.ZERO,
+         Direction.UP, null, 0, failure);
    }
 
    public static MissileAssemblyResult valid(List<BlockPos> blocks, BlockPos controllerPos, BlockPos warhead, BlockPos guidance,
@@ -43,7 +53,7 @@ public class MissileAssemblyResult {
          throw new IllegalArgumentException("warhead must be contained in blocks");
       } else {
          return new MissileAssemblyResult(true, copy, controllerPos, warhead, copy.size() - 1, guidance,
-            assemblyDirection, missileSize, fuelTankCount);
+            assemblyDirection, missileSize, fuelTankCount, null);
       }
    }
 
@@ -90,5 +100,10 @@ public class MissileAssemblyResult {
 
    public int getFuelTankCount() {
       return this.fuelTankCount;
+   }
+
+   @Nullable
+   public AssemblyException getFailure() {
+      return this.failure;
    }
 }

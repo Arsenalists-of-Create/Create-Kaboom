@@ -15,8 +15,13 @@ public interface RadarIntegration {
             Vec3 sensorOrigin,
             Vec3 sensorForward,
             @Nullable UUID launcherSublevelId,
-            double halfAngleDegrees
+            double halfAngleDegrees,
+            double maxRangeBlocks
     ) {
+        public AradAcquisitionRequest(Vec3 sensorOrigin, Vec3 sensorForward,
+                                      @Nullable UUID launcherSublevelId, double halfAngleDegrees) {
+            this(sensorOrigin, sensorForward, launcherSublevelId, halfAngleDegrees, Double.MAX_VALUE);
+        }
     }
 
     record ChaffSuppression(String targetId, long untilTick) {
@@ -38,6 +43,12 @@ public interface RadarIntegration {
     boolean isAvailable();
 
     default void register(IEventBus modEventBus) {
+    }
+
+    /** Resolves the Create: Radar weapon-group filterer associated with a launcher mount. */
+    @Nullable
+    default BlockPos resolveWeaponMountController(ServerLevel level, @Nullable BlockPos mountPos) {
+        return null;
     }
 
     @Nullable

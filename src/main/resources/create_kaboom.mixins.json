@@ -12,6 +12,8 @@
     "CBCProjectileBurstMixin",
     "CannonMountMissileReleaseMixin",
     "FixedCannonMountMissileReleaseMixin",
+    "FluidBlobBurstAccessor",
+    "FuzedBlockEntityMissileOverlayMixin",
     "FuzeMixin",
     "MissileWarheadMountProviderMixin",
     "RocketPodCannonMountPointMixin"

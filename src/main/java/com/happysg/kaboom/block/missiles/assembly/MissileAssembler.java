@@ -1,12 +1,15 @@
 package com.happysg.kaboom.block.missiles.assembly;
 
+import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.parts.thrust.ThrusterBlock;
 import com.happysg.kaboom.block.missiles.parts.warhead.AbstractMissileWarhead;
+import com.simibubi.create.content.contraptions.AssemblyException;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -59,13 +62,13 @@ public class MissileAssembler {
       BlockPos guidance = null;
       BlockPos controllerPos = findControllerThruster(level, anyThrusterPos);
       if (controllerPos == null) {
-         return MissileAssemblyResult.invalid();
+         return invalid("invalidController", anyThrusterPos);
       } else {
          BlockState controllerState = level.getBlockState(controllerPos);
          if (controllerState.getBlock() instanceof IMissileComponent controllerPart && controllerPart.isThruster()) {
             Direction controllerFacing = getDirectionalFacing(controllerState);
             if (controllerFacing == null) {
-               return MissileAssemblyResult.invalid();
+               return invalid("invalidController", controllerPos);
             }
 
             Axis controllerAxis = controllerFacing.getAxis();
@@ -92,11 +95,11 @@ public class MissileAssembler {
                }
 
                if (part.getMissileSize() != missileSize) {
-                  return MissileAssemblyResult.invalid();
+                  return invalid("mixedSizes", cursor);
                }
 
                if (!matchesOrientation(state, part, controllerFacing, controllerAxis)) {
-                  return MissileAssemblyResult.invalid();
+                  return invalid("misalignedComponent", cursor);
                }
 
                if (part.isFuelTank()) {
@@ -123,11 +126,16 @@ public class MissileAssembler {
                return MissileAssemblyResult.valid(collected, controllerPos, warhead, guidance, controllerFacing,
                   missileSize, fuelTankCount);
             }
-
-            return MissileAssemblyResult.invalid();
+            if (!foundFuel) {
+               return invalid("missingFuel", controllerPos);
+            }
+            if (!foundGuidance) {
+               return invalid("missingGuidance", controllerPos);
+            }
+            return invalid("missingWarhead", cursor);
          }
 
-         return MissileAssemblyResult.invalid();
+         return invalid("invalidController", controllerPos);
       }
    }
 
@@ -194,5 +202,12 @@ public class MissileAssembler {
       } else {
          return state.hasProperty(HORIZONTAL_AXIS) ? (Axis)state.getValue(HORIZONTAL_AXIS) : null;
       }
+   }
+
+   private static MissileAssemblyResult invalid(String reason, BlockPos pos) {
+      AssemblyException failure = new AssemblyException(Component.translatable(
+         "exception." + CreateKaboom.MODID + ".missile." + reason,
+         pos.getX(), pos.getY(), pos.getZ()));
+      return MissileAssemblyResult.invalid(failure);
    }
 }

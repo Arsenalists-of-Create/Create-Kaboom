@@ -9,11 +9,15 @@ import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
+import com.happysg.kaboom.items.rocket.RocketFluidHandler;
+import com.happysg.kaboom.items.rocket.RocketItem;
+import com.happysg.kaboom.items.rocket.RocketPayload;
 import com.happysg.kaboom.networking.NetworkHandler;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModCreativeTabs;
 import com.happysg.kaboom.registry.ModContraptionTypes;
+import com.happysg.kaboom.registry.ModDataComponents;
 import com.happysg.kaboom.registry.ModEntities;
 import com.happysg.kaboom.registry.ModItems;
 import com.happysg.kaboom.registry.ModLang;
@@ -51,6 +55,7 @@ public class CreateKaboom {
       NeoForge.EVENT_BUS.addListener(SelfChainCommand::register);
       REGISTRATE.defaultCreativeTab((ResourceKey)null);
       REGISTRATE.registerEventListeners(modEventBus);
+      ModDataComponents.register(modEventBus);
       ModItems.register();
       ModBlocks.register();
       ModBlockEntityTypes.register();
@@ -92,6 +97,13 @@ public class CreateKaboom {
       );
       event.registerBlockEntity(
          FluidHandler.BLOCK, ModBlockEntityTypes.MISSILE_WARHEAD.get(), MissileWarheadBlockEntity::getFluidHandler
+      );
+      event.registerItem(
+         FluidHandler.ITEM,
+         (stack, ignored) -> RocketItem.getPayload(stack) == RocketPayload.FLUID
+            ? new RocketFluidHandler(stack)
+            : null,
+         ModItems.ROCKET.get()
       );
    }
 }

@@ -10,7 +10,7 @@ import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 public class ModItems {
 
     public static final ItemEntry<RocketItem> ROCKET = REGISTRATE.item("rocket", RocketItem::new)
-            .model((ctx, prov) -> prov.generated(ctx, CreateKaboom.asResource("block/rocketfront")))
+            .model((ctx, prov) -> {})
             .register();
 
     public static final ItemEntry<AltitudeFuze> ALTITUDE_FUZE = REGISTRATE.item("altitude_fuze", AltitudeFuze::new)

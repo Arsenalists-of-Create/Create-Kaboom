@@ -691,8 +691,7 @@ public final class ARADNavigation {
     }
 
     private static double effectiveThrustAccelerationPerTick(MissileNavigation.FlightAccess access) {
-        double multiplier = Mth.clamp(access.guidanceAccelerationMultiplier(), 0.0, 1.0);
-        return configuredThrustAccelerationPerTick() * multiplier;
+        return Math.max(0.0, access.guidanceAccelerationPerTick());
     }
 
     public enum State {

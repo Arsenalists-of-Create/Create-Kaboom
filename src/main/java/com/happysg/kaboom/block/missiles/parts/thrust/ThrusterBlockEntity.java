@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles.parts.thrust;
 
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssembler;
+import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyExceptionDisplay;
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
 import com.happysg.kaboom.block.missiles.assembly.MissileLaunchHelper;
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup.Provider;
@@ -35,7 +37,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
-public class ThrusterBlockEntity extends SmartBlockEntity {
+public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAssemblyExceptionDisplay {
+   private static final int DIAGNOSTIC_INTERVAL_TICKS = 10;
    private boolean lastAssemblyPowered = false;
    private boolean lastGuidanceUsedPoweredAcquisition = false;
    private boolean poweredLaunchRejected = false;
@@ -48,6 +51,8 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
    private MissileSize pendingLaunchSize = MissileSize.SMALL;
    private final Map<BlockPos, BlockState> pendingLaunchBlocks = new LinkedHashMap<>();
    private transient boolean clientLaunchSoundStarted;
+   private AssemblyException lastAssemblyException;
+   private int diagnosticTicks;
    public static final List<ThrusterBlockEntity.PendingEnforcement> PENDING_ENFORCEMENTS = new ArrayList<>();
 
    public ThrusterBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -56,6 +61,10 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
 
    public ChainSystem getChainSystem() {
       return this.chainSystem;
+   }
+
+   public AssemblyException getStoredAssemblyException() {
+      return this.lastAssemblyException;
    }
 
    public void tick() {
@@ -94,6 +103,10 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
 
    private boolean tickLaunchControl(ServerLevel level) {
       MissileAssemblyResult result = MissileAssembler.scan(level, this.worldPosition);
+      if (++this.diagnosticTicks >= DIAGNOSTIC_INTERVAL_TICKS) {
+         this.diagnosticTicks = 0;
+         this.setAssemblyException(MissileLaunchHelper.diagnoseFreeLaunch(level, this.worldPosition));
+      }
       if (!result.isValid()) {
          this.resetTrackedAcquisition(level);
          this.lastAssemblyPowered = this.hasAssemblyPower(level, this.lastAssemblyBlocks);
@@ -150,16 +163,17 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
 
    private boolean tryLaunch(ServerLevel level) {
       try {
-         if (!KaboomConfig.server().delayedMissileLaunch.get()) {
-            return MissileLaunchHelper.assembleAndSpawn(level, this.worldPosition);
-         }
          MissileLaunchHelper.PreparedFreeLaunch prepared =
                  MissileLaunchHelper.prepareFreeLaunch(level, this.worldPosition);
          if (prepared == null) return false;
+         int launchDelayTicks = KaboomConfig.server().missileLaunchDelayTicks(prepared.size());
+         if (launchDelayTicks <= 0) {
+            return MissileLaunchHelper.finishFreeLaunch(level, this.worldPosition, prepared.blocks());
+         }
          this.pendingLaunchBlocks.clear();
          this.pendingLaunchBlocks.putAll(prepared.blocks());
          this.pendingLaunchSize = prepared.size();
-         this.launchTicksRemaining = prepared.size().launchDelayTicks();
+         this.launchTicksRemaining = launchDelayTicks;
          this.clientLaunchSoundStarted = false;
          this.setChanged();
          this.notifyUpdate();
@@ -253,6 +267,17 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
       this.activeAcquisitionGuidancePos = null;
    }
 
+   private void setAssemblyException(AssemblyException diagnostic) {
+      Object previous = this.lastAssemblyException == null ? null : this.lastAssemblyException.component;
+      Object next = diagnostic == null ? null : diagnostic.component;
+      if (Objects.equals(previous, next)) {
+         return;
+      }
+      this.lastAssemblyException = diagnostic;
+      this.setChanged();
+      this.notifyUpdate();
+   }
+
    protected void write(CompoundTag tag, Provider registries, boolean clientPacket) {
       super.write(tag, registries, clientPacket);
       tag.put("kaboom:ChainSystem", this.chainSystem.save());
@@ -266,6 +291,7 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
          blocks.add(block);
       }
       tag.put("kaboom:PendingLaunchBlocks", blocks);
+      AssemblyException.write(tag, registries, this.lastAssemblyException);
    }
 
    protected void read(CompoundTag tag, Provider registries, boolean clientPacket) {
@@ -286,6 +312,7 @@ public class ThrusterBlockEntity extends SmartBlockEntity {
          this.pendingLaunchBlocks.put(BlockPos.of(block.getLong("Pos")), Block.stateById(block.getInt("State")));
       }
       this.clientLaunchSoundStarted = false;
+      this.lastAssemblyException = AssemblyException.read(tag, registries);
 
       if (clientPacket && !this.chainSystem.getAnchors().isEmpty()) {
          ChainRenderer.TRACKED_THRUSTERS.add(this.worldPosition);

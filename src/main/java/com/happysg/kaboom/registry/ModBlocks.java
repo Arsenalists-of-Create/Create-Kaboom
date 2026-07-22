@@ -117,7 +117,7 @@ public class ModBlocks {
     }
 
     private static ConfiguredModel[] rocketPodModel(ModelFile model, Direction facing) {
-        int rotationX = facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0;
+        int rotationX = facing == Direction.DOWN ? 180 : facing.getAxis().isHorizontal() ? 90 : 0;
         int rotationY = facing.getAxis().isVertical() ? 0 : (int) facing.toYRot();
         return ConfiguredModel.builder()
                 .modelFile(model)
@@ -321,7 +321,7 @@ public class ModBlocks {
                     .blockstate((ctx, prov) -> {
                         var model = prov.models().getExistingFile(CreateKaboom.asResource("block/rocket_pod_front"));
                         prov.getVariantBuilder(ctx.getEntry()).forAllStates(state ->
-                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING).getOpposite()));
+                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING)));
                     })
                     .simpleItem()
                     .register();
@@ -332,7 +332,7 @@ public class ModBlocks {
                     .blockstate((ctx, prov) -> {
                         var model = prov.models().getExistingFile(CreateKaboom.asResource("block/rocket_pod_rear"));
                         prov.getVariantBuilder(ctx.getEntry()).forAllStates(state ->
-                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING).getOpposite()));
+                                rocketPodModel(model, state.getValue(BlockStateProperties.FACING)));
                     })
                     .simpleItem()
                     .register();

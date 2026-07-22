@@ -1,5 +1,6 @@
 package com.happysg.kaboom.block.missiles.parts.fuel;
 
+import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyExceptionDisplay;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -25,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGoggleInformation {
+public class MissileFuelTankBlockEntity extends BlockEntity implements IHaveGoggleInformation, MissileAssemblyExceptionDisplay {
     private boolean needsBalance = false;
     private long lastBalanceGameTime = -9999;
     private static final int BALANCE_COOLDOWN_TICKS = 2;

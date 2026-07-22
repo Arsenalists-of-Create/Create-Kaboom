@@ -240,8 +240,9 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    @Override
-   public double guidanceAccelerationMultiplier() {
-      return this.missileSize.accelerationMultiplier(this.fuelTankCount);
+   public double guidanceAccelerationPerTick() {
+      double baseAcceleration = Math.max(0.0, KaboomConfig.server().thrustAccelerationPerTick.getF());
+      return baseAcceleration * this.missileSize.accelerationMultiplier(this.fuelTankCount);
    }
 
    @Override

@@ -27,8 +27,17 @@ public class RocketPodBlockEntity extends BlockEntity {
         clearRockets();
     }
 
+    /**
+     * Identity check used when restoring or deserializing stored rockets. It intentionally accepts
+     * legacy stacks whose payload component is missing so they can still be recovered by players.
+     */
     public static boolean isRocket(ItemStack stack) {
         return !stack.isEmpty() && stack.getItem() instanceof RocketItem;
+    }
+
+    /** Player and automation insertion requires a configured payload. */
+    public static boolean isLoadableRocket(ItemStack stack) {
+        return isRocket(stack) && RocketItem.hasPayload(stack);
     }
 
     public ItemStack getRocket(int slot) {
@@ -60,7 +69,7 @@ public class RocketPodBlockEntity extends BlockEntity {
 
     public ItemStack insertRocket(ItemStack stack, boolean simulate) {
         int slot = getFirstEmptySlot();
-        if (!isRocket(stack) || slot < 0) {
+        if (!isLoadableRocket(stack) || slot < 0) {
             return stack;
         }
 
@@ -93,6 +102,15 @@ public class RocketPodBlockEntity extends BlockEntity {
             setChanged();
         }
         return result;
+    }
+
+    public boolean restoreRocket(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= SLOT_COUNT || !this.rockets[slot].isEmpty() || !isRocket(stack)) {
+            return false;
+        }
+        this.rockets[slot] = stack.copyWithCount(1);
+        setChanged();
+        return true;
     }
 
     public List<ItemStack> removeAllRockets() {

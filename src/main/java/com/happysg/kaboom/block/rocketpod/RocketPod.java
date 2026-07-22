@@ -39,9 +39,6 @@ import com.simibubi.create.content.contraptions.Contraption;
 
 public class RocketPod extends DirectionalBlock
         implements CannonContraptionProviderBlock, EntityBlock, InteractableCannonBlock {
-    private static final VoxelShape X_AXIS_SHAPE = Block.box(0, 2, 2, 16, 14, 14);
-    private static final VoxelShape Y_AXIS_SHAPE = Block.box(2, 0, 2, 14, 16, 14);
-    private static final VoxelShape Z_AXIS_SHAPE = Block.box(2, 2, 0, 14, 14, 16);
 
     public RocketPod(Properties properties) {
         super(properties);
@@ -58,24 +55,8 @@ public class RocketPod extends DirectionalBlock
         return defaultBlockState().setValue(FACING, context.getNearestLookingDirection().getOpposite());
     }
 
-    @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return shapeFor(state.getValue(FACING).getAxis());
-    }
 
-    @Override
-    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
-                                        CollisionContext context) {
-        return shapeFor(state.getValue(FACING).getAxis());
-    }
 
-    private static VoxelShape shapeFor(Direction.Axis axis) {
-        return switch (axis) {
-            case X -> X_AXIS_SHAPE;
-            case Y -> Y_AXIS_SHAPE;
-            case Z -> Z_AXIS_SHAPE;
-        };
-    }
 
     @Override
     public AbstractMountedCannonContraption getCannonContraption() {

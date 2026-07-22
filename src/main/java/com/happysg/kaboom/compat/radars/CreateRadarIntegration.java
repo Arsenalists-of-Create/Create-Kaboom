@@ -8,7 +8,10 @@ import com.happysg.kaboom.block.missiles.util.ARADTargetReference;
 import com.happysg.kaboom.compat.Mods;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
+import com.happysg.kaboom.items.rocket.UnguidedRocketProjectile;
 import com.happysg.kaboom.registry.ModEntities;
+import com.happysg.kaboom.registry.ModProjectiles;
+import com.happysg.radar.block.behavior.networks.NetworkData;
 import com.happysg.radar.block.arad.aradnetworks.RadarContactRegistry;
 import com.happysg.radar.block.arad.aradnetworks.RadarContactRegistryData;
 import com.happysg.radar.block.arad.rwr.ExternalRwrEmitterRegistry;
@@ -106,18 +109,40 @@ final class CreateRadarIntegration implements RadarIntegration {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
-        event.enqueueWork(() -> ChaffLockRegistry.register(ModEntities.MISSILE.get(),
-                new ChaffLockAdapter<MissileEntity>() {
-                    @Override
-                    public String getTargetId(MissileEntity missile) {
-                        return missile.getRadarChaffTargetId();
-                    }
+        event.enqueueWork(() -> {
+            ChaffLockRegistry.register(ModEntities.MISSILE.get(), new ChaffLockAdapter<MissileEntity>() {
+                @Override
+                public String getTargetId(MissileEntity missile) {
+                    return missile.getRadarChaffTargetId();
+                }
 
-                    @Override
-                    public void applySuppression(MissileEntity missile, String targetId, long untilTick) {
-                        missile.applyRadarChaffSuppression(targetId, untilTick);
-                    }
-                }));
+                @Override
+                public void applySuppression(MissileEntity missile, String targetId, long untilTick) {
+                    missile.applyRadarChaffSuppression(targetId, untilTick);
+                }
+            });
+            ChaffLockRegistry.register(ModProjectiles.UNGUIDED_ROCKET.get(), new ChaffLockAdapter<UnguidedRocketProjectile>() {
+                @Override
+                public String getTargetId(UnguidedRocketProjectile rocket) {
+                    return rocket.getRadarChaffTargetId();
+                }
+
+                @Override
+                public void applySuppression(UnguidedRocketProjectile rocket, String targetId, long untilTick) {
+                    rocket.applyRadarChaffSuppression(targetId, untilTick);
+                }
+            });
+        });
+    }
+
+    @Override
+    @Nullable
+    public BlockPos resolveWeaponMountController(ServerLevel level, @Nullable BlockPos mountPos) {
+        if (level == null || mountPos == null) {
+            return null;
+        }
+        BlockPos filtererPos = NetworkData.get(level).getFiltererForWeaponMount(level.dimension(), mountPos);
+        return filtererPos == null ? null : filtererPos.immutable();
     }
 
     @Override
@@ -311,7 +336,9 @@ final class CreateRadarIntegration implements RadarIntegration {
                 || !isFinite(request.sensorOrigin())
                 || !isFinite(request.sensorForward())
                 || request.sensorForward().lengthSqr() < 1.0E-8
-                || !Double.isFinite(request.halfAngleDegrees())) {
+                || !Double.isFinite(request.halfAngleDegrees())
+                || !Double.isFinite(request.maxRangeBlocks())
+                || request.maxRangeBlocks() < 0.0) {
             return null;
         }
 
@@ -336,7 +363,7 @@ final class CreateRadarIntegration implements RadarIntegration {
                     request.sensorOrigin(),
                     forward,
                     radarPosition,
-                    Double.MAX_VALUE,
+                    request.maxRangeBlocks(),
                     request.halfAngleDegrees())
                     || !RadarTargeting.hasLineOfSightToBlock(
                     level,
