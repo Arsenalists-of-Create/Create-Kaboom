@@ -13,14 +13,17 @@ import rbasamoyai.createbigcannons.cannon_control.contraption.PitchOrientedContr
 
 @OnlyIn(Dist.CLIENT)
 public class RocketPodLaunchSound extends AbstractTickableSoundInstance {
-    public static final float BASE_VOLUME = 0.5F;
     private static final int FADE_TICKS = 5;
+    private static final double MIN_MOVEMENT_SQR = 1.0E-8;
 
     private final PitchOrientedContraptionEntity entity;
     private final BlockPos rearPos;
     private final int fullVolumeTicks;
     private int age;
     private UnguidedRocketProjectile rocket;
+    private double previousRocketX;
+    private double previousRocketY;
+    private double previousRocketZ;
 
     public RocketPodLaunchSound(PitchOrientedContraptionEntity entity, BlockPos rearPos, int ticksRemaining) {
         super(ModSounds.ROCKET_LOOP.get(), SoundSource.AMBIENT, RandomSource.create());
@@ -29,9 +32,14 @@ public class RocketPodLaunchSound extends AbstractTickableSoundInstance {
         this.fullVolumeTicks = Math.max(1, ticksRemaining);
         this.looping = true;
         this.delay = 0;
-        this.volume = BASE_VOLUME;
+        this.volume = 0.0F;
         this.pitch = 2F;
         updatePosition();
+    }
+
+    @Override
+    public boolean canStartSilent() {
+        return true;
     }
 
     public boolean isFor(PitchOrientedContraptionEntity entity) {
@@ -45,11 +53,13 @@ public class RocketPodLaunchSound extends AbstractTickableSoundInstance {
                 stop();
                 return;
             }
+            boolean moved = hasRocketMoved();
             this.x = this.rocket.getX();
             this.y = this.rocket.getY();
             this.z = this.rocket.getZ();
-            this.volume += (0.75F - this.volume) * 0.25F;
+            this.volume = moved ? this.volume + (0.75F - this.volume) * 0.25F : 0.0F;
             this.pitch += (1.5F - this.pitch) * 0.25F;
+            rememberRocketPosition();
             return;
         }
         if (this.entity.isRemoved() || !this.entity.isAlive()) {
@@ -59,20 +69,30 @@ public class RocketPodLaunchSound extends AbstractTickableSoundInstance {
 
         updatePosition();
         ++this.age;
+        this.volume = 0.0F;
         int fadeAge = this.age - this.fullVolumeTicks;
-        if (fadeAge <= 0) {
-            this.volume = BASE_VOLUME;
-            return;
-        }
         if (fadeAge >= FADE_TICKS) {
             stop();
-            return;
         }
-        this.volume = BASE_VOLUME * (1.0F - (float) fadeAge / (float) FADE_TICKS);
     }
 
     public void handoff(UnguidedRocketProjectile rocket) {
         this.rocket = rocket;
+        this.volume = 0.0F;
+        rememberRocketPosition();
+    }
+
+    private boolean hasRocketMoved() {
+        double dx = this.rocket.getX() - this.previousRocketX;
+        double dy = this.rocket.getY() - this.previousRocketY;
+        double dz = this.rocket.getZ() - this.previousRocketZ;
+        return dx * dx + dy * dy + dz * dz > MIN_MOVEMENT_SQR;
+    }
+
+    private void rememberRocketPosition() {
+        this.previousRocketX = this.rocket.getX();
+        this.previousRocketY = this.rocket.getY();
+        this.previousRocketZ = this.rocket.getZ();
     }
 
     private void updatePosition() {

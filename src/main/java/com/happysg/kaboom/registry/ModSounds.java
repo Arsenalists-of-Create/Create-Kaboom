@@ -32,11 +32,6 @@ public class ModSounds {
                     () -> SoundEvent.createVariableRangeEvent(
                             ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "rocket_loop")
                     ));
-    public static final DeferredHolder<SoundEvent, SoundEvent> ROCKET_BOOF =
-            SOUND_EVENTS.register("rocket_boof",
-                    () -> SoundEvent.createVariableRangeEvent(
-                            ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "rocket_boof")
-                    ));
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_TURBINE =
             SOUND_EVENTS.register("cruise_turbine",
             () -> SoundEvent.createVariableRangeEvent(

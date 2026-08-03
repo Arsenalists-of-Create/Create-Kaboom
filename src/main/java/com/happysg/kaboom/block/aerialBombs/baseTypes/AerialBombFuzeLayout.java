@@ -17,12 +17,15 @@ public final class AerialBombFuzeLayout {
             {center(8, 8)}
     };
 
+    // Slots are oldest to newest. Because the newest slot launches first, multi-row layouts
+    // are stored top-to-bottom and model-left-to-right so release order is the reverse:
+    // screen-right to screen-left across the bottom row, then upward one row at a time.
     private static final SlotCenter[][] SMALL_LAYOUTS = {
             {},
             {center(8, 12)},
             {center(12, 12), center(4, 12)},
-            {center(12, 4), center(12, 12), center(4, 12)},
-            {center(12, 4), center(12, 12), center(4, 4), center(4, 12)}
+            {center(12, 12), center(4, 12), center(12, 4)},
+            {center(12, 12), center(4, 12), center(12, 4), center(4, 4)}
     };
 
     private static final SlotCenter[][] TINY_LAYOUTS = {
@@ -30,12 +33,12 @@ public final class AerialBombFuzeLayout {
             {center(8, 2.5)},
             {center(13.5, 13.5), center(8, 13.5)},
             {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5)},
-            {center(13.5, 8), center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5)},
-            {center(13.5, 8), center(13.5, 13.5), center(8, 8), center(8, 13.5), center(2.5, 13.5)},
-            {center(13.5, 8), center(13.5, 13.5), center(8, 8), center(8, 13.5), center(2.5, 8), center(2.5, 13.5)},
-            {center(13.5, 2.5), center(13.5, 8), center(13.5, 13.5), center(8, 8), center(8, 13.5), center(2.5, 8), center(2.5, 13.5)},
-            {center(13.5, 2.5), center(13.5, 8), center(13.5, 13.5), center(8, 2.5), center(8, 8), center(8, 13.5), center(2.5, 8), center(2.5, 13.5)},
-            {center(13.5, 2.5), center(13.5, 8), center(13.5, 13.5), center(8, 2.5), center(8, 8), center(8, 13.5), center(2.5, 2.5), center(2.5, 8), center(2.5, 13.5)}
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8)},
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8), center(8, 8)},
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8), center(8, 8), center(2.5, 8)},
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8), center(8, 8), center(2.5, 8), center(13.5, 2.5)},
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8), center(8, 8), center(2.5, 8), center(13.5, 2.5), center(8, 2.5)},
+            {center(13.5, 13.5), center(8, 13.5), center(2.5, 13.5), center(13.5, 8), center(8, 8), center(2.5, 8), center(13.5, 2.5), center(8, 2.5), center(2.5, 2.5)}
     };
 
     private AerialBombFuzeLayout() {

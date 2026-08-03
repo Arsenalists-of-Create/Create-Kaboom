@@ -64,24 +64,27 @@ public final class RocketGuidanceLaunchResolver {
                 launchPosition, forward, sourceSublevelId);
 
         return switch (type) {
-            case COMMAND -> resolveCommand(level, launcher, launchPosition);
+            case COMMAND -> resolveCommand(level, launcher, rocket, launchPosition);
             case RADAR -> resolveRadar(level, frame, sourcePos, launcher.getUUID());
             case ARAD -> resolveArad(level, frame);
         };
     }
 
     private static Resolution resolveCommand(ServerLevel level, PitchOrientedContraptionEntity launcher,
-                                             Vec3 launchPosition) {
+                                             ItemStack rocket, Vec3 launchPosition) {
         if (!RadarCompatRegistry.isAvailable()) {
             return Resolution.rejected();
         }
-        ControlPitchContraption controller = launcher.getController();
-        if (!(controller instanceof CannonMountBlockEntity mount)) {
-            return Resolution.rejected();
-        }
 
-        BlockPos filtererPos = RadarCompatRegistry.get()
-                .resolveWeaponMountController(level, mount.getBlockPos());
+        BlockPos filtererPos = RocketItem.getLinkedNetworkController(rocket);
+        if (filtererPos == null) {
+            ControlPitchContraption controller = launcher.getController();
+            if (!(controller instanceof CannonMountBlockEntity mount)) {
+                return Resolution.rejected();
+            }
+            filtererPos = RadarCompatRegistry.get()
+                    .resolveWeaponMountController(level, mount.getBlockPos());
+        }
         if (filtererPos == null) {
             return Resolution.rejected();
         }

@@ -1,7 +1,6 @@
 package com.happysg.kaboom.items.rocket;
 
 import com.happysg.kaboom.CreateKaboom;
-import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.nav.ARADNavigation;
 import com.happysg.kaboom.block.missiles.nav.MissileNavigation;
 import com.happysg.kaboom.block.missiles.nav.MovingTargetInterceptorNavigation;
@@ -71,6 +70,7 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
     public static final int MAX_FLIGHT_TICKS = 1200;
 
     private static final int NO_PAYLOAD_ID = -1;
+    private static final double GUIDANCE_BOOST_DISTANCE_BLOCKS = 5.0;
 
     private static final int FORCEFUL_EXHAUST_TICKS = 40;
     private static final int MODERATE_EXHAUST_TICKS = 60;
@@ -209,6 +209,10 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
     }
 
     public void initialize(ItemStack stack, Vec3 launchDirection) {
+        initialize(stack, launchDirection, 0.0F);
+    }
+
+    public void initialize(ItemStack stack, Vec3 launchDirection, float inaccuracy) {
         Vec3 direction = safeDirection(launchDirection);
         this.setRocketStack(stack);
         this.setPayload(RocketItem.getPayload(this.getRocketStack()));
@@ -220,11 +224,12 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
         this.flightAge = 0;
         this.detonated = false;
         this.entityData.set(BOOSTING, configuredBoostDistance() > 0.0);
-        this.entityData.set(BOOST_DIRECTION, direction.toVector3f());
         this.entityData.set(EXHAUST_STAGE, 0);
-        this.setOrientation(direction);
         this.shoot(direction.x, direction.y, direction.z,
-                (float) configuredInitialVelocity(), 0.0F);
+                (float) configuredInitialVelocity(), sanitizeInaccuracy(inaccuracy));
+        Vec3 actualDirection = safeDirection(this.getDeltaMovement());
+        this.entityData.set(BOOST_DIRECTION, actualDirection.toVector3f());
+        this.setOrientation(actualDirection);
     }
 
     /**
@@ -261,7 +266,8 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
                     data.guidanceType() == MissileGuidanceType.RADAR
                             ? MovingTargetInterceptorNavigation.RadarSeekerProfile.configuredRocket(
                             RADAR_ACQUISITION_RANGE_BLOCKS)
-                            : null);
+                            : null,
+                    GUIDANCE_BOOST_DISTANCE_BLOCKS);
         }
         this.guidanceCommand = MissileNavigation.Command.none("initialized");
         this.radarLaunchNotified = false;
@@ -290,6 +296,11 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
 
     public double getBoostDistance() {
         return this.boostDistance;
+    }
+
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        return true;
     }
 
     @Override
@@ -520,6 +531,10 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
         return Float.isFinite(configured) ? Math.max(0.0, configured) : fallback;
     }
 
+    private static float sanitizeInaccuracy(float inaccuracy) {
+        return Float.isFinite(inaccuracy) ? Math.max(0.0F, inaccuracy) : 0.0F;
+    }
+
     private static boolean isUsableDirection(Vec3 direction) {
         return direction != null
                 && Double.isFinite(direction.x)
@@ -622,7 +637,7 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
     protected @NotNull BallisticPropertiesComponent getBallisticProperties() {
         return this.payload != null && this.payload.isArmorPiercing()
                 ? RocketPayload.AP_BALLISTIC_PROPERTIES
-                : MissileEntity.BALLISTIC_PROPERTIES;
+                : RocketPayload.STANDARD_BALLISTIC_PROPERTIES;
     }
 
     @Override

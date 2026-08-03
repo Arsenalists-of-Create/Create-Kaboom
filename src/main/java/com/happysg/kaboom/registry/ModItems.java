@@ -13,11 +13,13 @@ import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 public class ModItems {
 
     public static final ItemEntry<UnguidedRocketItem> ROCKET = REGISTRATE.item("rocket", UnguidedRocketItem::new)
+            .properties(properties -> properties.stacksTo(4))
             .model((ctx, prov) -> {})
             .register();
 
     public static final ItemEntry<GuidedRocketItem> GUIDED_ROCKET =
             REGISTRATE.item("guided_rocket", GuidedRocketItem::new)
+            .properties(properties -> properties.stacksTo(4))
             .model((ctx, prov) -> {})
             .register();
 

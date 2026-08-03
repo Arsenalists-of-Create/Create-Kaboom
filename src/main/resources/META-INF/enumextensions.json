@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "CREATE_KABOOM_SHOULDER_ROCKET",
+      "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "com/happysg/kaboom/client/ShoulderRocketPose",
+        "field": "ARM_POSE"
+      }
+    }
+  ]
+}

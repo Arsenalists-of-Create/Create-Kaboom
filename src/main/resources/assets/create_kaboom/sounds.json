@@ -22,13 +22,5 @@
         "stream": false
       }
     ]
-  },
-  "rocket_boof": {
-    "sounds": [
-      {
-        "name": "create_kaboom:rocket_boof",
-        "stream": false
-      }
-    ]
   }
 }

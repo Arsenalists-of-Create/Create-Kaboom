@@ -17,7 +17,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 public final class  MovingTargetInterceptorNavigation {
-   private static final double BOOST_DISTANCE_BLOCKS = 30.0;
+   private static final double DEFAULT_BOOST_DISTANCE_BLOCKS = 30.0;
    private static final double EARLY_TARGET_LOSS_DISTANCE_BLOCKS = 100.0;
    private static final double RUNAWAY_DISTANCE_BLOCKS = 500.0;
    private static final double EPSILON_DIR_SQR = 1.0E-10;
@@ -104,6 +104,7 @@ public final class  MovingTargetInterceptorNavigation {
    private RadarIntegration.ThreatStage radarRwrThreatStage = RadarIntegration.ThreatStage.ENGAGED;
    @Nullable
    private RadarSeekerProfile radarSeekerProfile = null;
+   private double boostDistanceBlocks = DEFAULT_BOOST_DISTANCE_BLOCKS;
 
    public void initialize(Vec3 launchDirection, Vec3 launchPosition, MissileNavigation.FlightAccess access) {
       this.launchDirection = safeNormalize(launchDirection, new Vec3(0.0, 1.0, 0.0));
@@ -131,13 +132,25 @@ public final class  MovingTargetInterceptorNavigation {
    }
 
    public void configure(MissileGuidanceData data) {
-      this.configure(data, null);
+      this.configure(data, null, DEFAULT_BOOST_DISTANCE_BLOCKS);
    }
 
    public void configure(MissileGuidanceData data, @Nullable RadarSeekerProfile radarSeekerProfile) {
+      this.configure(data, radarSeekerProfile, DEFAULT_BOOST_DISTANCE_BLOCKS);
+   }
+
+   public void configure(
+      MissileGuidanceData data,
+      @Nullable RadarSeekerProfile radarSeekerProfile,
+      double boostDistanceBlocks
+   ) {
       this.guidanceData = data;
       this.guidanceType = data == null ? MissileGuidanceType.UNKNOWN : data.guidanceType();
       this.radarSeekerProfile = radarSeekerProfile;
+      this.boostDistanceBlocks = nonNegativeFiniteOrDefault(
+         boostDistanceBlocks,
+         DEFAULT_BOOST_DISTANCE_BLOCKS
+      );
    }
 
    public boolean isBoosting() {
@@ -250,26 +263,28 @@ public final class  MovingTargetInterceptorNavigation {
                   }
 
                   this.accumulateBoostDistance(pos);
-                  if (this.accumulatedBoostDistance >= 30.0) {
-                     if (!this.acceptTarget(serverLevel, target, true)) {
-                        return this.handleTargetLoss(
-                           access,
-                           pos,
-                           vel,
-                           target,
-                           "no valid target after boost",
-                           "boost_abort"
-                        );
-                     }
-
-                     this.transitionTo(access, MovingTargetInterceptorNavigation.State.INTERCEPT, "boost completed; entered intercept");
+                  if (this.accumulatedBoostDistance < this.boostDistanceBlocks) {
+                     Vec3 appliedDelta = this.poweredDeltaAlong(access, this.launchDirection, effectiveThrustAccelerationPerTick(access));
+                     this.lastCommand = new MissileNavigation.Command(appliedDelta, this.launchDirection, 0.0, appliedDelta, "boost");
+                     this.debug(access, pos, vel, target, this.lastCommand, "boost");
+                     return this.lastCommand;
                   }
 
-                  Vec3 appliedDelta = this.poweredDeltaAlong(access, this.launchDirection, effectiveThrustAccelerationPerTick(access));
-                  this.lastCommand = new MissileNavigation.Command(appliedDelta, this.launchDirection, 0.0, appliedDelta, "boost");
-                  this.debug(access, pos, vel, target, this.lastCommand, "boost");
-                  return this.lastCommand;
-               } else if (!this.acceptTarget(serverLevel, target, false)) {
+                  if (!this.acceptTarget(serverLevel, target, true)) {
+                     return this.handleTargetLoss(
+                        access,
+                        pos,
+                        vel,
+                        target,
+                        "no valid target after boost",
+                        "boost_abort"
+                     );
+                  }
+
+                  this.transitionTo(access, MovingTargetInterceptorNavigation.State.INTERCEPT, "boost completed; entered intercept");
+               }
+
+               if (!this.acceptTarget(serverLevel, target, false)) {
                   return this.handleTargetLoss(
                      access,
                      pos,
@@ -1146,6 +1161,10 @@ public final class  MovingTargetInterceptorNavigation {
 
    private static double positiveFiniteOrDefault(double value, double fallback) {
       return Double.isFinite(value) && value > 0.0 ? value : fallback;
+   }
+
+   private static double nonNegativeFiniteOrDefault(double value, double fallback) {
+      return Double.isFinite(value) && value >= 0.0 ? value : fallback;
    }
 
    public static enum State {

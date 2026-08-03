@@ -5,9 +5,13 @@ import net.createmod.catnip.config.ConfigBase;
 
 public class KaboomServerConfig extends ConfigBase {
     public final ConfigGroup rocketMovementConfig = group(1, "rocketMovement", "Configs for rocket movement");
-    public final ConfigFloat rocketBoostDistance = f(125.0F, 0.0F, "rocketBoostDistance", "Distance rockets accelerate before their motors burn out, in blocks");
+    public final ConfigFloat rocketBoostDistance = f(120.0F, 0.0F, "rocketBoostDistance", "Distance rockets accelerate before their motors burn out, in blocks");
     public final ConfigFloat rocketInitialVelocity = f(0.3F, 0.0F, "rocketInitialVelocity", "Rocket launch velocity in blocks per tick");
     public final ConfigFloat rocketAccelerationPerTick = f(0.2F, 0.0F, "rocketAccelerationPerTick", "Rocket acceleration added per tick while the motor is burning");
+    public final ConfigFloat rocketPodBaseInaccuracyMultiplier = f(3.0F, 0.0F, "rocketPodBaseInaccuracyMultiplier", "Rocket pod spread for the shortest valid two-part tube relative to a vanilla bow; longer tubes use inverse fourth-power falloff");
+    public final ConfigBool shoulderFiredRocketsEnabled = b(true, "shoulderFiredRocketsEnabled", "Allow players to ignite and launch rockets from their shoulder");
+    public final ConfigFloat shoulderRocketInaccuracyMultiplier = f(1.5F, 0.0F, "shoulderRocketInaccuracyMultiplier", "Shoulder-fired rocket spread relative to a vanilla bow, where 1.0 equals bow inaccuracy");
+    public final ConfigBool shoulderRocketElytraPenalties = b(true, "shoulderRocketElytraPenalties", "Apply longer ignition, extra inaccuracy, and mishap durability damage to shoulder-rocket users with elytra");
 
     public final ConfigGroup missileMovementConfig = group(1, "missileMovement", "Configs for missile movement and fuel consumption");
     public final ConfigInt maxFuelBurnPerTick = i(1, 1, "maxFuelBurnPerTick", "Maximum missile fuel consumed per tick");
@@ -53,6 +57,7 @@ public class KaboomServerConfig extends ConfigBase {
     public final ConfigFloat radarAcquisitionHalfAngleDegrees = f(15.0F, 0.0F, "radarAcquisitionHalfAngleDegrees", "Radar-guidance acquisition cone half-angle in degrees");
     public final ConfigInt radarLockTicks = i(40, 1, "radarLockTicks", "Continuous target dwell required before a radar-guided missile launches");
     public final ConfigFloat radarTrackingConePaddingDegrees = f(2.5F, 0.0F, "radarTrackingConePaddingDegrees", "Additional seeker cone half-angle available after a radar-guided missile launches");
+    public final ConfigFloat radarRocketMinimumFireToleranceDegrees = f(10.0F, 0.0F, 45.0F, "radarRocketMinimumFireToleranceDegrees", "Minimum pitch and yaw tolerance Create: Radar may use when firing radar-guided rockets from a pod");
 
     public final ConfigGroup diagnosticsConfig = group(1, "diagnostics", "Configs for guidance diagnostics and logging");
     public final ConfigBool missileGuidanceDebug = b(false, "missileGuidanceDebug", "Log missile guidance state and steering every 5 ticks");

@@ -3,6 +3,7 @@ package com.happysg.kaboom.items.rocket;
 import com.happysg.kaboom.registry.ModItems;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -22,6 +23,12 @@ public class UnguidedRocketRenderer extends EntityRenderer<UnguidedRocketProject
         super(context);
         this.shadowRadius = 0.0F;
         this.itemRenderer = context.getItemRenderer();
+    }
+
+    @Override
+    public boolean shouldRender(UnguidedRocketProjectile entity, Frustum frustum,
+                                double cameraX, double cameraY, double cameraZ) {
+        return true;
     }
 
     @Override

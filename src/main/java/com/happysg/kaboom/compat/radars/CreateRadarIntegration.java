@@ -22,6 +22,7 @@ import com.happysg.radar.block.radar.track.RadarTrack;
 import com.happysg.radar.block.radar.track.TrackCategory;
 import com.happysg.radar.api.arad.ARADTargeting;
 import com.happysg.radar.api.arad.ARADTargetDesignationEvent;
+import com.happysg.radar.api.weapon.WeaponShotAdapterRegistry;
 import com.happysg.radar.chaff.ChaffLockAdapter;
 import com.happysg.radar.chaff.ChaffLockRegistry;
 import com.happysg.radar.compat.vs2.PhysicsHandler;
@@ -110,6 +111,9 @@ final class CreateRadarIntegration implements RadarIntegration {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            WeaponShotAdapterRegistry.register(
+                    "create_kaboom:rocket_pod",
+                    RocketPodWeaponShotAdapter::resolve);
             ChaffLockRegistry.register(ModEntities.MISSILE.get(), new ChaffLockAdapter<MissileEntity>() {
                 @Override
                 public String getTargetId(MissileEntity missile) {

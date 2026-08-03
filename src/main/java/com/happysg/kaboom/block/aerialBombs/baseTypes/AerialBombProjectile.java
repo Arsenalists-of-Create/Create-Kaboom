@@ -69,11 +69,15 @@ import java.util.function.Predicate;
 
 public class AerialBombProjectile extends AbstractCannonProjectile implements InterceptableOrdnance {
 
+    private static final double FUZE_ARMING_FALL_DISTANCE = 10.0;
+    private static final String FUZE_MAX_HEIGHT_TAG = "FuzeMaxHeight";
+    // Approximate impact speed after a 100-block fall with this projectile's default gravity and drag.
+    private static final double AP_REFERENCE_IMPACT_SPEED = 3.85;
+    private static final int SMALL_AP_REFERENCE_DEPTH = 20;
+    private static final int HEAVY_AP_REFERENCE_DEPTH = 50;
     public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1, .01, false, 2.0f, 1, 1, 0.70f);
     public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30, false, true, true, 2);
 
-    protected static final EntityDataAccessor<Integer> TIME_REQUIRED = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
-    protected static final EntityDataAccessor<Integer> TIME = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
     protected static final EntityDataAccessor<BlockState> STATE = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.BLOCK_STATE);
     private EndFluidStack fluidStack;
     private ItemStack fuze;
@@ -83,9 +87,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
     private int count;
     boolean onImpact = false;
     private int apRemaining = 0;
+    private boolean apPenetrationInitialized = false;
     @Nullable
     private UUID sourceSubLevelId = null;
     private int carrierCollisionGraceTicks = 0;
+    private double fuzeMaxHeight = Double.NaN;
     private Vec3 previousRenderVelocity = Vec3.ZERO;
     private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
 
@@ -117,8 +123,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(TIME, 0);
-        builder.define(TIME_REQUIRED, 10);
         builder.define(STATE, ModBlocks.HEAVY_AERIAL_BOMB.getDefaultState());
         builder.define(PAYLOAD_FLUID, new CompoundTag());
     }
@@ -131,20 +135,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
         return this.entityData.get(STATE);
     }
 
-    public int getTime() {
-        return this.entityData.get(TIME);
-    }
-
-    public int getTimeRequired() {
-        return this.entityData.get(TIME_REQUIRED);
-    }
-
     public void setFuze(ItemStack stack) {
         this.fuze = stack != null && !stack.isEmpty() ? stack : ItemStack.EMPTY;
     }
 
     public void setSize(int size) {
-        this.size = size;
+        this.size = Math.max(1, size);
+        resetApPenetrationBudget();
     }
 
     public void initializeCarrierCollisionGrace(@Nullable UUID sourceSubLevelId, int graceTicks) {
@@ -170,14 +167,31 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
 
     public void setBombType(BombType type) {
         this.type = type;
-        if (type == BombType.AP) {
-            apRemaining = 20;
+        resetApPenetrationBudget();
+    }
+
+    private void resetApPenetrationBudget() {
+        apRemaining = 0;
+        apPenetrationInitialized = false;
+    }
+
+    private void initializeApPenetrationBudget(double impactSpeed) {
+        if (type != BombType.AP || apPenetrationInitialized) {
+            return;
         }
+        int referenceDepth = size == 1
+                ? HEAVY_AP_REFERENCE_DEPTH
+                : SMALL_AP_REFERENCE_DEPTH;
+        apRemaining = Math.max(0, (int) Math.round(
+                referenceDepth * impactSpeed / AP_REFERENCE_IMPACT_SPEED));
+        apPenetrationInitialized = true;
     }
 
     public void tick() {
+        this.updateFuzeMaxHeight();
         this.previousRenderVelocity = this.getDeltaMovement();
         super.tick();
+        this.updateFuzeMaxHeight();
 
         if (this.carrierCollisionGraceTicks > 0) {
             --this.carrierCollisionGraceTicks;
@@ -185,10 +199,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
 
         if (!this.level().isClientSide && this.explosionCountdown > 0) {
             --this.explosionCountdown;
-        }
-
-        if (!level().isClientSide) {
-            this.entityData.set(TIME, this.entityData.get(TIME) + 1);
         }
 
         if (this.canDetonate((fz) -> fz.onProjectileTick(this.fuze, this)) || !this.level().isClientSide && this.explosionCountdown == 0) {
@@ -211,7 +221,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
 
         Vec3 normal = CBCUtils.getSurfaceNormalVector(this.level(), blockHitResult);
         double incidence = Math.max(0, curVel.normalize().dot(normal.reverse()));
-        double velMag = (curVel.length());
+        double velMag = curVel.length();
+        initializeApPenetrationBudget(velMag * incidence);
         if(type == BombType.AP) velMag = velMag*((double) 17 /size);
         double mass = this.getProjectileMass();
 
@@ -231,7 +242,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
 
         boolean surfaceImpact = this.canHitSurface();
         boolean canBounce = CBCConfigs.server().munitions.projectilesCanBounce.get();
-        boolean blockBroken = toughnessPenalty < 1e-2d && !unbreakable;
+        boolean hasPenetrationRemaining = type != BombType.AP || apRemaining > 0;
+        boolean blockBroken = toughnessPenalty < 1e-2d && !unbreakable && hasPenetrationRemaining;
         ImpactResult.KinematicOutcome outcome;
         if (surfaceImpact && canBounce && this.level().getRandom().nextDouble() < bounceChance) {
             outcome = ImpactResult.KinematicOutcome.BOUNCE;
@@ -259,6 +271,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
             }
         }
         if (blockBroken) {
+            if (!this.level().isClientSide && type == BombType.AP) {
+                --apRemaining;
+            }
             this.setProjectileMass(incidentVel < 1e-4d ? 0 : Math.max(this.getProjectileMass() - durabilityPenalty, 0));
             this.level().setBlock(pos, Blocks.AIR.defaultBlockState(), ProjectileBlock.UPDATE_ALL_IMMEDIATE);
 
@@ -293,7 +308,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
             return true;
         } else {
             boolean baseFuze = this.getFuzeProperties().baseFuze();
-            if (this.canDetonate((fz) -> fz.onProjectileClip(this.fuze, this, start, end, ctx, baseFuze))) {
+            if (this.canDetonateAt(end.y, (fz) -> fz.onProjectileClip(this.fuze, this, start, end, ctx, baseFuze))) {
                 this.detonate(start);
                 return true;
             } else {
@@ -307,7 +322,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
         boolean baseFuze = this.getFuzeProperties().baseFuze();
         ImpactResult fuzeImpact = new ImpactResult(impactResult.kinematics(), false);
         this.onImpact = true;
-        if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, fuzeImpact, baseFuze))) {
+        if (this.canDetonateAt(hitResult.getLocation().y,
+                (fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, fuzeImpact, baseFuze))) {
             this.detonate(hitResult.getLocation());
             return true;
         } else {
@@ -344,6 +360,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
         if (this.carrierCollisionGraceTicks > 0) {
             tag.putInt("CarrierCollisionGraceTicks", this.carrierCollisionGraceTicks);
         }
+        if (Double.isFinite(this.fuzeMaxHeight)) {
+            tag.putDouble(FUZE_MAX_HEIGHT_TAG, this.fuzeMaxHeight);
+        }
 
     }
 
@@ -356,6 +375,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
         this.carrierCollisionGraceTicks = this.sourceSubLevelId == null
                 ? 0
                 : Math.max(0, tag.getInt("CarrierCollisionGraceTicks"));
+        this.fuzeMaxHeight = tag.contains(FUZE_MAX_HEIGHT_TAG, Tag.TAG_DOUBLE)
+                ? tag.getDouble(FUZE_MAX_HEIGHT_TAG)
+                : Double.NaN;
         if (tag.contains("PayloadFluid", Tag.TAG_COMPOUND))
             this.entityData.set(PAYLOAD_FLUID, tag.getCompound("PayloadFluid"));
 
@@ -382,6 +404,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
     }
 
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
+        return this.canDetonateAt(this.getY(), cons);
+    }
+
+    private boolean canDetonateAt(double candidateY, Predicate<FuzeItem> cons) {
+        if (!this.hasReachedFuzeArmingDistance(candidateY)) {
+            return false;
+        }
         if (!this.level().isClientSide && this.level().isLoaded(this.blockPosition()) && !this.isRemoved()) {
             Item item = this.fuze.getItem();
             if (item instanceof FuzeItem fuzeItem) {
@@ -390,6 +419,20 @@ public class AerialBombProjectile extends AbstractCannonProjectile implements In
         }
 
         return false;
+    }
+
+    private void updateFuzeMaxHeight() {
+        if (this.level().isClientSide) {
+            return;
+        }
+        this.fuzeMaxHeight = Double.isFinite(this.fuzeMaxHeight)
+                ? Math.max(this.fuzeMaxHeight, this.getY())
+                : this.getY();
+    }
+
+    private boolean hasReachedFuzeArmingDistance(double candidateY) {
+        return Double.isFinite(this.fuzeMaxHeight)
+                && this.fuzeMaxHeight - candidateY >= FUZE_ARMING_FALL_DISTANCE;
     }
 
     @Deprecated

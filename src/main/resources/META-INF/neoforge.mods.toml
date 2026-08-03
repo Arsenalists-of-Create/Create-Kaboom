@@ -3,51 +3,52 @@ loaderVersion = "${neoforge_loader_version_range}"
 license = "${license}"
 
 [[mods]]
-modId = "${mod_id}"
+modId = "create_kaboom"
 version = "${version}"
 displayName = "${mod_name}"
 authors = "${mod_author}"
 description = '''${description}'''
+enumExtensions = "META-INF/enumextensions.json"
 
 [[mixins]]
 config = "create_kaboom.mixins.json"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "neoforge"
 type = "required"
 versionRange = "[${neoforge_version},)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "minecraft"
 type = "required"
 versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "create"
 type = "required"
 versionRange = "[6.0.7,6.1.0)"
 ordering = "AFTER"
 side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "createbigcannons"
 type = "required"
 versionRange = "[5.11.2,)"
 ordering = "AFTER"
 side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "ritchiesprojectilelib"
 type = "required"
 versionRange = "[2.1.2,)"
 ordering = "AFTER"
 side = "BOTH"
 
-[[dependencies.${mod_id}]]
+[[dependencies.create_kaboom]]
 modId = "create_radar"
 type = "optional"
 versionRange = "[${create_radar_version},)"

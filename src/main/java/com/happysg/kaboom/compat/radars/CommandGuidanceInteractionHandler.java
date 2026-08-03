@@ -1,8 +1,9 @@
 package com.happysg.kaboom.compat.radars;
 
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlock;
-import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlockEntity;
-import com.happysg.kaboom.registry.ModBlockEntityTypes;
+import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceLink;
+import com.happysg.kaboom.items.rocket.RocketGuidanceType;
+import com.happysg.kaboom.items.rocket.RocketItem;
 import com.happysg.radar.block.controller.networkcontroller.NetworkFiltererBlockEntity;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
@@ -18,8 +19,11 @@ final class CommandGuidanceInteractionHandler {
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         ItemStack held = event.getItemStack();
-        if (!(held.getItem() instanceof BlockItem blockItem)
-                || !(blockItem.getBlock() instanceof CommandGuidanceBlock)) {
+        boolean isCommandGuidanceBlock = held.getItem() instanceof BlockItem blockItem
+                && blockItem.getBlock() instanceof CommandGuidanceBlock;
+        boolean isCommandGuidanceRocket = held.getItem() instanceof RocketItem
+                && RocketItem.getGuidanceType(held) == RocketGuidanceType.COMMAND;
+        if (!isCommandGuidanceBlock && !isCommandGuidanceRocket) {
             return;
         }
 
@@ -35,13 +39,10 @@ final class CommandGuidanceInteractionHandler {
             return;
         }
 
-        BlockItem.setBlockEntityData(
-                held,
-                ModBlockEntityTypes.COMMAND_GUIDANCE.get(),
-                CommandGuidanceBlockEntity.tagForNetworkController(networkController.getBlockPos())
-        );
+        CommandGuidanceLink.setControllerPos(held, networkController.getBlockPos());
         event.getEntity().displayClientMessage(
-                Component.literal("Paired command guidance to network controller at "
+                Component.literal("Paired " + (isCommandGuidanceRocket ? "command guidance rocket" : "command guidance")
+                        + " to network controller at "
                         + networkController.getBlockPos().toShortString()),
                 true
         );

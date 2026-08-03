@@ -140,8 +140,10 @@ public enum RocketPayload implements StringRepresentable {
     };
 
     public static final Codec<RocketPayload> CODEC = StringRepresentable.fromEnum(RocketPayload::values);
+    public static final BallisticPropertiesComponent STANDARD_BALLISTIC_PROPERTIES =
+            new BallisticPropertiesComponent(-0.08, 0.01, false, 2.0f, 1.0f, 1.0f, 0.7f);
     public static final BallisticPropertiesComponent AP_BALLISTIC_PROPERTIES =
-            new BallisticPropertiesComponent(-0.08, 0.0, false, 1.5f, 2.0f, 0.5f, 0.7f);
+            new BallisticPropertiesComponent(-0.08, 0.01, false, 1.5f, 2.0f, 0.5f, 0.7f);
     private static final IntFunction<RocketPayload> BY_ID = ByIdMap.continuous(
             RocketPayload::getId,
             values(),

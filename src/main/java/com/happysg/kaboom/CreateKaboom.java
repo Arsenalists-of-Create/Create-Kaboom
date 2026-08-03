@@ -9,6 +9,7 @@ import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
 import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.events.ChainInteractionHandler;
 import com.happysg.kaboom.events.ChainTickHandler;
+import com.happysg.kaboom.events.ShoulderRocketInteractionHandler;
 import com.happysg.kaboom.items.rocket.RocketFluidHandler;
 import com.happysg.kaboom.items.rocket.RocketItem;
 import com.happysg.kaboom.items.rocket.RocketPayload;
@@ -27,8 +28,10 @@ import com.happysg.kaboom.registry.ModRecipeSerializers;
 import com.happysg.kaboom.registry.ModSounds;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
+import com.simibubi.create.foundation.item.ItemDescription;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import net.createmod.catnip.lang.FontHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
@@ -45,13 +48,16 @@ import org.slf4j.Logger;
 @Mod("create_kaboom")
 public class CreateKaboom {
    public static final String MODID = "create_kaboom";
-   public static final CreateRegistrate REGISTRATE = CreateRegistrate.create("create_kaboom");
+   public static final CreateRegistrate REGISTRATE = CreateRegistrate.create("create_kaboom")
+      .setTooltipModifierFactory(item ->
+         new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE));
    private static final Logger LOGGER = LogUtils.getLogger();
 
    public CreateKaboom(IEventBus modEventBus, ModContainer container) {
       LOGGER.info("Initializing Create Kaboom");
       NeoForge.EVENT_BUS.register(new ChainInteractionHandler());
       NeoForge.EVENT_BUS.register(new ChainTickHandler());
+      NeoForge.EVENT_BUS.register(new ShoulderRocketInteractionHandler());
       RadarCompatRegistry.register(modEventBus);
       NeoForge.EVENT_BUS.addListener(SelfChainCommand::register);
       REGISTRATE.defaultCreativeTab((ResourceKey)null);

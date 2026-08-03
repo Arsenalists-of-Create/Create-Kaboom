@@ -1,6 +1,7 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceLinkRecipe;
 import com.happysg.kaboom.items.tracer.ColoredTracerApplicationRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -17,6 +18,12 @@ public final class ModRecipeSerializers {
             COLORED_TRACER_APPLICATION = RECIPE_SERIALIZERS.register(
                     "colored_tracer_application",
                     () -> new SimpleCraftingRecipeSerializer<>(ColoredTracerApplicationRecipe::new)
+            );
+
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<CommandGuidanceLinkRecipe>>
+            COMMAND_GUIDANCE_LINK = RECIPE_SERIALIZERS.register(
+                    "command_guidance_link",
+                    () -> new SimpleCraftingRecipeSerializer<>(CommandGuidanceLinkRecipe::new)
             );
 
     private ModRecipeSerializers() {

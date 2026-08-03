@@ -4,6 +4,7 @@ import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.items.rocket.RocketGuidanceType;
 import com.happysg.kaboom.items.rocket.RocketPayload;
 import com.happysg.kaboom.items.tracer.TracerColor;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.neoforged.bus.api.IEventBus;
@@ -21,6 +22,11 @@ public final class ModDataComponents {
             DATA_COMPONENTS.registerComponentType("rocket_guidance", builder -> builder
                     .persistent(RocketGuidanceType.CODEC)
                     .networkSynchronized(RocketGuidanceType.STREAM_CODEC));
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlockPos>> ROCKET_NETWORK_CONTROLLER =
+            DATA_COMPONENTS.registerComponentType("rocket_network_controller", builder -> builder
+                    .persistent(BlockPos.CODEC)
+                    .networkSynchronized(BlockPos.STREAM_CODEC));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<RocketPayload>> ROCKET_PAYLOAD =
             DATA_COMPONENTS.registerComponentType("rocket_payload", builder -> builder

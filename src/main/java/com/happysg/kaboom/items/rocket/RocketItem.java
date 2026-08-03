@@ -4,6 +4,7 @@ import com.happysg.kaboom.registry.ModDataComponents;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.simibubi.create.foundation.utility.CreateLang;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
@@ -34,6 +35,15 @@ public abstract class RocketItem extends Item implements FuzedItemMunition {
     @Nullable
     public static RocketGuidanceType getGuidanceType(ItemStack rocket) {
         return rocket.get(ModDataComponents.ROCKET_GUIDANCE);
+    }
+
+    @Nullable
+    public static BlockPos getLinkedNetworkController(ItemStack rocket) {
+        return rocket.get(ModDataComponents.ROCKET_NETWORK_CONTROLLER);
+    }
+
+    public static void setLinkedNetworkController(ItemStack rocket, BlockPos controllerPos) {
+        rocket.set(ModDataComponents.ROCKET_NETWORK_CONTROLLER, controllerPos.immutable());
     }
 
     @Nullable
@@ -154,12 +164,18 @@ public abstract class RocketItem extends Item implements FuzedItemMunition {
 
     @Nullable
     public AbstractCannonProjectile createProjectile(ServerLevel level, ItemStack stack, Vec3 launchDirection) {
+        return createProjectile(level, stack, launchDirection, 0.0F);
+    }
+
+    @Nullable
+    public AbstractCannonProjectile createProjectile(ServerLevel level, ItemStack stack, Vec3 launchDirection,
+                                                     float inaccuracy) {
         if (!isLaunchable(stack)) {
             return null;
         }
         UnguidedRocketProjectile projectile = ModProjectiles.UNGUIDED_ROCKET.create(level);
         if (projectile != null) {
-            projectile.initialize(stack, launchDirection);
+            projectile.initialize(stack, launchDirection, inaccuracy);
         }
         return projectile;
     }

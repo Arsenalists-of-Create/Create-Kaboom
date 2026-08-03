@@ -113,6 +113,17 @@ public class RocketPodBlockEntity extends BlockEntity {
         return true;
     }
 
+    boolean replaceRocket(int slot, ItemStack expected, ItemStack replacement) {
+        if (slot < 0 || slot >= SLOT_COUNT
+                || !ItemStack.isSameItemSameComponents(this.rockets[slot], expected)
+                || !isLoadableRocket(replacement)) {
+            return false;
+        }
+        this.rockets[slot] = replacement.copyWithCount(1);
+        setChanged();
+        return true;
+    }
+
     public List<ItemStack> removeAllRockets() {
         List<ItemStack> removed = new ArrayList<>(SLOT_COUNT);
         for (int slot = 0; slot < SLOT_COUNT; ++slot) {
