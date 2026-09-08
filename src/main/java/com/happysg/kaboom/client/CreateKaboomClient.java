@@ -30,6 +30,7 @@ import net.neoforged.neoforge.client.event.ComputeFovModifierEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
+import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBlockVisual;
 
 @EventBusSubscriber(value = net.neoforged.api.distmarker.Dist.CLIENT)
 public final class CreateKaboomClient {
@@ -65,6 +66,10 @@ public final class CreateKaboomClient {
                     new SimpleBlockEntityVisualizer<>(KaboomFuzedBlockVisual::new, blockEntity -> true)
             );
             VisualizerRegistry.setVisualizer(
+                    ModBlockEntityTypes.MISSILE_WARHEAD.get(),
+                    new SimpleBlockEntityVisualizer<>(FuzedBlockVisual::new, blockEntity -> true)
+            );
+            VisualizerRegistry.setVisualizer(
                     ModEntities.MISSILE.get(),
                     new SimpleEntityVisualizer<MissileEntity>(ContraptionVisual::new, entity -> false)
             );
@@ -77,6 +82,7 @@ public final class CreateKaboomClient {
         ItemDescription.useKey(ModBlocks.GPS_GUIDANCE_HUGE.get(), "block.create_kaboom.guidance.gps");
         ItemDescription.useKey(ModBlocks.COMMAND_GUIDANCE_SMALL.get(), "block.create_kaboom.guidance.command");
         ItemDescription.useKey(ModBlocks.COMMAND_GUIDANCE_LARGE.get(), "block.create_kaboom.guidance.command");
+        ItemDescription.useKey(ModBlocks.COMMAND_GUIDANCE_HUGE.get(), "block.create_kaboom.guidance.command");
         ItemDescription.useKey(ModBlocks.RADAR_GUIDANCE_SMALL.get(), "block.create_kaboom.guidance.radar");
         ItemDescription.useKey(ModBlocks.RADAR_GUIDANCE_LARGE.get(), "block.create_kaboom.guidance.radar");
         ItemDescription.useKey(ModBlocks.ARAD_GUIDANCE_SMALL.get(), "block.create_kaboom.guidance.arad");

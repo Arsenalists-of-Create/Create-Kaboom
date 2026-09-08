@@ -50,6 +50,7 @@ import rbasamoyai.createbigcannons.munitions.AbstractCannonProjectile;
 public class RocketPodContraption extends AbstractMountedCannonContraption {
     private static final int MIN_CENTERS = 1;
     private static final int MIN_TUBE_PARTS = MIN_CENTERS + 1;
+    private static final int REPEATED_LAUNCH_COOLDOWN_TICKS = 10;
     private static final int POST_LAUNCH_BACKBLAST_TICKS = 5;
     private static final int BACKBLAST_PARTICLES_PER_TICK = 3;
     private static final double BACKBLAST_SPAWN_OFFSET = 0.65;
@@ -66,11 +67,13 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
     private static final String PENDING_LAUNCH_ID_TAG = "LaunchId";
     private static final String LAUNCH_SIGNAL_POWERED_TAG = "LaunchSignalPowered";
     private static final String WAITING_FOR_GUIDANCE_TAG = "WaitingForGuidance";
+    private static final String NEXT_LAUNCH_ALLOWED_TICK_TAG = "NextLaunchAllowedTick";
 
     private final List<BlockPos> launcherRears = new ArrayList<>(3);
     private final List<PendingLaunch> pendingLaunches = new ArrayList<>();
     private final List<LingeringBackblast> lingeringBackblasts = new ArrayList<>();
     private long nextLaunchId;
+    private long nextLaunchAllowedTick;
     private boolean launchSignalPowered;
     private boolean waitingForGuidance;
 
@@ -99,6 +102,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
         this.pendingLaunches.clear();
         this.lingeringBackblasts.clear();
         this.nextLaunchId = 0L;
+        this.nextLaunchAllowedTick = 0L;
         this.launchSignalPowered = false;
         this.waitingForGuidance = false;
         for (BlockPos rearPos : launcherRearWorldPositions) {
@@ -331,6 +335,7 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
         CompoundTag tag = super.writeNBT(registries, spawnPacket);
         tag.putLongArray(LAUNCHER_REARS_TAG, this.launcherRears.stream().mapToLong(BlockPos::asLong).toArray());
         tag.putLong(NEXT_LAUNCH_ID_TAG, this.nextLaunchId);
+        tag.putLong(NEXT_LAUNCH_ALLOWED_TICK_TAG, this.nextLaunchAllowedTick);
         tag.putBoolean(LAUNCH_SIGNAL_POWERED_TAG, this.launchSignalPowered);
         tag.putBoolean(WAITING_FOR_GUIDANCE_TAG, this.waitingForGuidance);
 
@@ -365,6 +370,8 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
         ensureLauncherBlockEntities(level);
 
         this.nextLaunchId = Math.max(0L, tag.getLong(NEXT_LAUNCH_ID_TAG));
+        this.nextLaunchAllowedTick = Math.max(
+                0L, tag.getLong(NEXT_LAUNCH_ALLOWED_TICK_TAG));
         this.launchSignalPowered = tag.getBoolean(LAUNCH_SIGNAL_POWERED_TAG);
         this.waitingForGuidance = this.launchSignalPowered && tag.getBoolean(WAITING_FOR_GUIDANCE_TAG);
         this.pendingLaunches.clear();
@@ -529,6 +536,9 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
 
     @Override
     public void fireShot(ServerLevel level, PitchOrientedContraptionEntity entity) {
+        if (level.getGameTime() < this.nextLaunchAllowedTick) {
+            return;
+        }
         LaunchCandidate candidate = selectNextLaunchCandidate(false);
         if (candidate == null
                 || !(this.presentBlockEntities.get(candidate.rearPos)
@@ -555,18 +565,26 @@ public class RocketPodContraption extends AbstractMountedCannonContraption {
         long launchId = this.nextLaunchId++;
         if (launchDelayTicks <= 0) {
             spawnBackblast(level, entity, candidate.rearPos);
-            fireRocketFromSlot(
+            if (fireRocketFromSlot(
                     level, entity, rear, candidate.rearPos, candidate.slot,
-                    launchId, launchFrame, guidance.guidanceData());
+                    launchId, launchFrame, guidance.guidanceData())) {
+                this.startRepeatedLaunchCooldown(level);
+            }
             return;
         }
         PendingLaunch pending = new PendingLaunch(
                 candidate.rearPos, candidate.slot, launchDelayTicks, launchId);
         this.pendingLaunches.add(pending);
+        this.startRepeatedLaunchCooldown(level);
         NetworkHandler.sendToPlayersTrackingEntity(entity,
                 new RocketPodLaunchSoundPacket(
                         entity.getId(), candidate.rearPos, candidate.slot,
                         pending.launchId, launchDelayTicks));
+    }
+
+    private void startRepeatedLaunchCooldown(ServerLevel level) {
+        this.nextLaunchAllowedTick = level.getGameTime()
+                + REPEATED_LAUNCH_COOLDOWN_TICKS;
     }
 
     private List<BlockPos> getLaunchOrderedRears() {

@@ -101,7 +101,8 @@ public class ModBlockEntityTypes {
             REGISTRATE.blockEntity("command_guidance_be",CommandGuidanceBlockEntity::new)
                     .validBlocks(
                             ModBlocks.COMMAND_GUIDANCE_SMALL,
-                            ModBlocks.COMMAND_GUIDANCE_LARGE
+                            ModBlocks.COMMAND_GUIDANCE_LARGE,
+                            ModBlocks.COMMAND_GUIDANCE_HUGE
                     )
                     .register();
     public static final BlockEntityEntry<TargetCoordinatorBlockEntity> TARGET_COORDINATOR_BE =

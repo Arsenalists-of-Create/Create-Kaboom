@@ -115,8 +115,10 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
     private static final EntityDataAccessor<Integer> EXHAUST_STAGE =
             SynchedEntityData.defineId(UnguidedRocketProjectile.class, EntityDataSerializers.INT);
 
-    private static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES =
-            EntityDamagePropertiesComponent.DEFAULT;
+    private static final EntityDamagePropertiesComponent STANDARD_DAMAGE_PROPERTIES =
+            new EntityDamagePropertiesComponent(5.0F, false, true, false, 0.0F);
+    private static final EntityDamagePropertiesComponent AP_DAMAGE_PROPERTIES =
+            new EntityDamagePropertiesComponent(5.0F, false, true, true, 0.0F);
 
     private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
     private final MovingTargetInterceptorNavigation interceptorNavigation =
@@ -630,7 +632,9 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
 
     @Override
     public @NotNull EntityDamagePropertiesComponent getDamageProperties() {
-        return DAMAGE_PROPERTIES;
+        return this.payload != null && this.payload.isArmorPiercing()
+                ? AP_DAMAGE_PROPERTIES
+                : STANDARD_DAMAGE_PROPERTIES;
     }
 
     @Override
@@ -789,6 +793,17 @@ public class UnguidedRocketProjectile extends AbstractCannonProjectile
 
     @Override
     protected boolean onHitEntity(Entity entity, ProjectileContext projectileContext) {
+        if (!this.level().isClientSide) {
+            EntityDamagePropertiesComponent properties = this.getDamageProperties();
+            if (properties.ignoresInvulnerability()) {
+                entity.invulnerableTime = 0;
+            }
+            entity.hurt(this.getEntityDamage(entity), properties.entityDamage());
+            if (!properties.rendersInvulnerable()) {
+                entity.invulnerableTime = 0;
+            }
+            this.addAlwaysUntouchableEntity(entity);
+        }
         return this.onImpact(new EntityHitResult(entity),
                 new ImpactResult(ImpactResult.KinematicOutcome.STOP, false), projectileContext);
     }

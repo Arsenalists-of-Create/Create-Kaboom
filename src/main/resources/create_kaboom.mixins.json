@@ -12,6 +12,8 @@
     "AbstractAutocannonProjectileTracerMixin",
     "AbstractProjectileAccessor",
     "AutocannonAmmoItemTracerMixin",
+    "BlockCollisionsHugeMissileMixin",
+    "BlockItemHugeMissilePlacementMixin",
     "CBCProjectileBurstMixin",
     "CannonMountMissileReleaseMixin",
     "FixedCannonMountMissileReleaseMixin",

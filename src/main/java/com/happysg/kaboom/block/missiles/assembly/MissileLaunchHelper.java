@@ -55,6 +55,7 @@ public class MissileLaunchHelper {
                                             boolean requireMinimumFuel) throws AssemblyException {
         FreeLaunchValidation validation = validateFreeLaunch(level, anyThrusterPos, requireMinimumFuel);
         MissileAssemblyResult result = validation.result();
+        publishFreeDiagnostic(level, result, anyThrusterPos, validation.failure());
         if (validation.failure() != null) {
             logLaunchFailure(anyThrusterPos, validation.failure());
             return rejectLaunch(level, result, anyThrusterPos);
@@ -124,6 +125,7 @@ public class MissileLaunchHelper {
             throws AssemblyException {
         FreeLaunchValidation validation = validateFreeLaunch(level, anyThrusterPos, true);
         MissileAssemblyResult result = validation.result();
+        publishFreeDiagnostic(level, result, anyThrusterPos, validation.failure());
         if (validation.failure() != null) {
             logLaunchFailure(anyThrusterPos, validation.failure());
             rejectLaunch(level, result, anyThrusterPos);
@@ -217,6 +219,15 @@ public class MissileLaunchHelper {
                                         @Nullable SableUtils.LaunchKinematics launch,
                                         @Nullable AssemblyException failure) {}
 
+    private static void publishFreeDiagnostic(ServerLevel level, MissileAssemblyResult result,
+                                              BlockPos fallbackPos,
+                                              @Nullable AssemblyException diagnostic) {
+        BlockPos controllerPos = result.isValid() ? result.getControllerPos() : fallbackPos;
+        if (level.getBlockEntity(controllerPos) instanceof ThrusterBlockEntity thruster) {
+            thruster.setLaunchDiagnostic(diagnostic);
+        }
+    }
+
     public static boolean launchMounted(ServerLevel level, MissileContraption mounted,
                                         PitchOrientedContraptionEntity mountedEntity) {
         MountedLaunchValidation validation = validateMountedLaunch(level, mounted, mountedEntity, false);
@@ -289,12 +300,6 @@ public class MissileLaunchHelper {
             return false;
         }
         return validation.context() != null;
-    }
-
-    @Nullable
-    public static AssemblyException diagnoseMountedLaunch(ServerLevel level, MissileContraption mounted,
-                                                           PitchOrientedContraptionEntity mountedEntity) {
-        return validateMountedLaunch(level, mounted, mountedEntity, true).failure();
     }
 
     private static MountedLaunchValidation validateMountedLaunch(ServerLevel level, MissileContraption mounted,

@@ -2,10 +2,10 @@ package com.happysg.kaboom.block.missiles.parts.guidance.command;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
+import com.happysg.kaboom.block.missiles.parts.HugeMissileReservations;
 import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.block.missiles.parts.guidance.IGuidanceBlock;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
-import com.happysg.kaboom.registry.ModBlocks;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -76,9 +76,12 @@ public class CommandGuidanceBlock extends RotatedPillarBlock implements IBE<Comm
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.COMMAND_GUIDANCE_SMALL.get()
-                ? MissilePartShapes.small(state.getValue(AXIS))
-                : MissilePartShapes.FULL;
+        Direction.Axis axis = state.getValue(AXIS);
+        return switch (missileSize) {
+            case SMALL -> MissilePartShapes.small(axis);
+            case LARGE -> MissilePartShapes.FULL;
+            case HUGE -> MissilePartShapes.hugeBody(axis);
+        };
     }
 
     @Override
@@ -109,6 +112,24 @@ public class CommandGuidanceBlock extends RotatedPillarBlock implements IBE<Comm
     @Override
     public MissilePartType getPartType() {
         return MissilePartType.GUIDANCE;
+    }
+
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState,
+                           boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (missileSize == MissileSize.HUGE) {
+            HugeMissileReservations.reconcileOwner(level, pos, state);
+        }
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
+                            boolean movedByPiston) {
+        if (missileSize == MissileSize.HUGE && !state.is(newState.getBlock())) {
+            HugeMissileReservations.removeForOwner(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     @Override

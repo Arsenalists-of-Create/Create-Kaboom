@@ -73,7 +73,6 @@ public class MissileContraption extends AbstractMountedCannonContraption {
     private transient Vec3 lastNozzleWorldPosition;
     private transient Vec3 observedNozzleVelocity = Vec3.ZERO;
     private final List<MountedMissileData> mountedMissiles = new ArrayList<>(3);
-    private transient int diagnosticTicks;
 
     @Override
     public ContraptionType getType() {
@@ -410,15 +409,6 @@ public class MissileContraption extends AbstractMountedCannonContraption {
             }
         }
         this.lastNozzleWorldPosition = nozzleNow;
-        if (this.launchTicksRemaining <= 0
-                && !level.isClientSide && level instanceof ServerLevel serverLevel
-                && ++this.diagnosticTicks >= 10) {
-            this.diagnosticTicks = 0;
-            if (entity.getController() instanceof com.happysg.kaboom.compat.cbc.MountedMissileController controller) {
-                controller.createKaboom$setMissileDiagnostic(
-                        MissileLaunchHelper.diagnoseMountedLaunch(serverLevel, this, entity));
-            }
-        }
         if (this.launchTicksRemaining <= 0) return;
         if (level.isClientSide) {
             if (!this.clientLaunchEffectStarted) {

@@ -17,6 +17,7 @@ import com.happysg.kaboom.block.aerialBombs.small.SmallAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
+import com.happysg.kaboom.block.missiles.parts.HugeMissileReservationBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.arad.ARADGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.command.CommandGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.guidance.radar.RadarGuidanceBlock;
@@ -36,14 +37,32 @@ import com.tterrag.registrate.util.nullness.NonNullFunction;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
 import net.neoforged.neoforge.client.model.generators.ModelFile;
 
 import static com.happysg.kaboom.CreateKaboom.REGISTRATE;
 
 public class ModBlocks {
+
+    public static final BlockEntry<HugeMissileReservationBlock> HUGE_MISSILE_RESERVATION =
+            REGISTRATE.block("huge_missile_reservation", HugeMissileReservationBlock::new)
+                    .initialProperties(() -> Blocks.BARRIER)
+                    .properties(properties -> properties
+                            .noCollission()
+                            .noOcclusion()
+                            .strength(-1.0F, 3_600_000.0F)
+                            .pushReaction(PushReaction.BLOCK)
+                            .noLootTable()
+                            .isRedstoneConductor((state, level, pos) -> false)
+                            .isSuffocating((state, level, pos) -> false)
+                            .isViewBlocking((state, level, pos) -> false))
+                    .blockstate((context, provider) -> {
+                    })
+                    .register();
 
     public static final BlockEntry<HeavyAerialBombBlock> HEAVY_AERIAL_BOMB =
             bomb("heavy_aerial_bomb", HeavyAerialBombBlock::new).register();
@@ -264,6 +283,20 @@ public class ModBlocks {
                     .item()
                     .model((ctx, p) -> p.withExistingParent(ctx.getName(),
                             CreateKaboom.asResource("block/missile/medium_command_guidance")))
+                    .build()
+                    .register();
+    public static final BlockEntry<CommandGuidanceBlock> COMMAND_GUIDANCE_HUGE =
+            REGISTRATE.block("command_guidance_huge", properties -> new CommandGuidanceBlock(properties, MissileSize.HUGE))
+                    .properties(BlockBehaviour.Properties::noOcclusion)
+                    .initialProperties(SharedProperties::softMetal)
+                    .lang("Huge Command Guidance Unit")
+                    .blockstate((ctx, prov) -> {
+                        var model = prov.models().getExistingFile(CreateKaboom.asResource("block/missile/huge_command_guidance"));
+                        prov.axisBlock(ctx.getEntry(), model, model);
+                    })
+                    .item()
+                    .model((ctx, p) -> p.withExistingParent(ctx.getName(),
+                            CreateKaboom.asResource("block/missile/huge_command_guidance")))
                     .build()
                     .register();
     public static final BlockEntry<ARADGuidanceBlock> ARAD_GUIDANCE_SMALL =

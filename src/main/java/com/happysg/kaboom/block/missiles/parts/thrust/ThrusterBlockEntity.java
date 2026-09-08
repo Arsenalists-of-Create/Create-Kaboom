@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup.Provider;
@@ -38,7 +39,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAssemblyExceptionDisplay {
-   private static final int DIAGNOSTIC_INTERVAL_TICKS = 10;
    private boolean lastAssemblyPowered = false;
    private boolean lastGuidanceUsedPoweredAcquisition = false;
    private boolean poweredLaunchRejected = false;
@@ -52,7 +52,6 @@ public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAsse
    private final Map<BlockPos, BlockState> pendingLaunchBlocks = new LinkedHashMap<>();
    private transient boolean clientLaunchSoundStarted;
    private AssemblyException lastAssemblyException;
-   private int diagnosticTicks;
    public static final List<ThrusterBlockEntity.PendingEnforcement> PENDING_ENFORCEMENTS = new ArrayList<>();
 
    public ThrusterBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -103,13 +102,14 @@ public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAsse
 
    private boolean tickLaunchControl(ServerLevel level) {
       MissileAssemblyResult result = MissileAssembler.scan(level, this.worldPosition);
-      if (++this.diagnosticTicks >= DIAGNOSTIC_INTERVAL_TICKS) {
-         this.diagnosticTicks = 0;
-         this.setAssemblyException(MissileLaunchHelper.diagnoseFreeLaunch(level, this.worldPosition));
-      }
       if (!result.isValid()) {
          this.resetTrackedAcquisition(level);
-         this.lastAssemblyPowered = this.hasAssemblyPower(level, this.lastAssemblyBlocks);
+         boolean powered = this.hasAssemblyPower(level, this.lastAssemblyBlocks);
+         boolean risingEdge = powered && !this.lastAssemblyPowered;
+         this.lastAssemblyPowered = powered;
+         if (risingEdge) {
+            this.setLaunchDiagnostic(MissileLaunchHelper.diagnoseFreeLaunch(level, this.worldPosition));
+         }
          if (!this.lastAssemblyPowered) {
             this.poweredLaunchRejected = false;
          }
@@ -150,6 +150,9 @@ public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAsse
 
          if (acquisition != null) {
             boolean acquired = acquisition.tickAcquisition(level, result);
+            if (risingEdge && !acquired) {
+               this.setLaunchDiagnostic(MissileLaunchHelper.diagnoseFreeLaunch(level, this.worldPosition));
+            }
             if (!this.poweredLaunchRejected && acquired) {
                return this.tryLatchedLaunch(level);
             }
@@ -267,7 +270,7 @@ public class ThrusterBlockEntity extends SmartBlockEntity implements MissileAsse
       this.activeAcquisitionGuidancePos = null;
    }
 
-   private void setAssemblyException(AssemblyException diagnostic) {
+   public void setLaunchDiagnostic(@Nullable AssemblyException diagnostic) {
       Object previous = this.lastAssemblyException == null ? null : this.lastAssemblyException.component;
       Object next = diagnostic == null ? null : diagnostic.component;
       if (Objects.equals(previous, next)) {

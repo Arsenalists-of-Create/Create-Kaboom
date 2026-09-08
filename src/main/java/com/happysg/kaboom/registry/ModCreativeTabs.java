@@ -57,7 +57,7 @@ public class ModCreativeTabs {
 
         pOutput.accept(ModBlocks.GPS_GUIDANCE_LARGE);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_SMALL);
-
+        pOutput.accept(ModBlocks.GPS_GUIDANCE_HUGE);
 
 
         pOutput.accept(ModBlocks.LARGE_CLUSTER_WARHEAD);
@@ -70,19 +70,22 @@ public class ModCreativeTabs {
 //        pOutput.accept(ModBlocks.HUGE_HIGH_EXPLOSIVE_WARHEAD);
 //        pOutput.accept(ModBlocks.HUGE_ARMOR_PIERCING_WARHEAD);
 //        pOutput.accept(ModBlocks.HUGE_FRAGMENTATION_WARHEAD);
-//        pOutput.accept(ModBlocks.HUGE_FLUID_WARHEAD);
 
-
-        pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
+        //pOutput.accept(ModBlocks.HUGE_FLUID_WARHEAD);
         pOutput.accept(ModBlocks.RADAR_GUIDANCE_SMALL);
+        pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
+
+
+
         if (Mods.CREATE_RADAR.isLoaded()) {
             pOutput.accept(ModBlocks.ARAD_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.ARAD_GUIDANCE_LARGE);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
+//            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_HUGE);
             pOutput.accept(ModBlocks.TARGET_COORDINATOR);
         }
-        //pOutput.accept(ModBlocks.ROCKET_POD_FRONT);
+
         pOutput.accept(ModBlocks.ROCKET_POD_CENTER);
         pOutput.accept(ModBlocks.ROCKET_POD_REAR);
         pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.HE));
@@ -92,8 +95,7 @@ public class ModCreativeTabs {
         pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.FLUID));
         pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.COMMAND));
         pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.RADAR));
-        // ARAD rocket presets are not obtainable yet.
-        // pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.ARAD));
+
 
         pOutput.accept(ModItems.BLUE_TRACER_TIP);
         pOutput.accept(ModItems.RED_TRACER_TIP);

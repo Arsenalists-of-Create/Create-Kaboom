@@ -24,6 +24,7 @@
   "item.create_kaboom.altitude_fuze": "Altitude Fuze",
   "block.create_kaboom.command_guidance_large": "Large Command Guidance Unit",
   "block.create_kaboom.command_guidance_small": "Small Command Guidance Unit",
+  "block.create_kaboom.command_guidance_huge": "Huge Command Guidance Unit",
   "block.create_kaboom.arad_guidance_large": "Large ARAD Guidance Unit",
   "block.create_kaboom.arad_guidance_small": "Small ARAD Guidance Unit",
   "message.create_kaboom.arad_guidance.mode.manual_designation": "ARAD acquisition: Manual designation",

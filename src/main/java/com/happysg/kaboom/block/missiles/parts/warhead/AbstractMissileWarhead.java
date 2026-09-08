@@ -2,6 +2,8 @@ package com.happysg.kaboom.block.missiles.parts.warhead;
 
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombProjectile;
 import com.happysg.kaboom.block.missiles.assembly.MissileSize;
+import com.happysg.kaboom.block.missiles.parts.HugeMissileReservations;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.mojang.serialization.MapCodec;
@@ -17,6 +19,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -24,6 +27,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
 import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedProjectileBlock;
 
@@ -74,6 +79,37 @@ public class AbstractMissileWarhead extends FuzedProjectileBlock<MissileWarheadB
         return placed == null
                 ? null
                 : placed.setValue(FACING, context.getNearestLookingDirection().getOpposite());
+    }
+
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState,
+                           boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (missileSize == MissileSize.HUGE) {
+            HugeMissileReservations.reconcileOwner(level, pos, state);
+        }
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
+                            boolean movedByPiston) {
+        if (missileSize == MissileSize.HUGE && !state.is(newState.getBlock())) {
+            HugeMissileReservations.removeForOwner(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return missileSize == MissileSize.HUGE
+                ? MissilePartShapes.hugeWarhead(state.getValue(FACING))
+                : super.getShape(state, level, pos, context);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+                                        CollisionContext context) {
+        return getShape(state, level, pos, context);
     }
 
     @Override

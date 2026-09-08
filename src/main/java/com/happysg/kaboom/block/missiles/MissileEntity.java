@@ -225,6 +225,11 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
    }
 
    @Override
+   public boolean guidancePublishesRwrMissileContact() {
+      return !this.latchedInGround && !this.postLandingBallistic;
+   }
+
+   @Override
    public Vec3 guidanceVelocity() {
       return this.getDeltaMovement();
    }
@@ -440,6 +445,7 @@ public class MissileEntity extends OrientedContraptionEntity implements MissileN
          this.releaseFromLanding();
       }
       if (this.latchedInGround) {
+         this.interceptorNavigation.clearRadarRwrEmitter(this);
          this.freezeInPlace();
          this.tickWarhead();
          this.sendPreciseMotion(this.position(), Vec3.ZERO);

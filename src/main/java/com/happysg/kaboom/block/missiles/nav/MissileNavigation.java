@@ -532,6 +532,11 @@ public final class MissileNavigation {
 
       UUID guidanceUuid();
 
+      /** True only for assembled missile entities that should be exposed as RWR contacts. */
+      default boolean guidancePublishesRwrMissileContact() {
+         return false;
+      }
+
       Vec3 guidanceVelocity();
 
       int guidanceFuelMb();

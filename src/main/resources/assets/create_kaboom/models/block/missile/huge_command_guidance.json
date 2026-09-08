@@ -1,1 +1,8 @@
-{}
+{
+  "parent": "create_kaboom:block/missile/huge_solid_fuel_tank",
+  "textures": {
+    "0": "create_kaboom:block/huge_command_guidance",
+    "particle": "create_kaboom:block/huge_command_guidance"
+  },
+  "render_type": "minecraft:cutout_mipped"
+}

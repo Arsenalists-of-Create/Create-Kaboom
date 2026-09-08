@@ -3,23 +3,23 @@
   "credit": "Made with Blockbench",
   "texture_size": [32, 32],
   "textures": {
-    "0": "create_kaboom:block/huge_fluid_warhead",
-    "1": "create_kaboom:block/huge_fluid_warhead_top",
-    "2": "create_kaboom:block/huge_fluid_warhead_top",
-    "particle": "create_kaboom:block/huge_fluid_warhead_top"
+    "3": "create_kaboom:block/huge_fluid_warhead",
+    "4": "create_kaboom:block/huge_fluid_warhead_top",
+    "5": "create_kaboom:block/huge_fluid_warhead_top",
+    "particle": "create_kaboom:block/huge_fluid_warhead"
   },
   "elements": [
     {
-      "from": [-2, 0, -2],
-      "to": [18, 10, 18],
+      "from": [-1, 0, -1],
+      "to": [17, 10, 17],
       "rotation": {"angle": 0, "axis": "y", "origin": [-2, 0, -2]},
       "faces": {
-        "north": {"uv": [3, 7, 13, 12], "texture": "#0"},
-        "east": {"uv": [3, 7, 13, 12], "texture": "#0"},
-        "south": {"uv": [3, 7, 13, 12], "texture": "#0"},
-        "west": {"uv": [3, 7, 13, 12], "texture": "#0"},
-        "up": {"uv": [3, 3, 13, 13], "texture": "#1"},
-        "down": {"uv": [3, 3, 13, 13], "texture": "#1"}
+        "north": {"uv": [3.5, 7, 12.5, 12], "texture": "#3"},
+        "east": {"uv": [3.5, 7, 12.5, 12], "texture": "#3"},
+        "south": {"uv": [3.5, 7, 12.5, 12], "texture": "#3"},
+        "west": {"uv": [3.5, 7, 12.5, 12], "texture": "#3"},
+        "up": {"uv": [3.5, 3.5, 12.5, 12.5], "texture": "#4"},
+        "down": {"uv": [3.5, 3.5, 12.5, 12.5], "texture": "#4"}
       }
     },
     {
@@ -27,14 +27,15 @@
       "to": [13, 16, 13],
       "rotation": {"angle": 0, "axis": "y", "origin": [3, 10, 3]},
       "faces": {
-        "north": {"uv": [5.5, 4, 10.5, 7], "texture": "#0"},
-        "east": {"uv": [5.5, 4, 10.5, 7], "texture": "#0"},
-        "south": {"uv": [5.5, 4, 10.5, 7], "texture": "#0"},
-        "west": {"uv": [5.5, 4, 10.5, 7], "texture": "#0"},
-        "up": {"uv": [3, 3, 13, 13], "texture": "#2"}
+        "north": {"uv": [5.5, 4, 10.5, 7], "texture": "#3"},
+        "east": {"uv": [5.5, 4, 10.5, 7], "texture": "#3"},
+        "south": {"uv": [5.5, 4, 10.5, 7], "texture": "#3"},
+        "west": {"uv": [5.5, 4, 10.5, 7], "texture": "#3"},
+        "up": {"uv": [3, 3, 13, 13], "texture": "#5"}
       }
     }
   ],
+  "render_type": "minecraft:cutout_mipped",
   "display": {
     "thirdperson_righthand": {
       "rotation": [75, 45, 0],

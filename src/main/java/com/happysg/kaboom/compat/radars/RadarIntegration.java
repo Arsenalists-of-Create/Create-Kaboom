@@ -85,4 +85,12 @@ public interface RadarIntegration {
 
     default void removeRadarEmitter(ServerLevel level, UUID emitterId) {
     }
+
+    /** Publishes one assembled guided missile as a selectable airborne RWR emitter. */
+    default void updateGuidedMissileEmitter(ServerLevel level, UUID missileId, Vec3 position,
+                                            @Nullable UUID targetShipId, ThreatStage stage) {
+    }
+
+    default void removeGuidedMissileEmitter(ServerLevel level, UUID missileId) {
+    }
 }

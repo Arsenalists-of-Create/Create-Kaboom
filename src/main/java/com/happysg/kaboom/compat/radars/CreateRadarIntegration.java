@@ -57,6 +57,10 @@ final class CreateRadarIntegration implements RadarIntegration {
     private static final int LEGACY_RADAR_SEARCH_RADIUS_BLOCKS = 512;
     private static final int EXTERNAL_EMITTER_TTL_TICKS = 5;
     private static final String EXTERNAL_EMITTER_PREFIX = "create_kaboom:radar_guidance:";
+    private static final String GUIDED_MISSILE_EMITTER_PREFIX = "create_kaboom:guided_missile:";
+    private static final double GUIDED_MISSILE_RWR_RANGE_BLOCKS = 300.0D;
+    private static final float GUIDED_MISSILE_ROLLING_RPM = 128.0F;
+    private static final float GUIDED_MISSILE_ROLLING_RATE = 128.0F;
 
     private record RankedAradContact(
             ARADTargeting.NativeRadarContact contact,
@@ -229,6 +233,42 @@ final class CreateRadarIntegration implements RadarIntegration {
     }
 
     @Override
+    public void updateGuidedMissileEmitter(ServerLevel level, UUID missileId, Vec3 position,
+                                           @Nullable UUID targetShipId, ThreatStage stage) {
+        if (level == null || missileId == null || targetShipId == null || position == null
+                || stage == null) {
+            return;
+        }
+        ExternalRwrEmitterRegistry.heartbeat(
+                level,
+                new ExternalRwrEmitterRegistry.EmitterState(
+                        guidedMissileEmitterSourceId(missileId),
+                        position,
+                        new Vec3(0.0D, 1.0D, 0.0D),
+                        GUIDED_MISSILE_RWR_RANGE_BLOCKS,
+                        180.0D,
+                        targetShipId,
+                        ExternalRwrEmitterRegistry.ThreatStage.valueOf(stage.name()),
+                        RadarType.AIRBORNE,
+                        true,
+                        new ExternalRwrEmitterRegistry.SelectionMetadata(
+                                missileId,
+                                GUIDED_MISSILE_ROLLING_RPM,
+                                GUIDED_MISSILE_ROLLING_RATE
+                        )
+                ),
+                EXTERNAL_EMITTER_TTL_TICKS
+        );
+    }
+
+    @Override
+    public void removeGuidedMissileEmitter(ServerLevel level, UUID missileId) {
+        if (level != null && missileId != null) {
+            ExternalRwrEmitterRegistry.remove(level, guidedMissileEmitterSourceId(missileId));
+        }
+    }
+
+    @Override
     public MovingTargetResolver.TargetData resolveLegacyRadarTarget(ServerLevel level,
                                                                     @Nullable BlockPos radarGuidancePos,
                                                                     Vec3 missilePosition) {
@@ -274,6 +314,12 @@ final class CreateRadarIntegration implements RadarIntegration {
             return null;
         }
 
+        ExternalRwrEmitterRegistry.EmitterState external =
+                resolveExternalAradEmitter(level, targetReference);
+        if (external != null) {
+            return external.position();
+        }
+
         BlockPos radarPos = targetReference.radarPos();
         IRadar radar = resolveAradRadar(level, targetReference);
         if (radar == null) {
@@ -308,6 +354,11 @@ final class CreateRadarIntegration implements RadarIntegration {
     @Override
     @Nullable
     public Vec3 resolveAradEmitterPosition(ServerLevel level, ARADTargetReference targetReference) {
+        ExternalRwrEmitterRegistry.EmitterState external =
+                resolveExternalAradEmitter(level, targetReference);
+        if (external != null) {
+            return external.position();
+        }
         IRadar radar = resolveAradRadar(level, targetReference);
         if (radar == null) {
             return null;
@@ -330,6 +381,25 @@ final class CreateRadarIntegration implements RadarIntegration {
         }
         return targetReference.emitterId() == null || targetReference.emitterId().equals(radar.getEmitterId())
                 ? radar
+                : null;
+    }
+
+    @Nullable
+    private static ExternalRwrEmitterRegistry.EmitterState resolveExternalAradEmitter(
+            ServerLevel level,
+            ARADTargetReference targetReference
+    ) {
+        if (level == null || targetReference == null || !targetReference.isValid()
+                || targetReference.emitterId() == null) {
+            return null;
+        }
+        ExternalRwrEmitterRegistry.EmitterState state = ExternalRwrEmitterRegistry
+                .resolveSelectable(level, targetReference.sourceId())
+                .orElse(null);
+        return state != null
+                && state.selectionMetadata() != null
+                && targetReference.emitterId().equals(state.selectionMetadata().emitterId())
+                ? state
                 : null;
     }
 
@@ -540,5 +610,9 @@ final class CreateRadarIntegration implements RadarIntegration {
 
     private static String externalEmitterSourceId(UUID emitterId) {
         return EXTERNAL_EMITTER_PREFIX + emitterId;
+    }
+
+    private static String guidedMissileEmitterSourceId(UUID missileId) {
+        return GUIDED_MISSILE_EMITTER_PREFIX + missileId;
     }
 }
