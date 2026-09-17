@@ -195,6 +195,14 @@ public final class  MovingTargetInterceptorNavigation {
             return this.lastCommand;
          } else {
             MovingTargetResolver.TargetData target = MovingTargetResolver.resolve(serverLevel, this.guidanceData, pos);
+            if (this.hasLockedRadarTarget()) {
+               Vec3 seekerForward = this.state == MovingTargetInterceptorNavigation.State.BOOST
+                  ? this.launchDirection : this.currentOrLaunchDirection(vel);
+               target = MovingTargetResolver.applyRadarJamming(
+                  serverLevel, this.guidanceData, pos, seekerForward,
+                  this.radarTrackingRangeBlocks(),
+                  this.radarTrackingHalfAngleDegrees(), target);
+            }
             this.updateCommandChaffState(serverLevel, target);
             if (serverLevel.getGameTime() < this.chaffSuppressedUntilTick) {
                if (!this.chaffActiveLastTick && this.hasLockedRadarTarget()) {
@@ -613,12 +621,29 @@ public final class  MovingTargetInterceptorNavigation {
          || this.state != MovingTargetInterceptorNavigation.State.BOOST
             && this.state != MovingTargetInterceptorNavigation.State.INTERCEPT
          || !isUsableTarget(level, target)
-         || !"sable".equalsIgnoreCase(target.category())) {
+         || this.guidanceType != MissileGuidanceType.RADAR
+            && !"sable".equalsIgnoreCase(target.category())) {
          this.clearGuidedMissileEmitter(access);
          return;
       }
 
       UUID targetShipId = parseShipId(target.id());
+      if (this.guidanceType == MissileGuidanceType.RADAR) {
+         UUID emitterId = this.radarEmitterId(access);
+         if (emitterId == null) {
+            this.clearGuidedMissileEmitter(access);
+            return;
+         }
+         Vec3 forward = safeNormalize(target.position().subtract(position), this.launchDirection);
+         boolean targetsShip = "sable".equalsIgnoreCase(target.category())
+            && targetShipId != null;
+         RadarCompatRegistry.get().updateRadarEmitter(
+            level, emitterId, position, forward,
+            this.radarTrackingRangeBlocks(), this.radarTrackingHalfAngleDegrees(),
+            targetsShip ? targetShipId : null,
+            targetsShip ? stage : RadarIntegration.ThreatStage.IN_RANGE);
+         return;
+      }
       if (targetShipId == null) {
          this.clearGuidedMissileEmitter(access);
          return;
@@ -634,7 +659,12 @@ public final class  MovingTargetInterceptorNavigation {
 
    private void clearGuidedMissileEmitter(MissileNavigation.FlightAccess access) {
       if (access.guidanceLevel() instanceof ServerLevel level) {
-         RadarCompatRegistry.get().removeGuidedMissileEmitter(level, access.guidanceUuid());
+         if (this.guidanceType == MissileGuidanceType.RADAR) {
+            UUID emitterId = this.radarEmitterId(access);
+            if (emitterId != null) RadarCompatRegistry.get().removeRadarEmitter(level, emitterId);
+         } else {
+            RadarCompatRegistry.get().removeGuidedMissileEmitter(level, access.guidanceUuid());
+         }
       }
    }
 

@@ -83,7 +83,7 @@ public class ModCreativeTabs {
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
 //            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_HUGE);
-            pOutput.accept(ModBlocks.TARGET_COORDINATOR);
+            //pOutput.accept(ModBlocks.TARGET_COORDINATOR);
         }
 
         pOutput.accept(ModBlocks.ROCKET_POD_CENTER);

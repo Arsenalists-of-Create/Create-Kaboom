@@ -100,6 +100,11 @@ neoForge {
 
 sourceSets.main.resources.srcDir 'src/generated/resources'
 
+def createRadarJar = file("lib/create_radar-${create_radar_version}.jar")
+if (!createRadarJar.exists()) {
+    throw new GradleException("Missing Create: Radar compatibility jar: ${createRadarJar}. Build the matching Create-Radar version and copy it into lib/.")
+}
+
 dependencies {
     implementation("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") {
         transitive = false
@@ -150,7 +155,7 @@ dependencies {
 
 
    // compileOnly files("lib/createbigcannons-5.11.7-mc.1.21.1.jar")
-    implementation files("lib/create_radar-${create_radar_version}.jar")
+    implementation files(createRadarJar)
 
 
 

@@ -79,6 +79,13 @@ public final class RadarTargeting {
     @Nullable
     public static Candidate acquire(ServerLevel level, SensorFrame frame, double range, double halfAngleDegrees,
                                     @Nullable UUID stickyTargetId, @Nullable UUID excludedTargetId) {
+        return select(level, frame, candidates(level, frame, range,
+                halfAngleDegrees, excludedTargetId), stickyTargetId);
+    }
+
+    public static List<Candidate> candidates(ServerLevel level, SensorFrame frame,
+                                             double range, double halfAngleDegrees,
+                                             @Nullable UUID excludedTargetId) {
         double safeRange = Math.max(1.0, range);
         AABB searchBounds = new AABB(frame.origin(), frame.origin()).inflate(safeRange);
         List<Candidate> candidates = new ArrayList<>();
@@ -105,24 +112,40 @@ public final class RadarTargeting {
             }
         }
 
+        return List.copyOf(candidates);
+    }
+
+    @Nullable
+    public static Candidate select(ServerLevel level, SensorFrame frame,
+                                   List<Candidate> candidates,
+                                   @Nullable UUID stickyTargetId) {
+        List<Candidate> ranked = new ArrayList<>(candidates == null ? List.of() : candidates);
         if (stickyTargetId != null) {
-            for (Candidate candidate : candidates) {
+            for (Candidate candidate : ranked) {
                 if (stickyTargetId.equals(candidate.id()) && hasLineOfSight(level, frame.origin(), candidate)) {
                     return candidate;
                 }
             }
         }
 
-        candidates.sort(Comparator
+        ranked.sort(Comparator
                 .comparingDouble(Candidate::alignment).reversed()
                 .thenComparingDouble(Candidate::distanceSqr)
                 .thenComparing(candidate -> candidate.id().toString()));
-        for (Candidate candidate : candidates) {
+        for (Candidate candidate : ranked) {
             if (hasLineOfSight(level, frame.origin(), candidate)) {
                 return candidate;
             }
         }
         return null;
+    }
+
+    @Nullable
+    public static Candidate candidate(SensorFrame frame, UUID id, TargetKind kind,
+                                      Vec3 position, Vec3 velocity,
+                                      double range, double halfAngleDegrees) {
+        return createCandidate(frame, id, kind, position, velocity,
+                range, halfAngleDegrees);
     }
 
     public static boolean isWithinEnvelope(Vec3 origin, Vec3 forward, Vec3 targetPosition,
@@ -170,8 +193,8 @@ public final class RadarTargeting {
     }
 
     @Nullable
-    private static Candidate candidate(SensorFrame frame, UUID id, TargetKind kind, Vec3 position, Vec3 velocity,
-                                       double range, double halfAngleDegrees) {
+    private static Candidate createCandidate(SensorFrame frame, UUID id, TargetKind kind, Vec3 position, Vec3 velocity,
+                                             double range, double halfAngleDegrees) {
         if (id == null || !isFinite(position) || !isFinite(velocity)) return null;
         Vec3 delta = position.subtract(frame.origin());
         if (!isWithinEnvelope(frame.origin(), frame.forward(), position, range, halfAngleDegrees)) return null;

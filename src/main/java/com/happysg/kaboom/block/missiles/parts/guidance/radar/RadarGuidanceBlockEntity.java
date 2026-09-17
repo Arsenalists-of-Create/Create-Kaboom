@@ -2,6 +2,7 @@ package com.happysg.kaboom.block.missiles.parts.guidance.radar;
 
 import com.happysg.kaboom.block.missiles.assembly.MissileAssemblyResult;
 import com.happysg.kaboom.block.missiles.parts.guidance.IPoweredTargetAcquisition;
+import com.happysg.kaboom.block.missiles.nav.MovingTargetResolver;
 import com.happysg.kaboom.block.missiles.util.IMissileGuidanceProvider;
 import com.happysg.kaboom.block.missiles.util.MissileFlightProfile;
 import com.happysg.kaboom.block.missiles.util.MissileGuidanceData;
@@ -9,6 +10,8 @@ import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
 import com.happysg.kaboom.compat.radars.RadarIntegration;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
@@ -60,18 +63,40 @@ public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGui
 
       this.lastAcquisitionTick = gameTime;
       RadarTargeting.SensorFrame frame = RadarTargeting.sensorFrame(level, result);
-      RadarCompatRegistry.get()
-         .updateRadarEmitter(
-            level,
-            this.rwrEmitterId,
-            frame.origin(),
-            frame.forward(),
-            configuredRange(),
-            configuredHalfAngleDegrees(),
-            null,
-            RadarIntegration.ThreatStage.LOCKED
-         );
-      RadarTargeting.Candidate candidate = RadarTargeting.acquire(level, frame, configuredRange(), configuredHalfAngleDegrees(), this.candidateTargetId);
+      List<RadarTargeting.Candidate> rawCandidates = RadarTargeting.candidates(
+         level, frame, configuredRange(), configuredHalfAngleDegrees(), null);
+      List<MovingTargetResolver.TargetData> rawTracks = rawCandidates.stream()
+         .map(raw -> new MovingTargetResolver.TargetData(
+            raw.id().toString(), raw.kind().name().toLowerCase(), raw.position(),
+            raw.velocity(), gameTime, true, "radar_acquisition"))
+         .toList();
+      List<MovingTargetResolver.TargetData> reported = RadarCompatRegistry.get()
+         .reportRadarTracks(level, this.rwrEmitterId, frame.origin(), frame.forward(),
+            configuredRange(), configuredHalfAngleDegrees(), rawTracks);
+      List<RadarTargeting.Candidate> reportedCandidates = new ArrayList<>();
+      for (MovingTargetResolver.TargetData observation : reported) {
+         try {
+            UUID id = UUID.fromString(observation.id());
+            RadarTargeting.TargetKind kind = "sable".equalsIgnoreCase(observation.category())
+               ? RadarTargeting.TargetKind.SABLE : RadarTargeting.TargetKind.ENTITY;
+            RadarTargeting.Candidate converted = RadarTargeting.candidate(
+               frame, id, kind, observation.position(), observation.velocity(),
+               configuredRange(), configuredHalfAngleDegrees());
+            if (converted != null) reportedCandidates.add(converted);
+         } catch (IllegalArgumentException ignored) {
+         }
+      }
+      RadarTargeting.Candidate candidate = RadarTargeting.select(
+         level, frame, reportedCandidates, this.candidateTargetId);
+      boolean hasShipLock = candidate != null
+         && candidate.kind() == RadarTargeting.TargetKind.SABLE
+         && candidate.id().equals(this.lockedTargetId);
+      UUID targetShipId = hasShipLock ? candidate.id() : null;
+      RadarCompatRegistry.get().updateRadarEmitter(
+         level, this.rwrEmitterId, frame.origin(), frame.forward(),
+         configuredRange(), configuredHalfAngleDegrees(), targetShipId,
+         hasShipLock ? RadarIntegration.ThreatStage.LOCKED
+            : RadarIntegration.ThreatStage.IN_RANGE);
       if (candidate == null || this.candidateTargetId != null && !candidate.id().equals(this.candidateTargetId)) {
          if (this.candidateTargetId != null && ++this.candidateMissTicks <= 5) {
             return false;
@@ -128,7 +153,8 @@ public class RadarGuidanceBlockEntity extends BlockEntity implements IMissileGui
    }
 
    public void setRemoved() {
-      this.removeRwrEmitter();
+      // Keep the short-lived heartbeat alive across assembly so the launched
+      // missile can take over the same emitter source without a jammer gap.
       super.setRemoved();
    }
 

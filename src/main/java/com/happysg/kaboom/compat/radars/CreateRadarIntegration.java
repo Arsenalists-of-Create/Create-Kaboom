@@ -22,6 +22,7 @@ import com.happysg.radar.block.radar.track.RadarTrack;
 import com.happysg.radar.block.radar.track.TrackCategory;
 import com.happysg.radar.api.arad.ARADTargeting;
 import com.happysg.radar.api.arad.ARADTargetDesignationEvent;
+import com.happysg.radar.api.jamming.DirectionalJammingApi;
 import com.happysg.radar.api.weapon.WeaponShotAdapterRegistry;
 import com.happysg.radar.chaff.ChaffLockAdapter;
 import com.happysg.radar.chaff.ChaffLockRegistry;
@@ -219,7 +220,12 @@ final class CreateRadarIntegration implements RadarIntegration {
                         targetShipId,
                         ExternalRwrEmitterRegistry.ThreatStage.valueOf(stage.name()),
                         RadarType.AIRBORNE,
-                        true
+                        true,
+                        new ExternalRwrEmitterRegistry.SelectionMetadata(
+                                emitterId,
+                                GUIDED_MISSILE_ROLLING_RPM,
+                                GUIDED_MISSILE_ROLLING_RATE
+                        )
                 ),
                 EXTERNAL_EMITTER_TTL_TICKS
         );
@@ -290,7 +296,7 @@ final class CreateRadarIntegration implements RadarIntegration {
                 LevelChunk chunk = level.getChunk(chunkX, chunkZ);
                 for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
                     if (!(blockEntity instanceof IRadar radar) || !radar.isRunning()) continue;
-                    for (RadarTrack track : radar.getTracks()) {
+                    for (RadarTrack track : radar.getReportedTracks()) {
                         if (track == null || track.getPosition() == null) continue;
                         int age = (int) Math.max(0L, now - track.getScannedTime());
                         if (age > timeout || track.getPosition().distanceTo(origin) > radius) continue;
@@ -564,31 +570,90 @@ final class CreateRadarIntegration implements RadarIntegration {
         long scannedTime = track.getScannedTime();
 
         UUID uuid = parseUuid(id);
+        Vec3 canonicalPosition = null;
+        Vec3 canonicalVelocity = null;
+        boolean live = false;
+        String source = "track_fallback";
         if (uuid != null) {
             Entity entity = level.getEntity(uuid);
             if (entity != null && entity.isAlive()) {
-                return new MovingTargetResolver.TargetData(id, category, entity.position(),
-                        entity.getDeltaMovement(), level.getGameTime(), true, "entity");
+                canonicalPosition = entity.position();
+                canonicalVelocity = entity.getDeltaMovement();
+                live = true;
+                source = "entity";
             }
 
-            if (isFinite(fallbackPosition)) {
+            if (canonicalPosition == null && isFinite(fallbackPosition)) {
                 SubLevelAccess subLevel = SableUtils.getLoadedSubLevel(level, uuid, fallbackPosition);
                 if (subLevel != null) {
                     Vec3 position = SableUtils.getSubLevelPosition(subLevel);
                     Vec3 velocity = SableUtils.getSubLevelVelocity(level, subLevel);
                     if (isFinite(position) && isFinite(velocity)) {
-                        return new MovingTargetResolver.TargetData(id, category, position, velocity,
-                                level.getGameTime(), true, "sable");
+                        canonicalPosition = position;
+                        canonicalVelocity = velocity;
+                        live = true;
+                        source = "sable";
                     }
                 }
             }
         }
 
-        if (isFinite(fallbackPosition) && isFinite(fallbackVelocity)) {
-            return new MovingTargetResolver.TargetData(id, category, fallbackPosition, fallbackVelocity,
-                    scannedTime, false, "track_fallback");
+        DirectionalJammingApi.GuidanceObservation observation =
+                DirectionalJammingApi.resolveGuidance(track, canonicalPosition, canonicalVelocity);
+        if (observation != null && isFinite(observation.position())
+                && isFinite(observation.velocity())) {
+            return new MovingTargetResolver.TargetData(id, category,
+                    observation.position(), observation.velocity(),
+                    live ? level.getGameTime() : scannedTime, live, source,
+                    observation.jammed(), observation.synthetic());
         }
         return null;
+    }
+
+    @Override
+    public List<MovingTargetResolver.TargetData> reportRadarTracks(
+            ServerLevel level, UUID emitterId, Vec3 position, Vec3 forward,
+            double range, double halfAngleDegrees,
+            List<MovingTargetResolver.TargetData> rawTracks) {
+        if (level == null || emitterId == null || rawTracks == null) {
+            return rawTracks == null ? List.of() : List.copyOf(rawTracks);
+        }
+        Map<String, MovingTargetResolver.TargetData> canonical = new LinkedHashMap<>();
+        List<RadarTrack> tracks = new ArrayList<>();
+        for (MovingTargetResolver.TargetData raw : rawTracks) {
+            if (raw == null || !isFinite(raw.position()) || !isFinite(raw.velocity())) continue;
+            canonical.put(raw.id(), raw);
+            TrackCategory category;
+            try {
+                category = TrackCategory.valueOf(raw.category().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                category = TrackCategory.CONTRAPTION;
+            }
+            tracks.add(new RadarTrack(raw.id(), raw.position(), raw.velocity(),
+                    raw.scannedTime(), category, "create_kaboom:radar_target", 1.0F));
+        }
+        DirectionalJammingApi.EmitterContext emitter =
+                new DirectionalJammingApi.EmitterContext(
+                        externalEmitterSourceId(emitterId), emitterId, position,
+                        forward, range, (float) halfAngleDegrees);
+        List<MovingTargetResolver.TargetData> result = new ArrayList<>();
+        for (RadarTrack reported : DirectionalJammingApi.reportedTracks(level, emitter, tracks)) {
+            MovingTargetResolver.TargetData raw = canonical.get(reported.getId());
+            DirectionalJammingApi.GuidanceObservation observation =
+                    DirectionalJammingApi.resolveGuidance(reported,
+                            raw == null ? null : raw.position(),
+                            raw == null ? null : raw.velocity());
+            if (observation == null || !isFinite(observation.position())
+                    || !isFinite(observation.velocity())) continue;
+            String category = reported.getTrackCategory() == null ? "unknown"
+                    : reported.getTrackCategory().name().toLowerCase(Locale.ROOT);
+            result.add(new MovingTargetResolver.TargetData(reported.getId(), category,
+                    observation.position(), observation.velocity(),
+                    observation.scannedTime(), raw != null && raw.live(),
+                    observation.synthetic() ? "jammer_ghost" : "radar_seeker",
+                    observation.jammed(), observation.synthetic()));
+        }
+        return List.copyOf(result);
     }
 
     @Nullable

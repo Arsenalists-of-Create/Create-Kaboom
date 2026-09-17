@@ -12,6 +12,7 @@ import com.happysg.kaboom.compat.sable.SableUtils;
 import com.happysg.kaboom.config.KaboomConfig;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
 import java.util.UUID;
+import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -107,14 +108,33 @@ public final class RocketGuidanceLaunchResolver {
         MovingTargetInterceptorNavigation.RadarSeekerProfile seeker =
                 MovingTargetInterceptorNavigation.RadarSeekerProfile
                         .configuredRocket(ACQUISITION_RANGE_BLOCKS);
-        RadarTargeting.Candidate candidate = RadarTargeting.acquire(
-                level,
-                frame,
-                ACQUISITION_RANGE_BLOCKS,
-                seeker.seekerHalfAngleDegrees(),
-                null,
-                launcherId
-        );
+        UUID emitterId = UUID.randomUUID();
+        List<RadarTargeting.Candidate> rawCandidates = RadarTargeting.candidates(
+                level, frame, ACQUISITION_RANGE_BLOCKS,
+                seeker.seekerHalfAngleDegrees(), launcherId);
+        List<MovingTargetResolver.TargetData> rawTracks = rawCandidates.stream()
+                .map(raw -> new MovingTargetResolver.TargetData(
+                        raw.id().toString(), raw.kind().name().toLowerCase(),
+                        raw.position(), raw.velocity(), level.getGameTime(),
+                        true, "rocket_radar_acquisition"))
+                .toList();
+        List<MovingTargetResolver.TargetData> reported = RadarCompatRegistry.get()
+                .reportRadarTracks(level, emitterId, frame.origin(), frame.forward(),
+                        ACQUISITION_RANGE_BLOCKS, seeker.seekerHalfAngleDegrees(), rawTracks);
+        java.util.ArrayList<RadarTargeting.Candidate> candidates = new java.util.ArrayList<>();
+        for (MovingTargetResolver.TargetData observation : reported) {
+            try {
+                UUID id = UUID.fromString(observation.id());
+                RadarTargeting.TargetKind kind = "sable".equalsIgnoreCase(observation.category())
+                        ? RadarTargeting.TargetKind.SABLE : RadarTargeting.TargetKind.ENTITY;
+                RadarTargeting.Candidate converted = RadarTargeting.candidate(
+                        frame, id, kind, observation.position(), observation.velocity(),
+                        ACQUISITION_RANGE_BLOCKS, seeker.seekerHalfAngleDegrees());
+                if (converted != null) candidates.add(converted);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        RadarTargeting.Candidate candidate = RadarTargeting.select(level, frame, candidates, null);
         if (candidate == null) {
             return Resolution.rejected();
         }
@@ -122,7 +142,8 @@ public final class RocketGuidanceLaunchResolver {
         return Resolution.guided(MissileGuidanceData.radar(
                 sourcePos,
                 candidate.id(),
-                MissileFlightProfile.defaults()
+                MissileFlightProfile.defaults(),
+                emitterId
         ));
     }
 

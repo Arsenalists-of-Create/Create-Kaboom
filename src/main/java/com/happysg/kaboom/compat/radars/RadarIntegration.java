@@ -8,6 +8,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.IEventBus;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.UUID;
 
 public interface RadarIntegration {
@@ -84,6 +85,13 @@ public interface RadarIntegration {
     }
 
     default void removeRadarEmitter(ServerLevel level, UUID emitterId) {
+    }
+
+    default List<MovingTargetResolver.TargetData> reportRadarTracks(
+            ServerLevel level, UUID emitterId, Vec3 position, Vec3 forward,
+            double range, double halfAngleDegrees,
+            List<MovingTargetResolver.TargetData> rawTracks) {
+        return rawTracks == null ? List.of() : List.copyOf(rawTracks);
     }
 
     /** Publishes one assembled guided missile as a selectable airborne RWR emitter. */

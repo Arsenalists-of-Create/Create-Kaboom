@@ -27,7 +27,6 @@ import com.happysg.kaboom.block.missiles.parts.guidance.gps.GPSGuidanceBlock;
 import com.happysg.kaboom.block.missiles.parts.warhead.AbstractMissileWarhead;
 import com.happysg.kaboom.block.rocketpod.RocketPod;
 import com.happysg.kaboom.block.targetcoordinator.TargetCoordinatorBlock;
-import com.happysg.radar.compat.Mods;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.Registrate;

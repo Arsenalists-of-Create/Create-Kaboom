@@ -7,6 +7,7 @@ import com.happysg.kaboom.compat.radars.RadarCompatRegistry;
 import com.happysg.kaboom.compat.sable.SableUtils;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
 import java.util.UUID;
+import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -69,7 +70,43 @@ public final class MovingTargetResolver {
       return value != null && Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z);
    }
 
-   public static record TargetData(String id, String category, Vec3 position, Vec3 velocity, long scannedTime, boolean live, String source) {
+   @Nullable
+   public static TargetData applyRadarJamming(ServerLevel level,
+                                              MissileGuidanceData guidance,
+                                              Vec3 sensorPosition,
+                                              Vec3 sensorForward,
+                                              double range,
+                                              double halfAngleDegrees,
+                                              @Nullable TargetData rawTarget) {
+      if (guidance == null || guidance.guidanceType() != MissileGuidanceType.RADAR
+         || guidance.radarEmitterId() == null || !RadarCompatRegistry.isAvailable()) {
+         return rawTarget;
+      }
+      List<TargetData> reported = RadarCompatRegistry.get().reportRadarTracks(
+         level, guidance.radarEmitterId(), sensorPosition, sensorForward,
+         range, halfAngleDegrees, rawTarget == null ? List.of() : List.of(rawTarget));
+      if (reported.isEmpty()) return null;
+      String preferred = rawTarget == null ? null : rawTarget.id();
+      if (preferred != null) {
+         for (TargetData observation : reported) {
+            if (preferred.equals(observation.id())) return observation;
+         }
+      }
+      Vec3 forward = sensorForward.lengthSqr() > 1.0E-8 ? sensorForward.normalize() : new Vec3(0.0, 1.0, 0.0);
+      return reported.stream().min(java.util.Comparator
+         .comparingDouble((TargetData observation) -> -forward.dot(observation.position().subtract(sensorPosition).normalize()))
+         .thenComparingDouble(observation -> observation.position().distanceToSqr(sensorPosition))
+         .thenComparing(TargetData::id)).orElse(null);
+   }
+
+   public static record TargetData(String id, String category, Vec3 position, Vec3 velocity,
+                                   long scannedTime, boolean live, String source,
+                                   boolean jammed, boolean synthetic) {
+      public TargetData(String id, String category, Vec3 position, Vec3 velocity,
+                        long scannedTime, boolean live, String source) {
+         this(id, category, position, velocity, scannedTime, live, source, false, false);
+      }
+
       public int ageTicks(ServerLevel level) {
          return (int)Math.max(0L, level.getGameTime() - this.scannedTime);
       }
