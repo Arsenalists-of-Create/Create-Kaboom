@@ -1082,11 +1082,10 @@ public class MissileEntity extends OrientedContraptionEntity {
                 Vec3 oldVel = getDeltaMovement();
                 for (Map.Entry<BlockPos, Float> queued : ctx.getQueuedExplosions().entrySet()) {
                     Vec3 impactPos = Vec3.atCenterOf(queued.getKey());
-                    ImpactExplosion explosion = new ImpactExplosion(level(), this, getDamage(),
+                    com.happysg.kaboom.compat.CBCExplosionHelper.createImpactExplosion(level(), this, getDamage(),
                             impactPos.x, impactPos.y, impactPos.z,
                             queued.getValue(),
                             Explosion.BlockInteraction.DESTROY);
-                    CreateBigCannons.handleCustomExplosion(level(), explosion);
                 }
                 setContraptionMotion(oldVel);
             }
@@ -1356,8 +1355,7 @@ public class MissileEntity extends OrientedContraptionEntity {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                com.happysg.kaboom.compat.CBCExplosionHelper.createImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)

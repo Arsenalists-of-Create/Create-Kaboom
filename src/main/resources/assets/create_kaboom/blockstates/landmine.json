@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "fuzed=false": {
+      "model": "create_kaboom:block/landmine"
+    },
+    "fuzed=true": {
+      "model": "create_kaboom:block/fuzed_landmine"
+    }
+  }
+}

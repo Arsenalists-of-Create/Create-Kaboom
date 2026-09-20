@@ -242,8 +242,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                com.happysg.kaboom.compat.CBCExplosionHelper.createImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)
@@ -340,15 +339,13 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         switch (type) {
             case HE -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
             }
             case AP -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
             }
             case FRAG -> {
-                ShellExplosion explosion = new ShellExplosion(
+                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
                         4.0f / size,
@@ -357,7 +354,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                                 .munitions.damageRestriction.get()
                                 .explosiveInteraction()
                 );
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
                 if (!this.level().isClientSide) {
                     boolean noDamage = false;
                     if (!noDamage) {
@@ -421,8 +417,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
             }
             case INCENDIARY -> {
-                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
                 int fireRadius = 40 / size;
 
                 AABB area = new AABB(
@@ -481,15 +476,12 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 }
             }
             case FLUID -> {
-
-                ShellExplosion explosion = new ShellExplosion(
+                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
                         2.5f / size, false,
                         CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
                 );
-                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
-
                 spillFluid(position, getPayloadFluid());
             }
             case CLUSTER -> {
@@ -498,8 +490,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     Vec3 origin = new Vec3(position.x(), position.y(), position.z());
 
                     boolean detonatedOnImpact = this.onImpact;
-                    ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
-                    CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+                    com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
 
                     int total = 20 + random.nextInt(10);
                     int outerCount = (int) Math.ceil(total * 0.55);

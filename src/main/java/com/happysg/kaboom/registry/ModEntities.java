@@ -25,6 +25,16 @@ public class ModEntities {
                             .build(ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "missile").toString())
             );
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.happysg.kaboom.block.seamine.SeaMineEntity>> SEA_MINE =
+            ENTITIES.register("sea_mine", () ->
+                    EntityType.Builder.<com.happysg.kaboom.block.seamine.SeaMineEntity>of(com.happysg.kaboom.block.seamine.SeaMineEntity::new, MobCategory.MISC)
+                            .sized(1.2F, 1.2F)
+                            .clientTrackingRange(128)
+                            .updateInterval(1)
+                            .setShouldReceiveVelocityUpdates(true)
+                            .build(ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "sea_mine").toString())
+            );
+
     public static void register(IEventBus modEventBus) {
         ENTITIES.register(modEventBus);
     }

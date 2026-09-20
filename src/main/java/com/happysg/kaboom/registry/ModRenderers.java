@@ -15,5 +15,6 @@ public class ModRenderers {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.MISSILE.get(), MissileRenderer::new);
+        event.registerEntityRenderer(ModEntities.SEA_MINE.get(), com.happysg.kaboom.block.seamine.SeaMineEntityRenderer::new);
     }
 }

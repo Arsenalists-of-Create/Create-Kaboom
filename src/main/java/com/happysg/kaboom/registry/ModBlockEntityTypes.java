@@ -25,6 +25,7 @@ public class ModBlockEntityTypes {
                     ModBlocks.FRAG_AERIAL_BOMB,
                     ModBlocks.TINY_AERIAL_BOMB
             )
+            .renderer(() -> com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntityRenderer::new)
             .register();
     public static final BlockEntityEntry<FluidAerialBombBlockEntity> FLUID_AERIAL_BOMB_BE =
             REGISTRATE.blockEntity("fluid_aerial_bomb", FluidAerialBombBlockEntity::new)
@@ -32,7 +33,19 @@ public class ModBlockEntityTypes {
                             ModBlocks.FLUID_AERIAL_BOMB,
                             ModBlocks.SMALL_FLUID_AERIAL_BOMB
                     )
+                    .renderer(() -> com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntityRenderer::new)
                     .register();
+    public static final BlockEntityEntry<com.happysg.kaboom.block.landmine.LandmineBlockEntity> LANDMINE_BE = REGISTRATE
+            .blockEntity("landmine_be", com.happysg.kaboom.block.landmine.LandmineBlockEntity::new)
+            .validBlocks(ModBlocks.LANDMINE)
+            .renderer(() -> com.happysg.kaboom.block.landmine.LandmineBlockEntityRenderer::new)
+            .register();
+
+    public static final BlockEntityEntry<com.happysg.kaboom.block.seamine.SeaMineBlockEntity> SEA_MINE_BE = REGISTRATE
+            .blockEntity("sea_mine_be", com.happysg.kaboom.block.seamine.SeaMineBlockEntity::new)
+            .validBlocks(ModBlocks.SEA_MINE)
+            .renderer(() -> com.happysg.kaboom.block.seamine.SeaMineBlockEntityRenderer::new)
+            .register();
 
     public static final BlockEntityEntry<ThrusterBlockEntity> MISSILE_THRUSTER_BE =
             REGISTRATE.blockEntity("missile_engine",ThrusterBlockEntity::new)

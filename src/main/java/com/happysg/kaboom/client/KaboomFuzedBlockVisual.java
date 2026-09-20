@@ -1,8 +1,8 @@
 package com.happysg.kaboom.client;
 
-
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.baseTypes.AerialBombBlockEntity;
+import com.happysg.kaboom.block.aerialBombs.baseTypes.FluidAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.heavy.ApHeavyAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.heavy.ClusterHeavyAerialBombBlock;
 import com.happysg.kaboom.block.aerialBombs.heavy.FragHeavyAerialBombBlock;
@@ -13,10 +13,8 @@ import com.happysg.kaboom.block.aerialBombs.tiny.TinyAerialBombBlock;
 
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.instance.Instancer;
-
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
-
 import dev.engine_room.flywheel.lib.instance.InstanceTypes;
 import dev.engine_room.flywheel.lib.instance.OrientedInstance;
 import dev.engine_room.flywheel.lib.model.Models;
@@ -28,13 +26,9 @@ import net.minecraft.world.phys.Vec3;
 
 import rbasamoyai.createbigcannons.index.CBCBlockPartials;
 
-
-
 public class KaboomFuzedBlockVisual
         extends AbstractBlockEntityVisual<AerialBombBlockEntity>
         implements SimpleDynamicVisual {
-
-
 
     private final OrientedInstance[] fuzes;
 
@@ -51,7 +45,7 @@ public class KaboomFuzedBlockVisual
         int maxFuzes = 1;
         if (state.getBlock() instanceof TinyAerialBombBlock) {
             maxFuzes = 9;
-        } else if (state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock) {
+        } else if (state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock || state.getBlock() instanceof FluidAerialBombBlock) {
             maxFuzes = 4;
         }
 
@@ -60,7 +54,7 @@ public class KaboomFuzedBlockVisual
             this.fuzes[i] = fuzeProvider(direction).createInstance();
         }
 
-        Vec3 pos = Vec3.atLowerCornerOf(this.blockEntity.getBlockPos());
+        Vec3 pos = Vec3.atLowerCornerOf(this.getVisualPosition());
 
         if (state.getBlock() instanceof HeavyAerialBombBlock || state.getBlock() instanceof ApHeavyAerialBombBlock || state.getBlock() instanceof ClusterHeavyAerialBombBlock || state.getBlock() instanceof FragHeavyAerialBombBlock) {
             for (OrientedInstance fuze : this.fuzes) {
@@ -71,7 +65,7 @@ public class KaboomFuzedBlockVisual
 
         int count = state.hasProperty(AerialBombBlock.COUNT) ? state.getValue(AerialBombBlock.COUNT) : 1;
         boolean isTiny = state.getBlock() instanceof TinyAerialBombBlock;
-        boolean isSmall = state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock;
+        boolean isSmall = state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock || state.getBlock() instanceof FluidAerialBombBlock;
 
         double forward = 0;
         if (isSmall) {
@@ -108,6 +102,7 @@ public class KaboomFuzedBlockVisual
                 this.fuzes[i].setVisible(false);
             }
         }
+        relight(this.fuzes);
     }
 
     private Instancer<OrientedInstance> fuzeProvider(
@@ -130,7 +125,7 @@ public class KaboomFuzedBlockVisual
         BlockState state = this.blockState;
         int count = state.hasProperty(AerialBombBlock.COUNT) ? state.getValue(AerialBombBlock.COUNT) : 1;
         boolean isTiny = state.getBlock() instanceof TinyAerialBombBlock;
-        boolean isSmall = state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock;
+        boolean isSmall = state.getBlock() instanceof SmallAerialBombBlock || state.getBlock() instanceof FluidSmallAerialBombBlock || state.getBlock() instanceof FluidAerialBombBlock;
 
         for (int i = 0; i < fuzes.length; i++) {
             if (i < count) {
@@ -147,9 +142,7 @@ public class KaboomFuzedBlockVisual
     public void updateLight(
             float partialTick
     ) {
-        for (OrientedInstance fuze : fuzes) {
-            relight(fuze);
-        }
+        relight(this.fuzes);
     }
 
     @Override

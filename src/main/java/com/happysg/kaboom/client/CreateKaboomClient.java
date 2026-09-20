@@ -137,15 +137,6 @@ public final class CreateKaboomClient {
 
 
 
-            /*
-             * Fuze render для AerialBombBlockEntity
-             *
-             * Працює:
-             * Heavy
-             * Small
-             * Tiny
-             */
-
             VisualizerRegistry.setVisualizer(
                     ModBlockEntityTypes.AERIAL_BOMB.get(),
                     new SimpleBlockEntityVisualizer<>(
@@ -161,56 +152,44 @@ public final class CreateKaboomClient {
                             be -> true
                     )
             );
-
-
         });
 
-
-
-
-
-
         VisualizerRegistry.setVisualizer(
-
                 ModEntities.MISSILE.get(),
-
                 new SimpleEntityVisualizer<MissileEntity>(
                         ContraptionVisual::new,
                         entity -> false
                 )
-
         );
-
     }
-
-
-
-
-
-
 
     private static void registerAdditionalModels(
             final ModelEvent.RegisterAdditional event
     ) {
-
-
-
         event.register(
-
                 ModelResourceLocation.standalone(
-
                         ResourceLocation.fromNamespaceAndPath(
-
                                 CreateKaboom.MODID,
-
                                 "block/chain_anchor"
-
                         )
-
                 )
-
         );
-
+        event.register(
+                ModelResourceLocation.standalone(
+                        ResourceLocation.fromNamespaceAndPath(
+                                CreateKaboom.MODID,
+                                "block/sea_mine_body"
+                        )
+                )
+        );
+        event.register(
+                ModelResourceLocation.standalone(
+                        ResourceLocation.fromNamespaceAndPath(
+                                CreateKaboom.MODID,
+                                "block/sea_mine_horns"
+                        )
+                )
+        );
     }
 
 

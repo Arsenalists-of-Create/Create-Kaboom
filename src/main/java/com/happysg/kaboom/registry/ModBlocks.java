@@ -60,6 +60,41 @@ public class ModBlocks {
     public static final BlockEntry<TinyAerialBombBlock> TINY_AERIAL_BOMB =
             bomb("tiny_aerial_bomb", TinyAerialBombBlock::new).register();
 
+    public static final BlockEntry<com.happysg.kaboom.block.landmine.LandmineBlock> LANDMINE = REGISTRATE.block("landmine", com.happysg.kaboom.block.landmine.LandmineBlock::new)
+            .properties(p -> net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                    .mapColor(net.minecraft.world.level.material.MapColor.METAL)
+                    .strength(0.5F, 1.0F)
+                    .sound(net.minecraft.world.level.block.SoundType.METAL)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.IGNORE)
+                    .noOcclusion())
+            .addLayer(() -> net.minecraft.client.renderer.RenderType::cutoutMipped)
+            .loot((lt, block) -> lt.dropSelf(block))
+            .blockstate((c, p) -> p.getVariantBuilder(c.get())
+                    .forAllStates(state -> {
+                        String fuzed = state.getValue(com.happysg.kaboom.block.landmine.LandmineBlock.FUZED) ? "fuzed_" : "";
+                        return ConfiguredModel.builder()
+                                .modelFile(p.models().getExistingFile(CreateKaboom.asResource("block/" + fuzed + "landmine")))
+                                .build();
+                    }))
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<com.happysg.kaboom.block.seamine.SeaMineBlock> SEA_MINE = REGISTRATE.block("sea_mine", com.happysg.kaboom.block.seamine.SeaMineBlock::new)
+            .properties(p -> net.minecraft.world.level.block.state.BlockBehaviour.Properties.of()
+                    .mapColor(net.minecraft.world.level.material.MapColor.METAL)
+                    .strength(0.5F, 1.0F)
+                    .sound(net.minecraft.world.level.block.SoundType.METAL)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.IGNORE)
+                    .noOcclusion())
+            .addLayer(() -> net.minecraft.client.renderer.RenderType::cutoutMipped)
+            .loot((lt, block) -> lt.dropSelf(block))
+            .blockstate((c, p) -> p.getVariantBuilder(c.get())
+                    .forAllStates(state -> ConfiguredModel.builder()
+                            .modelFile(p.models().getExistingFile(CreateKaboom.asResource("block/sea_mine")))
+                            .build()))
+            .simpleItem()
+            .register();
+
     public static void register() {
         CreateKaboom.getLogger().info("Registering blocks!");
     }

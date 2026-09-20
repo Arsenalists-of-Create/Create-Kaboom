@@ -53,6 +53,9 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
+        pOutput.accept(ModBlocks.LANDMINE);
+        pOutput.accept(ModBlocks.SEA_MINE);
+        pOutput.accept(ModItems.MINE_FUZE);
     }
 
     public static void register(IEventBus eventBus) {

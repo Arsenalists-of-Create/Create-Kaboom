@@ -11,7 +11,9 @@ public class NetworkHandler {
     public static void register(RegisterPayloadHandlersEvent event) {
         var registrar = event.registrar("1");
         registrar.playToServer(AltitudeFuzePacket.TYPE, AltitudeFuzePacket.STREAM_CODEC, AltitudeFuzePacket::handle);
+        registrar.playToServer(com.happysg.kaboom.items.MineFuzePacket.TYPE, com.happysg.kaboom.items.MineFuzePacket.STREAM_CODEC, com.happysg.kaboom.items.MineFuzePacket::handle);
         registrar.playToServer(GPSGuidancePacket.TYPE, GPSGuidancePacket.STREAM_CODEC, GPSGuidancePacket::handle);
+        registrar.playToServer(com.happysg.kaboom.block.seamine.SeaMinePacket.TYPE, com.happysg.kaboom.block.seamine.SeaMinePacket.STREAM_CODEC, com.happysg.kaboom.block.seamine.SeaMinePacket::handle);
         registrar.playToClient(PreciseMotionSyncPacket.TYPE, PreciseMotionSyncPacket.STREAM_CODEC, PreciseMotionSyncPacket::handle);
         registrar.playToClient(ChainSystemSyncPacket.TYPE, ChainSystemSyncPacket.STREAM_CODEC, ChainSystemSyncPacket::handle);
     }
