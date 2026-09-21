@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "createbigcannons:he_shell"
+    },
+    {
+      "item": "createbigcannons:he_shell"
+    },
+    {
+      "item": "createbigcannons:he_shell"
+    },
+    {
+      "item": "createbigcannons:he_shell"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:huge_high_explosive_warhead"
+  }
+}

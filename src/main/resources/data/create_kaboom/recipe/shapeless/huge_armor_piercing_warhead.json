@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "createbigcannons:ap_shell"
+    },
+    {
+      "item": "createbigcannons:ap_shell"
+    },
+    {
+      "item": "createbigcannons:ap_shell"
+    },
+    {
+      "item": "createbigcannons:ap_shell"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:huge_armor_piercing_warhead"
+  }
+}

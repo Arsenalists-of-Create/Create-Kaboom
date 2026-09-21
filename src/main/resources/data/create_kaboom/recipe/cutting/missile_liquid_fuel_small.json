@@ -1,0 +1,15 @@
+{
+  "type": "create:cutting",
+  "ingredients": [
+    {
+      "item": "create_kaboom:missile_liquid_fuel_large"
+    }
+  ],
+  "processing_time": 200,
+  "results": [
+    {
+      "count": 3,
+      "id": "create_kaboom:missile_liquid_fuel_small"
+    }
+  ]
+}

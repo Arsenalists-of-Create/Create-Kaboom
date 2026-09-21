@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "create:iron_sheet"
+    },
+    "G": {
+      "item": "create:precision_mechanism"
+    },
+    "B": {
+      "item": "minecraft:quartz_slab"
+    },
+    "F": {
+      "item": "minecraft:lightning_rod"
+    }
+  },
+  "pattern": [
+    "PBP",
+    "PFP",
+    "PGP"
+  ],
+  "result": {
+    "id": "create_kaboom:radar_guidance_large"
+  },
+  "show_notification": true
+}

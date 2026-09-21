@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "createbigcannons:fluid_shell"
+    },
+    {
+      "item": "createbigcannons:fluid_shell"
+    },
+    {
+      "item": "createbigcannons:fluid_shell"
+    },
+    {
+      "item": "createbigcannons:fluid_shell"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:huge_fluid_warhead"
+  }
+}

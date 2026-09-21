@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create_kaboom:gps_guidance_large"
+    },
+    {
+      "item": "create_kaboom:gps_guidance_large"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:gps_guidance_huge"
+  }
+}

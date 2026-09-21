@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "createbigcannons:ap_shell"
+    },
+    "G": {
+      "item": "missile_liquid_fuel_small"
+    },
+    "B": {
+      "item": "create_kaboom:missile_liquid_thruster_small"
+    }
+  },
+  "pattern": [
+    "P",
+    "G",
+    "B"
+  ],
+  "result": {
+    "count": 4,
+    "id": "create_kaboom:rocket.payload.ap"
+  },
+  "show_notification": true
+}
