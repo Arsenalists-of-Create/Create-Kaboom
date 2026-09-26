@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "create_kaboom:fluid_aerial_bomb"
+    }
+  },
+  "pattern": [
+    "PP",
+    "PP"
+  ],
+  "result": {
+    "id": "create_kaboom:fluid_heavy_aerial_bomb"
+  },
+  "show_notification": true
+}

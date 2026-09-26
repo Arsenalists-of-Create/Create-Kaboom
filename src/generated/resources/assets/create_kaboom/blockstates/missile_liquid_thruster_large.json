@@ -7,16 +7,16 @@
     "facing=east": {
       "model": "create_kaboom:block/missile/medium_solid_fuel_thruster",
       "x": 90,
-      "y": 270
+      "y": 90
     },
     "facing=north": {
       "model": "create_kaboom:block/missile/medium_solid_fuel_thruster",
-      "x": 90,
-      "y": 180
+      "x": 90
     },
     "facing=south": {
       "model": "create_kaboom:block/missile/medium_solid_fuel_thruster",
-      "x": 90
+      "x": 90,
+      "y": 180
     },
     "facing=up": {
       "model": "create_kaboom:block/missile/medium_solid_fuel_thruster"
@@ -24,7 +24,7 @@
     "facing=west": {
       "model": "create_kaboom:block/missile/medium_solid_fuel_thruster",
       "x": 90,
-      "y": 90
+      "y": 270
     }
   }
 }

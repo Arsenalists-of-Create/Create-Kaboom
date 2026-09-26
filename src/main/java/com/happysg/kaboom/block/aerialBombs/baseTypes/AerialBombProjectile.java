@@ -1,6 +1,9 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.happysg.kaboom.block.aerialBombs.cluster.ClusterBombletProjectile;
+import com.happysg.kaboom.compat.sable.SableUtils;
+import com.happysg.kaboom.interception.InterceptableOrdnance;
+import com.happysg.kaboom.interception.OrdnanceInterceptionState;
 import com.happysg.kaboom.registry.ModBlocks;
 import com.happysg.kaboom.registry.ModProjectiles;
 import com.happysg.kaboom.registry.ModTags;
@@ -10,18 +13,21 @@ import net.minecraft.core.Position;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -58,15 +64,20 @@ import rbasamoyai.createbigcannons.utils.CBCUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Predicate;
 
-public class AerialBombProjectile extends AbstractCannonProjectile {
+public class AerialBombProjectile extends AbstractCannonProjectile implements InterceptableOrdnance {
 
+    private static final double FUZE_ARMING_FALL_DISTANCE = 10.0;
+    private static final String FUZE_MAX_HEIGHT_TAG = "FuzeMaxHeight";
+    // Approximate impact speed after a 100-block fall with this projectile's default gravity and drag.
+    private static final double AP_REFERENCE_IMPACT_SPEED = 3.85;
+    private static final int SMALL_AP_REFERENCE_DEPTH = 20;
+    private static final int HEAVY_AP_REFERENCE_DEPTH = 50;
     public static final BallisticPropertiesComponent BALLISTIC_PROPERTIES = new BallisticPropertiesComponent(-0.1, .01, false, 2.0f, 1, 1, 0.70f);
     public static final EntityDamagePropertiesComponent DAMAGE_PROPERTIES = new EntityDamagePropertiesComponent(30, false, true, true, 2);
 
-    protected static final EntityDataAccessor<Integer> TIME_REQUIRED = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
-    protected static final EntityDataAccessor<Integer> TIME = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.INT);
     protected static final EntityDataAccessor<BlockState> STATE = SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.BLOCK_STATE);
     private EndFluidStack fluidStack;
     private ItemStack fuze;
@@ -76,11 +87,23 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     private int count;
     boolean onImpact = false;
     private int apRemaining = 0;
+    private boolean apPenetrationInitialized = false;
+    @Nullable
+    private UUID sourceSubLevelId = null;
+    private int carrierCollisionGraceTicks = 0;
+    private double fuzeMaxHeight = Double.NaN;
+    private Vec3 previousRenderVelocity = Vec3.ZERO;
+    private final OrdnanceInterceptionState interceptionState = new OrdnanceInterceptionState();
 
     public AerialBombProjectile(EntityType<? extends AbstractCannonProjectile> type, Level level) {
         super(type, level);
         this.fuze = ItemStack.EMPTY;
         this.explosionCountdown = -1;
+    }
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        return this.interceptionState.hurt(this, source, amount, () -> this.detonate(this.position()));
     }
 
     public void setFluidStack(EndFluidStack fstack) {
@@ -100,8 +123,6 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(TIME, 0);
-        builder.define(TIME_REQUIRED, 10);
         builder.define(STATE, ModBlocks.HEAVY_AERIAL_BOMB.getDefaultState());
         builder.define(PAYLOAD_FLUID, new CompoundTag());
     }
@@ -114,20 +135,25 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         return this.entityData.get(STATE);
     }
 
-    public int getTime() {
-        return this.entityData.get(TIME);
-    }
-
-    public int getTimeRequired() {
-        return this.entityData.get(TIME_REQUIRED);
-    }
-
     public void setFuze(ItemStack stack) {
         this.fuze = stack != null && !stack.isEmpty() ? stack : ItemStack.EMPTY;
     }
 
     public void setSize(int size) {
-        this.size = size;
+        this.size = Math.max(1, size);
+        resetApPenetrationBudget();
+    }
+
+    public void initializeCarrierCollisionGrace(@Nullable UUID sourceSubLevelId, int graceTicks) {
+        this.sourceSubLevelId = sourceSubLevelId;
+        this.carrierCollisionGraceTicks = sourceSubLevelId == null ? 0 : Math.max(0, graceTicks);
+    }
+
+    public ClipContext configureLaunchCollisionContext(ClipContext context) {
+        if (carrierCollisionGraceTicks > 0) {
+            SableUtils.ignoreSubLevel(context, sourceSubLevelId);
+        }
+        return context;
     }
 
     public enum BombType {
@@ -141,20 +167,38 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
     public void setBombType(BombType type) {
         this.type = type;
-        if (type == BombType.AP) {
-            apRemaining = 20;
+        resetApPenetrationBudget();
+    }
+
+    private void resetApPenetrationBudget() {
+        apRemaining = 0;
+        apPenetrationInitialized = false;
+    }
+
+    private void initializeApPenetrationBudget(double impactSpeed) {
+        if (type != BombType.AP || apPenetrationInitialized) {
+            return;
         }
+        int referenceDepth = size == 1
+                ? HEAVY_AP_REFERENCE_DEPTH
+                : SMALL_AP_REFERENCE_DEPTH;
+        apRemaining = Math.max(0, (int) Math.round(
+                referenceDepth * impactSpeed / AP_REFERENCE_IMPACT_SPEED));
+        apPenetrationInitialized = true;
     }
 
     public void tick() {
+        this.updateFuzeMaxHeight();
+        this.previousRenderVelocity = this.getDeltaMovement();
         super.tick();
+        this.updateFuzeMaxHeight();
+
+        if (this.carrierCollisionGraceTicks > 0) {
+            --this.carrierCollisionGraceTicks;
+        }
 
         if (!this.level().isClientSide && this.explosionCountdown > 0) {
             --this.explosionCountdown;
-        }
-
-        if (!level().isClientSide) {
-            this.entityData.set(TIME, this.entityData.get(TIME) + 1);
         }
 
         if (this.canDetonate((fz) -> fz.onProjectileTick(this.fuze, this)) || !this.level().isClientSide && this.explosionCountdown == 0) {
@@ -177,7 +221,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         Vec3 normal = CBCUtils.getSurfaceNormalVector(this.level(), blockHitResult);
         double incidence = Math.max(0, curVel.normalize().dot(normal.reverse()));
-        double velMag = (curVel.length());
+        double velMag = curVel.length();
+        initializeApPenetrationBudget(velMag * incidence);
         if(type == BombType.AP) velMag = velMag*((double) 17 /size);
         double mass = this.getProjectileMass();
 
@@ -197,7 +242,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         boolean surfaceImpact = this.canHitSurface();
         boolean canBounce = CBCConfigs.server().munitions.projectilesCanBounce.get();
-        boolean blockBroken = toughnessPenalty < 1e-2d && !unbreakable;
+        boolean hasPenetrationRemaining = type != BombType.AP || apRemaining > 0;
+        boolean blockBroken = toughnessPenalty < 1e-2d && !unbreakable && hasPenetrationRemaining;
         ImpactResult.KinematicOutcome outcome;
         if (surfaceImpact && canBounce && this.level().getRandom().nextDouble() < bounceChance) {
             outcome = ImpactResult.KinematicOutcome.BOUNCE;
@@ -225,6 +271,9 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
         }
         if (blockBroken) {
+            if (!this.level().isClientSide && type == BombType.AP) {
+                --apRemaining;
+            }
             this.setProjectileMass(incidentVel < 1e-4d ? 0 : Math.max(this.getProjectileMass() - durabilityPenalty, 0));
             this.level().setBlock(pos, Blocks.AIR.defaultBlockState(), ProjectileBlock.UPDATE_ALL_IMMEDIATE);
 
@@ -242,7 +291,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2,2, Explosion.BlockInteraction.KEEP);
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)
@@ -258,7 +308,7 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
             return true;
         } else {
             boolean baseFuze = this.getFuzeProperties().baseFuze();
-            if (this.canDetonate((fz) -> fz.onProjectileClip(this.fuze, this, start, end, ctx, baseFuze))) {
+            if (this.canDetonateAt(end.y, (fz) -> fz.onProjectileClip(this.fuze, this, start, end, ctx, baseFuze))) {
                 this.detonate(start);
                 return true;
             } else {
@@ -272,7 +322,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         boolean baseFuze = this.getFuzeProperties().baseFuze();
         ImpactResult fuzeImpact = new ImpactResult(impactResult.kinematics(), false);
         this.onImpact = true;
-        if (this.canDetonate((fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, fuzeImpact, baseFuze))) {
+        if (this.canDetonateAt(hitResult.getLocation().y,
+                (fz) -> fz.onProjectileImpact(this.fuze, this, hitResult, fuzeImpact, baseFuze))) {
             this.detonate(hitResult.getLocation());
             return true;
         } else {
@@ -297,24 +348,69 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        this.interceptionState.save(tag);
         tag.put("Fuze", this.fuze.saveOptional(this.registryAccess()));
         tag.put("PayloadFluid", this.entityData.get(PAYLOAD_FLUID));
         if (this.explosionCountdown >= 0) {
             tag.putInt("ExplosionCountdown", this.explosionCountdown);
+        }
+        if (this.sourceSubLevelId != null) {
+            tag.putUUID("SourceSubLevel", this.sourceSubLevelId);
+        }
+        if (this.carrierCollisionGraceTicks > 0) {
+            tag.putInt("CarrierCollisionGraceTicks", this.carrierCollisionGraceTicks);
+        }
+        if (Double.isFinite(this.fuzeMaxHeight)) {
+            tag.putDouble(FUZE_MAX_HEIGHT_TAG, this.fuzeMaxHeight);
         }
 
     }
 
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.interceptionState.load(tag);
         this.fuze = ItemStack.parseOptional(this.registryAccess(), tag.getCompound("Fuze"));
         this.explosionCountdown = tag.contains("ExplosionCountdown", 3) ? tag.getInt("ExplosionCountdown") : -1;
+        this.sourceSubLevelId = tag.hasUUID("SourceSubLevel") ? tag.getUUID("SourceSubLevel") : null;
+        this.carrierCollisionGraceTicks = this.sourceSubLevelId == null
+                ? 0
+                : Math.max(0, tag.getInt("CarrierCollisionGraceTicks"));
+        this.fuzeMaxHeight = tag.contains(FUZE_MAX_HEIGHT_TAG, Tag.TAG_DOUBLE)
+                ? tag.getDouble(FUZE_MAX_HEIGHT_TAG)
+                : Double.NaN;
         if (tag.contains("PayloadFluid", Tag.TAG_COMPOUND))
             this.entityData.set(PAYLOAD_FLUID, tag.getCompound("PayloadFluid"));
 
     }
 
+    @Override
+    public void writeSpawnData(RegistryFriendlyByteBuf buffer) {
+        super.writeSpawnData(buffer);
+        buffer.writeBoolean(this.sourceSubLevelId != null);
+        if (this.sourceSubLevelId != null) {
+            buffer.writeUUID(this.sourceSubLevelId);
+        }
+        buffer.writeVarInt(this.carrierCollisionGraceTicks);
+    }
+
+    @Override
+    public void readSpawnData(RegistryFriendlyByteBuf buffer) {
+        super.readSpawnData(buffer);
+        this.sourceSubLevelId = buffer.readBoolean() ? buffer.readUUID() : null;
+        int graceTicks = buffer.readVarInt();
+        this.carrierCollisionGraceTicks = this.sourceSubLevelId == null
+                ? 0
+                : Math.max(0, graceTicks);
+    }
+
     protected final boolean canDetonate(Predicate<FuzeItem> cons) {
+        return this.canDetonateAt(this.getY(), cons);
+    }
+
+    private boolean canDetonateAt(double candidateY, Predicate<FuzeItem> cons) {
+        if (!this.hasReachedFuzeArmingDistance(candidateY)) {
+            return false;
+        }
         if (!this.level().isClientSide && this.level().isLoaded(this.blockPosition()) && !this.isRemoved()) {
             Item item = this.fuze.getItem();
             if (item instanceof FuzeItem fuzeItem) {
@@ -323,6 +419,20 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
         }
 
         return false;
+    }
+
+    private void updateFuzeMaxHeight() {
+        if (this.level().isClientSide) {
+            return;
+        }
+        this.fuzeMaxHeight = Double.isFinite(this.fuzeMaxHeight)
+                ? Math.max(this.fuzeMaxHeight, this.getY())
+                : this.getY();
+    }
+
+    private boolean hasReachedFuzeArmingDistance(double candidateY) {
+        return Double.isFinite(this.fuzeMaxHeight)
+                && this.fuzeMaxHeight - candidateY >= FUZE_ARMING_FALL_DISTANCE;
     }
 
     @Deprecated
@@ -339,21 +449,24 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
         switch (type) {
             case HE -> {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 25 / size,(float) 25 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case AP -> {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), (float) 15 / size,(float) 15 / size, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             case FRAG -> {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(
+                ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        4.0f / size,
+                        4.0f / size,4.0f / size,
                         false,
                         CBCConfigs.server()
                                 .munitions.damageRestriction.get()
                                 .explosiveInteraction()
                 );
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
                 if (!this.level().isClientSide) {
                     boolean noDamage = false;
                     if (!noDamage) {
@@ -417,7 +530,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
 
             }
             case INCENDIARY -> {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 20 / size,20 / size, true, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
                 int fireRadius = 40 / size;
 
                 AABB area = new AABB(
@@ -476,12 +590,15 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 }
             }
             case FLUID -> {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(
+
+                ShellExplosion explosion = new ShellExplosion(
                         this.level(), this, this.indirectArtilleryFire(false),
                         position.x(), position.y(), position.z(),
-                        2.5f / size, false,
+                        2.5f / size,2.5f / size, false,
                         CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
                 );
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
+
                 spillFluid(position, getPayloadFluid());
             }
             case CLUSTER -> {
@@ -490,7 +607,8 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                     Vec3 origin = new Vec3(position.x(), position.y(), position.z());
 
                     boolean detonatedOnImpact = this.onImpact;
-                    com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                    ShellExplosion explosion = new ShellExplosion(this.level(), this, this.indirectArtilleryFire(false), position.x(), position.y(), position.z(), 10,10, false, CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction());
+                    CreateBigCannons.handleCustomExplosion(this.level(), explosion);
 
                     int total = 20 + random.nextInt(10);
                     int outerCount = (int) Math.ceil(total * 0.55);
@@ -651,6 +769,17 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
     public Direction getFacing() {
         return this.getState().getValue(BlockStateProperties.HORIZONTAL_FACING);
     }
+
+    public Vec3 getInterpolatedRenderVelocity(float partialTicks) {
+        Vec3 currentVelocity = this.getDeltaMovement();
+        if (this.previousRenderVelocity.lengthSqr() < Mth.EPSILON) {
+            return currentVelocity;
+        }
+
+        Vec3 interpolatedVelocity = this.previousRenderVelocity.lerp(currentVelocity, Mth.clamp(partialTicks, 0.0F, 1.0F));
+        return interpolatedVelocity.lengthSqr() < Mth.EPSILON ? currentVelocity : interpolatedVelocity;
+    }
+
     private static final EntityDataAccessor<CompoundTag> PAYLOAD_FLUID =
             SynchedEntityData.defineId(AerialBombProjectile.class, EntityDataSerializers.COMPOUND_TAG);
 
@@ -737,6 +866,11 @@ public class AerialBombProjectile extends AbstractCannonProjectile {
                 }
             }
         }
+    }
+
+    public void detonateAsWarhead(Position position, boolean detonatedOnImpact) {
+        this.onImpact = detonatedOnImpact;
+        this.detonate(position);
     }
 
     @Nullable

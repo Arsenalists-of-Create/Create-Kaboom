@@ -1,0 +1,10 @@
+{
+  "loader": "create_kaboom:rocket",
+  "base": {
+    "parent": "create_kaboom:block/rocket/rocket"
+  },
+  "fuzed": {
+    "parent": "create_kaboom:block/rocket/rocket_fuze"
+  },
+  "body_texture": "create_kaboom:item/rocket/unguided/high_explosive_rocket"
+}

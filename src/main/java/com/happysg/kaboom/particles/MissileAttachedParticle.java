@@ -1,5 +1,6 @@
 package com.happysg.kaboom.particles;
 
+import com.happysg.kaboom.block.missiles.MissileEntity;
 import com.happysg.kaboom.block.missiles.util.MissileAttachedParticleOptions;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
@@ -37,6 +38,10 @@ public class MissileAttachedParticle extends TextureSheetParticle {
     public void tick() {
         Entity e = level.getEntity(entityId);
         if (e == null || !e.isAlive()) {
+            remove();
+            return;
+        }
+        if (e instanceof MissileEntity missile && missile.getEntityData().get(MissileEntity.FUEL_MB) <= 0) {
             remove();
             return;
         }

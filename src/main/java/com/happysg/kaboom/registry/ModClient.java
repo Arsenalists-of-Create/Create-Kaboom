@@ -3,6 +3,8 @@ package com.happysg.kaboom.registry;
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.particles.MissileAttachedParticleProvider;
 import com.happysg.kaboom.particles.MissileSmokeParticle;
+import com.happysg.kaboom.particles.MissileLaunchSmokeParticle;
+import com.happysg.kaboom.particles.RocketLaunchSmokeParticle;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -14,6 +16,8 @@ public class ModClient {
     @SubscribeEvent
     public static void registerParticleFactories(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.MISSILE_SMOKE.get(), MissileSmokeParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.MISSILE_LAUNCH_SMOKE.get(), MissileLaunchSmokeParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.ROCKET_LAUNCH_SMOKE.get(), RocketLaunchSmokeParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MISSILE_ATTACHED.get(), MissileAttachedParticleProvider::new);
     }
 }

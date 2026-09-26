@@ -1,6 +1,10 @@
 package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.block.rocketpod.RocketPod;
+import com.happysg.kaboom.compat.Mods;
+import com.happysg.kaboom.items.rocket.RocketGuidanceType;
+import com.happysg.kaboom.items.rocket.RocketPayload;
 import com.simibubi.create.AllCreativeModeTabs;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -44,13 +48,48 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.SMALL_FLUID_AERIAL_BOMB);
         pOutput.accept(ModBlocks.TINY_AERIAL_BOMB);
 
+        pOutput.accept(ModBlocks.MISSILE_THRUSTER_SMALL);
+        pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
         pOutput.accept(ModBlocks.MISSILE_THRUSTER);
         pOutput.accept(ModBlocks.MISSILE_FUEL);
+
         pOutput.accept(ModBlocks.GPS_GUIDANCE_LARGE);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_SMALL);
-        pOutput.accept(ModBlocks.MISSILE_THRUSTER_SMALL);
-        pOutput.accept(ModBlocks.HEATSEEKER_SMALL);
-        pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
+        pOutput.accept(ModBlocks.GPS_GUIDANCE_HUGE);
+
+        pOutput.accept(ModBlocks.LARGE_CLUSTER_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_HIGH_EXPLOSIVE_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_ARMOR_PIERCING_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_FRAGMENTATION_WARHEAD);
+        pOutput.accept(ModBlocks.LARGE_FLUID_WARHEAD);
+
+        pOutput.accept(ModBlocks.RADAR_GUIDANCE_SMALL);
+        pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
+
+        if (Mods.CREATE_RADAR.isLoaded()) {
+            pOutput.accept(ModBlocks.ARAD_GUIDANCE_SMALL);
+            pOutput.accept(ModBlocks.ARAD_GUIDANCE_LARGE);
+            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
+            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
+        }
+
+        pOutput.accept(ModBlocks.ROCKET_POD_CENTER);
+        pOutput.accept(ModBlocks.ROCKET_POD_REAR);
+        pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.HE));
+        pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.AP));
+        pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.SHRAPNEL));
+        pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.SMOKE));
+        pOutput.accept(ModItems.ROCKET.get().createPayloadPreset(RocketPayload.FLUID));
+        pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.COMMAND));
+        pOutput.accept(ModItems.GUIDED_ROCKET.get().createPreset(RocketPayload.HE, RocketGuidanceType.RADAR));
+
+
+        pOutput.accept(ModItems.BLUE_TRACER_TIP);
+        pOutput.accept(ModItems.RED_TRACER_TIP);
+        pOutput.accept(ModItems.GREEN_TRACER_TIP);
+        pOutput.accept(ModItems.PINK_TRACER_TIP);
+        pOutput.accept(ModItems.WHITE_TRACER_TIP);
+        pOutput.accept(ModItems.ORANGE_TRACER_TIP);
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
         pOutput.accept(ModBlocks.LANDMINE);

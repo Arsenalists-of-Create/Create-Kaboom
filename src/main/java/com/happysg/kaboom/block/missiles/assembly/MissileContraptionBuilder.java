@@ -19,7 +19,9 @@ public class MissileContraptionBuilder {
             if (be instanceof IMissileGuidanceProvider provider) {
                 MissileGuidanceData data = provider.exportGuidance();
                 c.guidanceTag = data.toTag();
-                c.guidanceTargetPoint = data.target().point();
+                if (data.target() != null) {
+                    c.guidanceTargetPoint = data.target().point();
+                }
             }
         }
 

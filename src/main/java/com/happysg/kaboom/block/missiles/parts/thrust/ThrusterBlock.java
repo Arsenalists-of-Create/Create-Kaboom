@@ -1,11 +1,14 @@
 package com.happysg.kaboom.block.missiles.parts.thrust;
 
 import com.happysg.kaboom.block.missiles.assembly.IMissileComponent;
+import com.happysg.kaboom.block.missiles.assembly.MissileSize;
+import com.happysg.kaboom.block.missiles.parts.MissilePartShapes;
+import com.happysg.kaboom.block.missiles.parts.HugeMissileReservations;
 import com.happysg.kaboom.registry.ModBlockEntityTypes;
-import com.happysg.kaboom.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -20,40 +23,56 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class ThrusterBlock extends DirectionalBlock implements IMissileComponent, EntityBlock {
-    public ThrusterBlock(Properties pProperties) {
+    private final MissileSize missileSize;
+
+    public ThrusterBlock(Properties pProperties, MissileSize missileSize) {
         super(pProperties);
+        this.missileSize = missileSize;
         registerDefaultState(super.defaultBlockState()
                 .setValue(FACING, Direction.UP));
 
     }
-    private static final VoxelShape SMALL = Block.box(3, 0, 3, 13, 16, 13);
-    private static final VoxelShape FULL  = Block.box(0, 0, 0, 16, 16, 16);
-
     @Override
     protected MapCodec<? extends DirectionalBlock> codec() {
-        return simpleCodec(ThrusterBlock::new);
+        return simpleCodec(properties -> new ThrusterBlock(properties, missileSize));
     }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return this == ModBlocks.MISSILE_THRUSTER_SMALL.get() ? SMALL : FULL;
+        Direction.Axis axis = state.getValue(FACING).getAxis();
+        return switch (missileSize) {
+            case SMALL -> MissilePartShapes.small(axis);
+            case LARGE -> MissilePartShapes.FULL;
+            case HUGE -> MissilePartShapes.hugeBody(axis);
+        };
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState s, BlockGetter l, BlockPos p, CollisionContext c) {
-        return this == ModBlocks.MISSILE_THRUSTER_SMALL.get() ? SMALL : FULL;
+        return getShape(s, l, p, c);
     }
 
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos fromPos, boolean isMoving) {
-        super.neighborChanged(state, level, pos, neighborBlock, fromPos, isMoving);
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getNearestLookingDirection().getOpposite());
+    }
 
-        if (level.isClientSide) return;
-
-        BlockEntity be = level.getBlockEntity(pos);
-
-        if (be instanceof ThrusterBlockEntity thrusterBE) {
-            thrusterBE.onRedstoneUpdated();
+    @Override
+    protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState,
+                           boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (missileSize == MissileSize.HUGE) {
+            HugeMissileReservations.reconcileOwner(level, pos, state);
         }
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState,
+                            boolean movedByPiston) {
+        if (missileSize == MissileSize.HUGE && !state.is(newState.getBlock())) {
+            HugeMissileReservations.removeForOwner(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     @Override
@@ -67,13 +86,18 @@ public class ThrusterBlock extends DirectionalBlock implements IMissileComponent
         return MissilePartType.THRUSTER;
     }
 
+    @Override
+    public MissileSize getMissileSize() {
+        return missileSize;
+    }
+
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new ThrusterBlockEntity(ModBlockEntityTypes.MISSILE_THRUSTER_BE.get(),pos, state);
     }
 
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : (lvl, p, st, be) -> {
+        return (lvl, p, st, be) -> {
             if (be instanceof ThrusterBlockEntity thruster) thruster.tick();
         };
     }

@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "create:iron_sheet"
+    },
+    "G": {
+      "item": "create:fluid_pump"
+    },
+    "B": {
+      "item": "minecraft:flint_and_steel"
+    },
+    "F": {
+      "item": "minecraft:hopper"
+    }
+  },
+  "pattern": [
+    "PBP",
+    "PGP",
+    "PFP"
+  ],
+  "result": {
+    "id": "create_kaboom:missile_liquid_thruster_huge"
+  },
+  "show_notification": true
+}

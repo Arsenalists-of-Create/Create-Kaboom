@@ -1,14 +1,16 @@
 package com.happysg.kaboom.config;
 
 import com.happysg.kaboom.CreateKaboom;
+import com.happysg.kaboom.config.client.KaboomClientConfig;
+import com.happysg.kaboom.config.server.KaboomServerConfig;
 import net.createmod.catnip.config.ConfigBase;
 import net.createmod.catnip.config.ui.BaseConfigScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.neoforge.common.ModConfigSpec;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
+import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.EnumMap;
@@ -24,10 +26,15 @@ public class KaboomConfig {
     public static KaboomClientConfig client() {
         return client;
     }
-    public static boolean DEBUG_BEAMS = false;
 
     public static KaboomServerConfig server() {
         return server;
+    }
+
+    public static boolean isServerConfigLoaded() {
+        return server != null
+                && server.specification != null
+                && server.specification.isLoaded();
     }
 
     public static ConfigBase byType(ModConfig.Type type) {
@@ -48,11 +55,12 @@ public class KaboomConfig {
     }
 
     public static void register(ModContainer container) {
-
+        client = register(KaboomClientConfig::new, ModConfig.Type.CLIENT);
         server = register(KaboomServerConfig::new, ModConfig.Type.SERVER);
 
-        for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet())
+        for (Map.Entry<ModConfig.Type, ConfigBase> pair : CONFIGS.entrySet()) {
             container.registerConfig(pair.getKey(), pair.getValue().specification);
+        }
     }
 
     @SubscribeEvent
@@ -72,8 +80,8 @@ public class KaboomConfig {
     }
 
     public static BaseConfigScreen createConfigScreen(ModContainer container, Screen parent) {
-        BaseConfigScreen.setDefaultActionFor(CreateKaboom.MODID, (base) -> base
-                .withSpecs(null,
+        BaseConfigScreen.setDefaultActionFor(CreateKaboom.MODID, base -> base
+                .withSpecs(KaboomConfig.client().specification,
                         null,
                         KaboomConfig.server().specification));
 

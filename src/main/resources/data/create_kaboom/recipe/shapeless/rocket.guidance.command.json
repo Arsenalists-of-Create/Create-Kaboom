@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create_kaboom:rocket"
+    },
+    {
+      "item": "create_kaboom:missile_command_guidance_small"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:rocket.guidance.command"
+  }
+}

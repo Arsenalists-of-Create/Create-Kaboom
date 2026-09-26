@@ -20,7 +20,8 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         super(pType, pPos, pBlockState);
     }
 
-    public double tx = 0.5, ty = 80.0, tz = -5000.5;
+    public double tx = 0.0, ty = 0.0, tz = 0.0;
+    private boolean hasTarget = false;
     private boolean highArc = false;
 
     private MissileFlightProfile profile = MissileFlightProfile.defaults();
@@ -35,6 +36,7 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         this.tx = p.x;
         this.ty = p.y;
         this.tz = p.z;
+        this.hasTarget = true;
         this.highArc = highArc;
         setChanged();
         if (level != null && !level.isClientSide) {
@@ -50,6 +52,10 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
         return new Vec3(tx, ty, tz);
     }
 
+    public boolean hasTarget() {
+        return hasTarget;
+    }
+
     public boolean isHighArc() {
         return highArc;
     }
@@ -58,6 +64,7 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
+        tag.putBoolean("HasTarget", hasTarget);
         tag.putDouble("TX", tx); tag.putDouble("TY", ty); tag.putDouble("TZ", tz);
         tag.putBoolean("HighArc", highArc);
         tag.put("Profile", profile.toTag());
@@ -66,7 +73,12 @@ public class GPSGuidanceBlockEntity extends BlockEntity implements IMissileGuida
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        if (tag.contains("TX")) { tx=tag.getDouble("TX"); ty=tag.getDouble("TY"); tz=tag.getDouble("TZ"); }
+        if (tag.contains("TX")) {
+            tx=tag.getDouble("TX"); ty=tag.getDouble("TY"); tz=tag.getDouble("TZ");
+            hasTarget = !tag.contains("HasTarget") || tag.getBoolean("HasTarget");
+        } else {
+            hasTarget = false;
+        }
         if (tag.contains("HighArc")) highArc = tag.getBoolean("HighArc");
         if (tag.contains("Profile")) profile = MissileFlightProfile.fromTag(tag.getCompound("Profile"));
     }

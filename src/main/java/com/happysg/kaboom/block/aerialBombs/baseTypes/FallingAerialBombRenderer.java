@@ -1,7 +1,6 @@
 package com.happysg.kaboom.block.aerialBombs.baseTypes;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -10,13 +9,15 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends EntityRenderer<T> {
     private final BlockRenderDispatcher dispatcher;
@@ -36,24 +37,15 @@ public class FallingAerialBombRenderer<T extends AerialBombProjectile> extends E
         if (renderState.getRenderShape() == RenderShape.MODEL) {
             Level level = entity.level();
             if (renderState != level.getBlockState(entity.blockPosition()) && renderState.getRenderShape() != RenderShape.INVISIBLE) {
-                float i = Math.min(1.0f, (float) entity.getTime() / entity.getTimeRequired());
                 poseStack.pushPose();
-                Direction facing = entity.getFacing();
-                switch (facing) {
-                    case NORTH:
-                        poseStack.mulPose(Axis.XN.rotationDegrees(90*i));
-                        break;
-                    case SOUTH:
-                        poseStack.mulPose(Axis.XP.rotationDegrees(90*i));
-                        break;
-                    case WEST:
-                        poseStack.mulPose(Axis.ZP.rotationDegrees(90*i));
-                        break;
-                    case EAST:
-                        poseStack.mulPose(Axis.ZN.rotationDegrees(90*i));
-                        break;
-                    default:
-                        break;
+                Vec3 velocity = entity.getInterpolatedRenderVelocity(partialTicks);
+                if (velocity.lengthSqr() > 1.0E-8) {
+                    Vector3f modelFacing = new Vector3f(
+                            entity.getFacing().getStepX(),
+                            entity.getFacing().getStepY(),
+                            entity.getFacing().getStepZ());
+                    Vector3f motionFacing = velocity.toVector3f().normalize();
+                    poseStack.mulPose(new Quaternionf().rotationTo(modelFacing, motionFacing));
                 }
                 poseStack.translate(0, -0.5, 0);
                 poseStack.pushPose();

@@ -1,0 +1,36 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    },
+    {
+      "item": "create_kaboom:tiny_aerial_bomb"
+    }
+  ],
+  "result": {
+    "id": "create_kaboom:cluster_aerial_bomb"
+  }
+}

@@ -1,13 +1,12 @@
 package com.happysg.kaboom.block.missiles.util;
 
 import com.happysg.kaboom.CreateKaboom;
-import net.minecraft.client.Minecraft;
+import com.happysg.kaboom.client.ClientPacketHandlers;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public class PreciseMotionSyncPacket implements CustomPacketPayload {
@@ -68,14 +67,10 @@ public class PreciseMotionSyncPacket implements CustomPacketPayload {
     }
 
     public static void handle(PreciseMotionSyncPacket pkt, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> {
-            Entity entity = Minecraft.getInstance().level.getEntity(pkt.entityId);
-            if (entity != null) {
-                entity.lerpTo(pkt.x, pkt.y, pkt.z, pkt.yRot, pkt.xRot, pkt.lerpSteps);
-                entity.lerpMotion(pkt.dx, pkt.dy, pkt.dz);
-                entity.setOnGround(pkt.onGround);
-            }
-        });
+        ctx.enqueueWork(() -> ClientPacketHandlers.handlePreciseMotion(
+                pkt.entityId, pkt.x, pkt.y, pkt.z,
+                pkt.dx, pkt.dy, pkt.dz, pkt.yRot, pkt.xRot,
+                pkt.onGround, pkt.lerpSteps));
     }
 
     @Override

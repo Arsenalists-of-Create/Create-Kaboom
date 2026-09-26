@@ -306,7 +306,8 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
             }
             Vec3 spallLoc = hitLoc.add(curVel.normalize().scale(2));
             if (!this.level().isClientSide) {
-                com.happysg.kaboom.compat.CBCExplosionHelper.createImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2, Explosion.BlockInteraction.KEEP);
+                ImpactExplosion explosion = new ImpactExplosion(this.level(), this, this.indirectArtilleryFire(false), spallLoc.x, spallLoc.y, spallLoc.z, 2,2, Explosion.BlockInteraction.KEEP);
+                CreateBigCannons.handleCustomExplosion(this.level(), explosion);
             }
             SoundType sound = state.getSoundType(this.level(), pos, this);
             if (!this.level().isClientSide)
@@ -329,15 +330,17 @@ public class ClusterBombletProjectile extends AbstractCannonProjectile {
 
         float pwr = explosionPower / Math.max(1, size);
 
-        com.happysg.kaboom.compat.CBCExplosionHelper.createShellExplosion(
+        ShellExplosion explosion = new ShellExplosion(
                 level(),
                 this,
                 this.indirectArtilleryFire(false),
                 pos.x(), pos.y(), pos.z(),
-                pwr,
+                pwr,pwr,
                 causesFire,
                 CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction()
         );
+
+        CreateBigCannons.handleCustomExplosion(level(), explosion);
     }
 
     public void setFuzeStack(ItemStack stack) {

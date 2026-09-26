@@ -41,9 +41,11 @@ public class GPSScreen extends AbstractSimiScreen {
         zBox = createNumberBox(x + 120, y + 30);
 
         Vec3 initial = getInitialTarget();
-        xBox.setValue(formatNumber(initial.x));
-        yBox.setValue(formatNumber(initial.y));
-        zBox.setValue(formatNumber(initial.z));
+        if (initial != null) {
+            xBox.setValue(formatNumber(initial.x));
+            yBox.setValue(formatNumber(initial.y));
+            zBox.setValue(formatNumber(initial.z));
+        }
 
         addRenderableWidget(xBox);
         addRenderableWidget(yBox);
@@ -68,6 +70,10 @@ public class GPSScreen extends AbstractSimiScreen {
 
     private void commitToServerIfDirty() {
         if (sent) return;
+        if (isBlankOrPartial(xBox) && isBlankOrPartial(yBox) && isBlankOrPartial(zBox)) {
+            sent = true;
+            return;
+        }
 
         double x = parseNumber(xBox, 0.0);
         double y = parseNumber(yBox, 0.0);
@@ -100,13 +106,13 @@ public class GPSScreen extends AbstractSimiScreen {
     private Vec3 getInitialTarget() {
         Minecraft mc = Minecraft.getInstance();
         Level level = mc.level;
-        if (level == null) return Vec3.ZERO;
+        if (level == null) return null;
 
         BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof GPSGuidanceBlockEntity gps) {
+        if (be instanceof GPSGuidanceBlockEntity gps && gps.hasTarget()) {
             return gps.getTarget();
         }
-        return Vec3.ZERO;
+        return null;
     }
 
     private static String formatNumber(double v) {
@@ -123,5 +129,10 @@ public class GPSScreen extends AbstractSimiScreen {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private static boolean isBlankOrPartial(EditBox box) {
+        String text = box.getValue();
+        return text == null || text.isBlank() || text.equals("-") || text.equals(".") || text.equals("-.");
     }
 }

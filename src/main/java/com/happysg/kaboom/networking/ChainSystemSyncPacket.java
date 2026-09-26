@@ -1,16 +1,13 @@
 package com.happysg.kaboom.networking;
 
 import com.happysg.kaboom.CreateKaboom;
-import com.happysg.kaboom.block.missiles.MissileEntity;
-import com.happysg.kaboom.block.missiles.chaining.client.ChainRenderer;
-import net.minecraft.client.Minecraft;
+import com.happysg.kaboom.client.ClientPacketHandlers;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public class ChainSystemSyncPacket implements CustomPacketPayload {
@@ -37,14 +34,7 @@ public class ChainSystemSyncPacket implements CustomPacketPayload {
     }
 
     public static void handle(ChainSystemSyncPacket pkt, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> {
-            if (Minecraft.getInstance().level == null) return;
-            Entity entity = Minecraft.getInstance().level.getEntity(pkt.entityId);
-            if (entity instanceof MissileEntity missile) {
-                missile.getChainSystem().load(pkt.chainSystemTag);
-                ChainRenderer.TRACKED_MISSILES.add(pkt.entityId);
-            }
-        });
+        ctx.enqueueWork(() -> ClientPacketHandlers.handleChainSync(pkt.entityId, pkt.chainSystemTag));
     }
 
     @Override

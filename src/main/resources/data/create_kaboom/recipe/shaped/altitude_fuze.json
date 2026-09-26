@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "minecraft:redstone_dust"
+    },
+    "G": {
+      "item": "minecraft:water_bottle"
+    }
+  },
+  "pattern": [
+    "P",
+    "G"
+  ],
+  "result": {
+    "count": 4,
+    "id": "create_kaboom:altitude_fuze"
+  },
+  "show_notification": true
+}

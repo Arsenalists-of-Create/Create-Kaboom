@@ -1,0 +1,15 @@
+{
+  "type": "create:cutting",
+  "ingredients": [
+    {
+      "item": "createbigcannons:shrapnel_shell"
+    }
+  ],
+  "processing_time": 200,
+  "results": [
+    {
+      "count": 1,
+      "id": "create_kaboom:frag_aerial_bomb"
+    }
+  ]
+}

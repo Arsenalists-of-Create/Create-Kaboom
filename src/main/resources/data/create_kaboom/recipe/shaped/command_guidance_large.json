@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "create:iron_sheet"
+    },
+    "G": {
+      "item": "create:precision_mechanism"
+    },
+    "F": {
+      "item": "create_radars:data_link"
+    }
+  },
+  "pattern": [
+    "PGP",
+    "PFP",
+    "PGP"
+  ],
+  "result": {
+    "id": "create_kaboom:command_guidance_large"
+  },
+  "show_notification": true
+}

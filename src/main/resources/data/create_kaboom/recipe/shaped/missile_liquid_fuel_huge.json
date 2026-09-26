@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": {
+      "item": "create:iron_sheet"
+    }
+  },
+  "pattern": [
+    "P P",
+    "P P",
+    "P P"
+  ],
+  "result": {
+    "id": "create_kaboom:missile_liquid_fuel_huge"
+  },
+  "show_notification": true
+}

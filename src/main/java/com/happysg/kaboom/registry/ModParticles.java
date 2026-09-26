@@ -2,6 +2,7 @@ package com.happysg.kaboom.registry;
 
 import com.happysg.kaboom.CreateKaboom;
 import com.happysg.kaboom.block.missiles.util.MissileAttachedParticleOptions;
+import com.happysg.kaboom.block.missiles.util.MissileLaunchSmokeOptions;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -18,6 +19,20 @@ public class ModParticles {
 
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_SMOKE =
             PARTICLES.register("missile_smoke", () -> new SimpleParticleType(false));
+    public static final DeferredHolder<ParticleType<?>, ParticleType<MissileLaunchSmokeOptions>> MISSILE_LAUNCH_SMOKE =
+            PARTICLES.register("missile_launch_smoke", () -> new ParticleType<>(false) {
+                @Override
+                public MapCodec<MissileLaunchSmokeOptions> codec() {
+                    return MissileLaunchSmokeOptions.CODEC;
+                }
+
+                @Override
+                public StreamCodec<? super RegistryFriendlyByteBuf, MissileLaunchSmokeOptions> streamCodec() {
+                    return MissileLaunchSmokeOptions.STREAM_CODEC;
+                }
+            });
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> ROCKET_LAUNCH_SMOKE =
+            PARTICLES.register("rocket_launch_smoke", () -> new SimpleParticleType(false));
     public static final DeferredHolder<ParticleType<?>, ParticleType<MissileAttachedParticleOptions>> MISSILE_ATTACHED =
             PARTICLES.register("missile_attached", () ->
                     new ParticleType<>(false) {

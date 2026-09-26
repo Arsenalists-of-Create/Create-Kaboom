@@ -258,11 +258,7 @@ public class ChainRenderer {
         ms.translate(worldPos.x - camera.x, worldPos.y - camera.y, worldPos.z - camera.z);
 
         if (missile != null) {
-            float yaw = -Mth.lerp(partialTick, missile.yRotO, missile.getYRot());
-            float pitch = Mth.lerp(partialTick, missile.xRotO, missile.getXRot());
-            var ts = TransformStack.of(ms);
-            ts.rotateYDegrees(yaw);
-            ts.rotateXDegrees(pitch);
+            ms.mulPose(missile.getAssemblyToHeadingRotation());
         }
 
         ms.translate(

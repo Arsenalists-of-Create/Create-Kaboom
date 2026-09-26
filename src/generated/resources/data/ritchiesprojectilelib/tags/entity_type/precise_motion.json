@@ -1,6 +1,9 @@
 {
   "values": [
     "create_kaboom:aerial_bomb_projectile",
-    "create_kaboom:cluster_bomblet"
+    "create_kaboom:cluster_bomblet",
+    "create_kaboom:missile",
+    "create_kaboom:missile_warhead_projectile",
+    "create_kaboom:unguided_rocket"
   ]
 }
