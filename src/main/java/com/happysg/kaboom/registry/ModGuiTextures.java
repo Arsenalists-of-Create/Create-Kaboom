@@ -14,7 +14,9 @@ public enum ModGuiTextures implements ScreenElement {
     ALT_FUSE_SCREEN("altitude_fuze_gui",187,78),
     CHECK("altitude_fuze_gui",156,56,16,16),
     GPS_SCREEN_BG("gps_guidance_gui",179,83),
-    TARGET("gps_guidance_gui",147,60,16,16);
+    TARGET("gps_guidance_gui",147,60,16,16),
+    SEA_MINE_SCREEN("sea_mine_gui", 188, 101),
+    SEA_MINE_CHECK("sea_mine_gui", 156, 78, 16, 16);
 
     public static final int FONT_COLOR = 0x575F7A;
 

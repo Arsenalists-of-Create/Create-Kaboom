@@ -52,13 +52,10 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.MISSILE_FUEL_SMALL);
         pOutput.accept(ModBlocks.MISSILE_THRUSTER);
         pOutput.accept(ModBlocks.MISSILE_FUEL);
-//        pOutput.accept(ModBlocks.MISSILE_THRUSTER_HUGE);
-//        pOutput.accept(ModBlocks.MISSILE_FUEL_HUGE);
 
         pOutput.accept(ModBlocks.GPS_GUIDANCE_LARGE);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_SMALL);
         pOutput.accept(ModBlocks.GPS_GUIDANCE_HUGE);
-
 
         pOutput.accept(ModBlocks.LARGE_CLUSTER_WARHEAD);
         pOutput.accept(ModBlocks.LARGE_HIGH_EXPLOSIVE_WARHEAD);
@@ -66,24 +63,14 @@ public class ModCreativeTabs {
         pOutput.accept(ModBlocks.LARGE_FRAGMENTATION_WARHEAD);
         pOutput.accept(ModBlocks.LARGE_FLUID_WARHEAD);
 
-//        pOutput.accept(ModBlocks.HUGE_CLUSTER_WARHEAD);
-//        pOutput.accept(ModBlocks.HUGE_HIGH_EXPLOSIVE_WARHEAD);
-//        pOutput.accept(ModBlocks.HUGE_ARMOR_PIERCING_WARHEAD);
-//        pOutput.accept(ModBlocks.HUGE_FRAGMENTATION_WARHEAD);
-
-        //pOutput.accept(ModBlocks.HUGE_FLUID_WARHEAD);
         pOutput.accept(ModBlocks.RADAR_GUIDANCE_SMALL);
         pOutput.accept(ModBlocks.RADAR_GUIDANCE_LARGE);
-
-
 
         if (Mods.CREATE_RADAR.isLoaded()) {
             pOutput.accept(ModBlocks.ARAD_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.ARAD_GUIDANCE_LARGE);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_SMALL);
             pOutput.accept(ModBlocks.COMMAND_GUIDANCE_LARGE);
-//            pOutput.accept(ModBlocks.COMMAND_GUIDANCE_HUGE);
-            //pOutput.accept(ModBlocks.TARGET_COORDINATOR);
         }
 
         pOutput.accept(ModBlocks.ROCKET_POD_CENTER);
@@ -105,12 +92,9 @@ public class ModCreativeTabs {
         pOutput.accept(ModItems.ORANGE_TRACER_TIP);
 
         pOutput.accept(ModItems.ALTITUDE_FUZE);
-
-
-//        solid rocket small
-//        solid rocket large
-
-
+        pOutput.accept(ModBlocks.LANDMINE);
+        pOutput.accept(ModBlocks.SEA_MINE);
+        pOutput.accept(ModItems.MINE_FUZE);
     }
 
     public static void register(IEventBus eventBus) {

@@ -40,6 +40,17 @@ public class ModBlockEntityTypes {
                             ModBlocks.SMALL_FLUID_AERIAL_BOMB
                     )
                     .register();
+    public static final BlockEntityEntry<com.happysg.kaboom.block.landmine.LandmineBlockEntity> LANDMINE_BE = REGISTRATE
+            .blockEntity("landmine_be", com.happysg.kaboom.block.landmine.LandmineBlockEntity::new)
+            .validBlocks(ModBlocks.LANDMINE)
+            .renderer(() -> com.happysg.kaboom.block.landmine.LandmineBlockEntityRenderer::new)
+            .register();
+
+    public static final BlockEntityEntry<com.happysg.kaboom.block.seamine.SeaMineBlockEntity> SEA_MINE_BE = REGISTRATE
+            .blockEntity("sea_mine_be", com.happysg.kaboom.block.seamine.SeaMineBlockEntity::new)
+            .validBlocks(ModBlocks.SEA_MINE)
+            .renderer(() -> com.happysg.kaboom.block.seamine.SeaMineBlockEntityRenderer::new)
+            .register();
 
     public static final BlockEntityEntry<MissileWarheadBlockEntity> MISSILE_WARHEAD = REGISTRATE
             .blockEntity("missile_warhead", MissileWarheadBlockEntity::new)

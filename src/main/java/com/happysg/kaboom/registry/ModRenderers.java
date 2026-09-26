@@ -17,6 +17,7 @@ public class ModRenderers {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.MISSILE.get(), MissileRenderer::new);
+        event.registerEntityRenderer(ModEntities.SEA_MINE.get(), com.happysg.kaboom.block.seamine.SeaMineEntityRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntityTypes.AERIAL_BOMB.get(), AerialBombFuzeRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntityTypes.FLUID_AERIAL_BOMB_BE.get(), AerialBombFuzeRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntityTypes.MISSILE_WARHEAD.get(), FuzedBlockEntityRenderer::new);

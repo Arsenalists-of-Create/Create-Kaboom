@@ -166,6 +166,9 @@ dependencies {
     compileOnly "maven.modrinth:rpl:${rpl_version}"
     runtimeOnly "maven.modrinth:rpl:${rpl_version}"
 
+    runtimeOnly "maven.modrinth:sable:1L6XJqnY"
+    runtimeOnly "maven.modrinth:create-aeronautics:w7zlLnea"
+
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
     runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"

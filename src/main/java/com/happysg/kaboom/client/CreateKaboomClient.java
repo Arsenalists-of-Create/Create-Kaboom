@@ -93,6 +93,12 @@ public final class CreateKaboomClient {
         event.register(ModelResourceLocation.standalone(
                 ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "block/chain_anchor")
         ));
+        event.register(ModelResourceLocation.standalone(
+                ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "block/sea_mine_body")
+        ));
+        event.register(ModelResourceLocation.standalone(
+                ResourceLocation.fromNamespaceAndPath(CreateKaboom.MODID, "block/sea_mine_horns")
+        ));
     }
 
     private static void registerGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
