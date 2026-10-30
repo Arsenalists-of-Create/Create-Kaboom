@@ -2,7 +2,7 @@
   "type": "create:cutting",
   "ingredients": [
     {
-      "item": "create_kaboom:cluster_aerial_bomb"
+      "item": "create_kaboom:cluster_heavy_aerial_bomb"
     }
   ],
   "processing_time": 200,

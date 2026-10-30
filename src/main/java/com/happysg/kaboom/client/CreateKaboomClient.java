@@ -45,7 +45,6 @@ public final class CreateKaboomClient {
         modEventBus.addListener(CreateKaboomClient::registerAdditionalModels);
         modEventBus.addListener(CreateKaboomClient::registerGeometryLoaders);
         modEventBus.addListener(ShoulderRocketPose::register);
-        NeoForge.EVENT_BUS.register(CreateKaboomClient.class);
         NeoForge.EVENT_BUS.addListener(RocketTooltipHandler::onItemTooltip);
         NeoForge.EVENT_BUS.addListener(CreateKaboomClient::computeFovModifier);
         container.registerExtensionPoint(IConfigScreenFactory.class, KaboomConfig::createConfigScreen);

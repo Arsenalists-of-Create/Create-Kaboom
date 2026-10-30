@@ -6,7 +6,7 @@
       "item": "createbigcannons:smoke_shell"
     },
     "G": {
-      "item": "missile_liquid_fuel_small"
+      "item": "create_kaboom:missile_liquid_fuel_small"
     },
     "B": {
       "item": "create_kaboom:missile_liquid_thruster_small"
@@ -19,7 +19,10 @@
   ],
   "result": {
     "count": 4,
-    "id": "create_kaboom:rocket.payload.smoke"
+    "id": "create_kaboom:rocket",
+    "components": {
+      "create_kaboom:rocket_payload": "smoke"
+    }
   },
   "show_notification": true
 }

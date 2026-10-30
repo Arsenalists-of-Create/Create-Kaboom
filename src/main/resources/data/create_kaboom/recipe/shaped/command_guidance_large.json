@@ -9,7 +9,7 @@
       "item": "create:precision_mechanism"
     },
     "F": {
-      "item": "create_radars:data_link"
+      "item": "create_radar:data_link"
     }
   },
   "pattern": [

@@ -3,10 +3,14 @@
   "category": "misc",
   "key": {
     "P": {
-      "item": "minecraft:redstone_dust"
+      "item": "minecraft:redstone"
     },
     "G": {
-      "item": "minecraft:water_bottle"
+      "type": "neoforge:components",
+      "items": "minecraft:potion",
+      "components": {
+        "minecraft:potion_contents": "minecraft:water"
+      }
     }
   },
   "pattern": [
