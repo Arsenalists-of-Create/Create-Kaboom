@@ -1,8 +1,8 @@
 package com.happysg.kaboom.compat.radars;
 
-import com.happysg.radar.targeting.ProjectileDynamics;
-import com.happysg.radar.targeting.ProjectileModel;
-import com.happysg.radar.targeting.ProjectileStep;
+import com.happysg.radar.api.weapon.ballistics.RadarProjectileDynamics;
+import com.happysg.radar.api.weapon.ballistics.RadarProjectileModel;
+import com.happysg.radar.api.weapon.ballistics.RadarProjectileStep;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -21,7 +21,7 @@ public record KaboomRocketProjectileModel(
         boolean quadraticDrag,
         double dragDensity,
         int maxFlightTicks
-) implements ProjectileModel {
+) implements RadarProjectileModel {
     public KaboomRocketProjectileModel {
         muzzleSpeed = finiteNonNegative(muzzleSpeed);
         boostAcceleration = finiteNonNegative(boostAcceleration);
@@ -44,7 +44,7 @@ public record KaboomRocketProjectileModel(
     }
 
     @Override
-    public ProjectileDynamics createDynamics(
+    public RadarProjectileDynamics createDynamics(
             Vec3 startPosition,
             Vec3 aimDirection,
             Vec3 inheritedVelocity
@@ -54,7 +54,7 @@ public record KaboomRocketProjectileModel(
                 && aimDirection.lengthSqr() > 1.0e-12
                 ? aimDirection.normalize()
                 : new Vec3(0.0, 1.0, 0.0);
-        return new ProjectileDynamics() {
+        return new RadarProjectileDynamics() {
             private double traveledDistance;
 
             @Override
@@ -67,7 +67,7 @@ public record KaboomRocketProjectileModel(
                     double velocityY,
                     double velocityZ,
                     Level level,
-                    ProjectileStep output
+                    RadarProjectileStep output
             ) {
                 double accelerationX;
                 double accelerationY;

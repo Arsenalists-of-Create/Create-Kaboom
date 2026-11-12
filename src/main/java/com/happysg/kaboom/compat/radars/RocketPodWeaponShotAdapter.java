@@ -16,6 +16,8 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import rbasamoyai.createbigcannons.cannon_control.cannon_mount.CannonMountBlockEntity;
+import rbasamoyai.createbigcannons.cannon_control.contraption.PitchOrientedContraptionEntity;
 import rbasamoyai.createbigcannons.munitions.config.DimensionMunitionProperties;
 import rbasamoyai.createbigcannons.munitions.config.DimensionMunitionPropertiesHandler;
 import rbasamoyai.createbigcannons.munitions.config.components.BallisticPropertiesComponent;
@@ -26,12 +28,16 @@ final class RocketPodWeaponShotAdapter {
 
     @Nullable
     static WeaponShotProfile resolve(WeaponShotContext context) {
-        if (!(context.weapon() instanceof RocketPodContraption pod)) {
+        if (!(context.level().getBlockEntity(context.mountPos()) instanceof CannonMountBlockEntity mount)) {
             return null;
         }
 
-        RocketPodContraption.NextRocketLaunch launch =
-                pod.getNextRocketLaunch(context.level(), context.entity());
+        PitchOrientedContraptionEntity entity = mount.getContraption();
+        if (entity == null || !(entity.getContraption() instanceof RocketPodContraption pod)) {
+            return null;
+        }
+
+        RocketPodContraption.NextRocketLaunch launch = pod.getNextRocketLaunch(context.level(), entity);
         if (launch == null) {
             return WeaponShotProfile.disabled(
                     fallbackMuzzle(context),
@@ -59,7 +65,7 @@ final class RocketPodWeaponShotAdapter {
             WeaponFirePreparation preparation =
                     RocketItem.getLinkedNetworkController(rocket) == null
                             ? fireContext -> prepareCommandRocket(
-                            fireContext, pod, launch)
+                            fireContext, pod, launch, entity)
                             : WeaponFirePreparation.READY;
             return WeaponShotProfile.direct(
                     launch.spawnPosition(),
@@ -129,19 +135,18 @@ final class RocketPodWeaponShotAdapter {
     private static boolean prepareCommandRocket(
             WeaponShotContext context,
             RocketPodContraption pod,
-            RocketPodContraption.NextRocketLaunch expected
+            RocketPodContraption.NextRocketLaunch expected,
+            PitchOrientedContraptionEntity entity
     ) {
         BlockPos filtererPos = NetworkData.get(context.level())
-                .getFiltererForWeaponMount(
-                        context.level().dimension(),
-                        context.mount().getBlockPos());
+                .getFiltererForWeaponMount(context.level().dimension(), context.mountPos());
         if (filtererPos == null
                 || !(context.level().getBlockEntity(filtererPos)
                 instanceof NetworkFiltererBlockEntity)) {
             return false;
         }
         return pod.linkNextCommandRocket(
-                context.entity(),
+                entity,
                 expected.rearPos(),
                 expected.slot(),
                 expected.rocket(),
@@ -175,10 +180,8 @@ final class RocketPodWeaponShotAdapter {
     }
 
     private static Vec3 fallbackMuzzle(WeaponShotContext context) {
-        Vec3 position = context.entity().toGlobalVector(
-                Vec3.atCenterOf(BlockPos.ZERO), 0.0F);
-        return finite(position)
-                ? position : context.mount().getBlockPos().getCenter();
+        Vec3 position = context.mount() == null ? null : context.mount().getAimOrigin();
+        return finite(position) ? position : context.mountPos().getCenter();
     }
 
     private static double configuredNonNegative(float value, double fallback) {

@@ -11,11 +11,12 @@ import com.happysg.kaboom.config.KaboomConfig;
 import com.happysg.kaboom.items.rocket.UnguidedRocketProjectile;
 import com.happysg.kaboom.registry.ModEntities;
 import com.happysg.kaboom.registry.ModProjectiles;
+import com.happysg.radar.api.tracking.RadarContact;
 import com.happysg.radar.block.behavior.networks.NetworkData;
 import com.happysg.radar.block.arad.aradnetworks.RadarContactRegistry;
 import com.happysg.radar.block.arad.aradnetworks.RadarContactRegistryData;
 import com.happysg.radar.block.arad.rwr.ExternalRwrEmitterRegistry;
-import com.happysg.radar.block.arad.rwr.RadarType;
+import com.happysg.radar.api.radar.rwr.RadarRwrTypes;
 import com.happysg.radar.block.controller.networkcontroller.NetworkFiltererBlockEntity;
 import com.happysg.radar.block.radar.behavior.IRadar;
 import com.happysg.radar.block.radar.track.RadarTrack;
@@ -219,7 +220,7 @@ final class CreateRadarIntegration implements RadarIntegration {
                         halfAngleDegrees,
                         targetShipId,
                         ExternalRwrEmitterRegistry.ThreatStage.valueOf(stage.name()),
-                        RadarType.AIRBORNE,
+                        RadarRwrTypes.AIRBORNE,
                         true,
                         new ExternalRwrEmitterRegistry.SelectionMetadata(
                                 emitterId,
@@ -255,7 +256,7 @@ final class CreateRadarIntegration implements RadarIntegration {
                         180.0D,
                         targetShipId,
                         ExternalRwrEmitterRegistry.ThreatStage.valueOf(stage.name()),
-                        RadarType.AIRBORNE,
+                        RadarRwrTypes.AIRBORNE,
                         true,
                         new ExternalRwrEmitterRegistry.SelectionMetadata(
                                 missileId,
@@ -637,7 +638,7 @@ final class CreateRadarIntegration implements RadarIntegration {
                         externalEmitterSourceId(emitterId), emitterId, position,
                         forward, range, (float) halfAngleDegrees);
         List<MovingTargetResolver.TargetData> result = new ArrayList<>();
-        for (RadarTrack reported : DirectionalJammingApi.reportedTracks(level, emitter, tracks)) {
+        for (RadarContact reported : DirectionalJammingApi.reportedTracks(level, emitter, tracks)) {
             MovingTargetResolver.TargetData raw = canonical.get(reported.getId());
             DirectionalJammingApi.GuidanceObservation observation =
                     DirectionalJammingApi.resolveGuidance(reported,
@@ -645,8 +646,8 @@ final class CreateRadarIntegration implements RadarIntegration {
                             raw == null ? null : raw.velocity());
             if (observation == null || !isFinite(observation.position())
                     || !isFinite(observation.velocity())) continue;
-            String category = reported.getTrackCategory() == null ? "unknown"
-                    : reported.getTrackCategory().name().toLowerCase(Locale.ROOT);
+            String category = reported.getCategory() == null ? "unknown"
+                    : reported.getCategory().name().toLowerCase(Locale.ROOT);
             result.add(new MovingTargetResolver.TargetData(reported.getId(), category,
                     observation.position(), observation.velocity(),
                     observation.scannedTime(), raw != null && raw.live(),
